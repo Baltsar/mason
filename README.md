@@ -24,6 +24,8 @@ Live page with the pitch film: https://mason-demo-eight.vercel.app
 | **Talks, when you take the call** | Three ElevenLabs agents: a debrief about today, a recall call that asks what you still know about your own project, and a tutor that stops a new person before they break a rule. |
 | **Keeps it as files you own** | The memory is also a folder of plain Markdown notes with links between them: projects, rules and the Work Map. Open `apprentice/wiki/` in Obsidian or any editor. |
 | **Hands it to every agent** | The same memory is an MCP server: `how_was_it_built`, `guardrails_for_agents`, `check_decision`. |
+| **Shows how you move** | Flow: the tools of the day with their own icons, and a line between two of them as thick as the jumps between them. Five tools, three habits, one band for the day; the rest is one press away. |
+| **Keeps the long view** | Days: a calendar of every day worked, back to the first day of each project, and each project's month as a strip. |
 
 ElevenLabs in the build: Agents (three), Scribe v2 Realtime, Text to Speech (Flash v2.5) and Text to Dialogue (v3) for a weekly two-voice recap.
 
@@ -43,7 +45,7 @@ The Apprentice Test:
 2. **What to ask.** The agent is given the projects, the moves between them, the detours and your own prompts, and is told never to ask what the screen already answers.
 3. **When it has understood.** It has explained the process back and you confirmed it. A correction is saved and said again first.
 4. **Whether the new hire learned.** Teach records what stopped them and what they got right on the second try.
-5. **Trust.** Go private stops everything at once. Password managers, mail, chat, banking and private windows are refused before anything is written, and counted but never named. Text is redacted before it is stored. Events, not screenshots.
+5. **Trust.** Go private stops everything at once. Password managers, mail, chat, banking and private windows are refused before anything is written, and counted but never named. Text is redacted before it is stored. Events, not screenshots. Settings says what Mason reads, what it sends and where it keeps it, with a switch on each.
 
 Stretch goals met: **agent-ready guardrails** (the Work Map is an MCP server) and **any language** (I explain in Swedish; the tutor teaches in English and quotes me as I said it).
 
@@ -64,11 +66,13 @@ flowchart LR
     server --> island["Island, panel, window<br/>Swift and WebKit"]
   end
   server <--> eleven["ElevenLabs<br/>Agents, Scribe, TTS, Dialogue"]
-  memory <--> claude["Claude CLI<br/>summaries, your own login"]
+  memory <--> claude["A model for summaries<br/>your Claude login, or any other"]
   map --> mcp["MCP server<br/>any agent"]
 ```
 
-Nothing leaves the Mac until a voice is used: then the words to be spoken, the audio of an answer, and for a call a summary of the day. Summaries go through your own Claude login, the same place the prompts already went.
+Nothing leaves the Mac until a voice is used: then the words to be spoken, the audio of an answer, and for a call a summary of the day. Summaries go through your own Claude login, the same place the prompts already went, or through any other model you point Mason at, one on the Mac included.
+
+A model is needed for two things only: the summary of a project and the script of the weekly recap. Watching, counting, Flow, Days, the questions in a session and the written check in Teach are plain code.
 
 ## Where things are
 
@@ -92,16 +96,21 @@ macOS 13 or later, Node 18 or later, Xcode command line tools. No packages to in
 Press the island in the menu bar. The first time it asks for Accessibility, which is how it sees which app and window you are in. Name, sound and the rest are under the gear in the app window.
 
 ```bash
-npm test                           # 30 tests, no network, no data of yours needed
+npm test                           # 42 tests, no network, no data of yours needed
 ```
 
 ## Limits
 
-- The memory is stored on the Mac, but the voice is not: speech, calls and dictation go through ElevenLabs, and summaries through your Claude login. Both have a switch in Settings. With ElevenLabs and summaries switched off, nothing leaves the Mac: Mason then speaks with the Mac's own voice, there are no calls, and the memory is your own words.
+- The memory is stored on the Mac, but the voice is not: speech, calls and dictation go through ElevenLabs, and summaries through your Claude login or the model you chose. Both have a switch in Settings. With ElevenLabs and summaries switched off, nothing leaves the Mac: Mason then speaks with the Mac's own voice, there are no calls, and the memory is your own words.
 - macOS only. The memory is built from Claude Code logs; chats in ChatGPT or on claude.ai are not on disk and are not read.
+- Flow knows a site by its window title, so Grok, X or YouTube in a browser are told apart, and a site that does not name itself counts as the browser. Chat and mail are left out unless you switch on naming them; then their name and the time are kept, never a title.
 - "How it is put together" comes from what the agents reported and the names of the files they changed. File contents are never read, and a line can be wrong where an agent was.
 - Live questions in a session and the written check in Teach are deterministic. The calls judge by meaning.
 - More in the app's [README](apprentice/README.md#boundaries-of-this-slice).
+
+## After the hackathon
+
+What was submitted to Hack-Nation 7 on 4 October 2026 is the tag `hack-nation-7`. Added after the deadline: Flow, Days, the switches for ElevenLabs, the agent logs and naming chat and mail, and the choice of model for summaries.
 
 ## What is not in this repository
 

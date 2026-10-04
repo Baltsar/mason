@@ -94,7 +94,25 @@ ELEVENLABS_API_KEY=...
 
 `ELEVENLABS_VOICE_ID` picks another voice, `ELEVENLABS_LANGUAGE` (for example `sv`) changes the language of the agent and of dictation. The key never reaches a page: the server hands out a single-use Scribe token and a signed call link.
 
-Project summaries send redacted excerpts of your prompts to Claude through your own login, the same place those prompts already went. `APPRENTICE_LLM=0` turns that off.
+## The model
+
+A model is used for two things: the summary of a project and the script of the weekly recap. Everything else is plain code. By default the model is Claude through your own login (the Claude Code CLI), the same place your prompts already went: it is sent redacted excerpts of them. To use another, name it in `.env.local`:
+
+```dotenv
+APPRENTICE_LLM_URL=http://127.0.0.1:11434/v1   # Ollama on this Mac; or any provider's OpenAI-style address
+APPRENTICE_LLM_MODEL=llama3.2
+APPRENTICE_LLM_KEY=                             # only when the provider asks for one
+```
+
+Anything that answers in the OpenAI chat format works. With a model on the Mac and ElevenLabs switched off, nothing leaves it. **Summaries** in Settings shows which model is writing and switches it off (`APPRENTICE_LLM=0` does the same); the memory is then your own words.
+
+## What it reads
+
+| | How | Kept |
+|---|---|---|
+| The screen | macOS Accessibility, which you grant once: the front app, the window title and the text of a prompt field. | Events, with redacted excerpts. Never pictures or keystrokes. |
+| Agent logs | Claude Code writes every session to `~/.claude/projects`. They are your own files and need no permission; Mason reads what you said, the names of the files the agents changed, and what they reported. Of Cursor it reads only which folder each workspace is, and when it was last used. | Redacted excerpts, file names, minutes per day. **Agent logs** in Settings switches it off. |
+| Chat and mail | Not read. Counted as a refusal. With **Chat and mail by name** switched on, the name of the app or site and the time spent there are kept, so Flow shows every jump. Password managers, banking, health and private windows are never named. | Name and time only, never a title. |
 
 ElevenLabs has a switch in Settings, next to what is left of the month's credits. Switched off, Mason speaks with the Mac's own voice, answers are typed, there are no calls, and nothing is sent or spent.
 
