@@ -2,6 +2,7 @@ import { open, readdir, readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { redact } from "./redact.mjs";
+import { settings } from "./settings.mjs";
 
 // A project is a folder the work happens in. Mason never asks for a list:
 // it reads the traces the tools already leave on this Mac.
@@ -9,6 +10,7 @@ import { redact } from "./redact.mjs";
 //   and every file its agent wrote.
 //   Cursor keeps the folder of every workspace and when it was last used.
 // Nothing is copied out of those files except a redacted excerpt of a prompt.
+// With "Agent logs" switched off in Settings, none of them is opened.
 
 const CLAUDE_DIR = path.join(os.homedir(), ".claude", "projects");
 const CURSOR_DIR = path.join(os.homedir(), "Library", "Application Support", "Cursor", "User", "workspaceStorage");
@@ -99,6 +101,7 @@ function absorb(log, line) {
 
 async function claudeProjects(since) {
   const found = new Map();
+  if (!settings().logs) return found;
   let folders = [];
   try { folders = await readdir(CLAUDE_DIR); } catch { return found; }
   for (const folder of folders) {
@@ -123,6 +126,7 @@ async function claudeProjects(since) {
 
 async function cursorWorkspaces(since) {
   const found = [];
+  if (!settings().logs) return found;
   let folders = [];
   try { folders = await readdir(CURSOR_DIR); } catch { return found; }
   for (const folder of folders) {
@@ -142,6 +146,7 @@ async function cursorWorkspaces(since) {
 // project is there from the first day it was worked on, not from the day
 // Mason was installed.
 async function logsOf(folder, since) {
+  if (!settings().logs) return [];
   const directory = path.join(CLAUDE_DIR, folder.replace(/[^A-Za-z0-9]/g, "-"));
   let files = [];
   try { files = (await readdir(directory)).filter((name) => name.endsWith(".jsonl")); } catch { return []; }
@@ -155,6 +160,13 @@ async function logsOf(folder, since) {
     if (log) found.push(log);
   }
   return found;
+}
+
+// What there is to read on this Mac, for the settings screen: how many
+// project folders Claude Code keeps logs for, and how many Cursor workspaces.
+export async function logSources() {
+  const count = async (folder) => { try { return (await readdir(folder)).filter((name) => !name.startsWith(".")).length; } catch { return 0; } };
+  return { claude: await count(CLAUDE_DIR), cursor: await count(CURSOR_DIR) };
 }
 
 // Everything said to an agent in one project folder, as far back as asked.

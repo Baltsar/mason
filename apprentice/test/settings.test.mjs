@@ -40,3 +40,13 @@ test("switching ElevenLabs off takes the key away from everything that would cal
   assert.equal(process.env.ELEVENLABS_API_KEY, "a-key-for-the-test");
   assert.equal(voiceStatus().elevenLabs, true);
 });
+
+test("with the agents' logs switched off, none of them is read", async () => {
+  const { projectIndex, projectHistory } = await import("../src/projects.mjs");
+  await saveSettings({ logs: false });
+  const index = await projectIndex(0, { maxAgeMs: 0 });
+  assert.deepEqual(index.list, []);
+  assert.deepEqual(await projectHistory("/any/folder", 0), []);
+  await saveSettings({ logs: true });
+  assert.equal((await loadSettings()).logs, true);
+});
