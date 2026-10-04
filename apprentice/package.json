@@ -1,9 +1,9 @@
 {
-  "name": "apprentice-local-harness",
+  "name": "mason-local-harness",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A local-first apprentice that turns real work into sourced decisions, recaps and an MCP.",
+  "description": "Mason: a local workflow assistant that was there. It turns real work into a memory of how it was built, sourced decisions and an MCP.",
   "scripts": {
     "build:reader": "node scripts/build-reader.mjs",
     "start": "node scripts/build-reader.mjs && node src/server.mjs",

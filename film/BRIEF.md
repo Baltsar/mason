@@ -1,5 +1,11 @@
 # Apprentice: brief for the demo videos
 
+> **13:35, 4 Oct: the product is now called MASON.** The apprentice is the mason. Every "Apprentice" below reads "Mason".
+> - The app is `apprentice/Mason.app`. The folder is still `apprentice/`.
+> - The island's mark is the stone logo (`new brand/logo_.png`), not the L. Footage from before 13:35 shows the old mark and the old name.
+> - The look: the strong green is kept for the figures; the greys are warm stone; gold (#d6a647) replaced violet for questions, private and the agent's voice.
+> - The voice agents call themselves Mason. In a call the word for its turn is `MASON`.
+
 Written 4 Oct, about 10:15, by the session that builds the app. It adds to `SHOOT.md`; the three films stay. What is new: a sharper story, three new things in the product, and a few lines in `SHOOT.md` that are no longer true (last section).
 
 ## The problem

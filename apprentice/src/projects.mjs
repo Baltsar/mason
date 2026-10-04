@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { redact } from "./redact.mjs";
 
-// A project is a folder the work happens in. Apprentice never asks for a list:
+// A project is a folder the work happens in. Mason never asks for a list:
 // it reads the traces the tools already leave on this Mac.
 //   Claude Code keeps one log per project folder, with every prompt and its time,
 //   and every file its agent wrote.
@@ -132,7 +132,7 @@ async function cursorWorkspaces(since) {
 // The logs of one project folder that were written to since a moment.
 // Claude Code names a project's log folder after its path, so the history of a
 // project is there from the first day it was worked on, not from the day
-// Apprentice was installed.
+// Mason was installed.
 async function logsOf(folder, since) {
   const directory = path.join(CLAUDE_DIR, folder.replace(/[^A-Za-z0-9]/g, "-"));
   let files = [];

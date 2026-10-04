@@ -13,7 +13,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.dirname(here);
 const app = path.join(root, "apprentice");
 const dist = path.join(here, "dist");
-const REPO = process.env.APPRENTICE_REPO || "https://github.com/Baltsar/apprentice";
+const REPO = process.env.MASON_REPO || "https://github.com/Baltsar/mason";
+// git clone makes a folder named after the repository; the app is one level in.
+const CLONE = path.basename(new URL(REPO).pathname).replace(/\.git$/, "");
 const PROJECT = "HACKNATION";
 const FILMS = ["01-team-introduction.mp4", "02-product-demo.mp4", "03-technical-walkthrough.mp4"];
 
@@ -33,8 +35,11 @@ await writeFile(path.join(dist, "teach-engine.js"), engine.replace(nodeImport, "
 
 const map = JSON.parse(await readFile(path.join(app, "data", "work-map.json"), "utf8"));
 const isPublic = (item) => item.source?.type !== "inferred" || item.source?.project === PROJECT;
+// The Work Map was written while the product was still called the apprentice.
+// The public copy carries the name it has now; the map on the Mac is not touched.
+const renamed = (text) => typeof text === "string" ? text.replace(/\bthe apprentice\b/gi, "Mason") : text;
 const decisions = map.decisions.filter(isPublic).map(({ id, kind, title, body, quote, moment, source }) => ({
-  id, kind, title, body, quote,
+  id, kind, title: renamed(title), body: renamed(body), quote: renamed(quote),
   moment: moment ? { at: moment.at, app: moment.app, evidence: moment.evidence } : null,
   source: { label: source?.label ?? "" },
 }));
@@ -43,8 +48,11 @@ await writeFile(path.join(dist, "workmap.json"), JSON.stringify({ decisions }, n
 const presets = JSON.parse(await readFile(path.join(here, "presets.json"), "utf8"));
 const page = (await readFile(path.join(here, "index.html"), "utf8"))
   .replaceAll("__REPO__", REPO)
+  .replaceAll("__CLONE__", CLONE)
   .replace("__PRESETS__", JSON.stringify(presets));
 await writeFile(path.join(dist, "index.html"), page);
+
+await copyFile(path.join(root, "film", "brand", "logo.png"), path.join(dist, "logo.png"));
 
 const missing = [];
 for (const film of FILMS) {

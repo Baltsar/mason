@@ -116,7 +116,7 @@ function briefing(facts, listener) {
     totals.busiest && `Busiest day: ${totals.busiest.day}, ${plural(totals.busiest.prompts, "instruction")}.`,
     totals.latestNight && `Latest in a night that work was still being handed out: ${totals.latestNight}.`,
     facts.quote && `Most repeated line of the week, ${facts.quote.times} times, in ${facts.quote.project}: "${facts.quote.example}"`,
-    `Apprentice now holds ${plural(facts.learned.rules, "rule")} of theirs, ${facts.learned.unasked} picked up without asking.`,
+    `Mason now holds ${plural(facts.learned.rules, "rule")} of theirs, ${facts.learned.unasked} picked up without asking.`,
     "",
     "Projects, most worked on first:",
     ...facts.projects.map(project),

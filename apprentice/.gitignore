@@ -4,4 +4,5 @@ data/events.jsonl
 data/state.json
 *.log
 .env.local
+Mason.app/
 Apprentice.app/

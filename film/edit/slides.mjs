@@ -13,7 +13,7 @@ const PORT = 9349;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const chrome = spawn(CHROME, [
-  "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run", "--disable-background-networking",
+  "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run", "--disable-background-networking", "--allow-file-access-from-files",
   `--user-data-dir=${path.join(here, ".stills", "chrome-slides")}`, `--remote-debugging-port=${PORT}`, "about:blank",
 ], { stdio: "ignore" });
 

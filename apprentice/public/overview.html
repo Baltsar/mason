@@ -4,13 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <title>Apprentice · today</title>
+    <title>Mason · today</title>
     <style>
       /* Every state of this panel is read in one to three seconds: one thing in
          large type, icons instead of labels, no explanations. */
       :root {
-        --ink: #0b0b0c; --paper: #f4f3ef; --muted: #9f9f9b; --line: #2b2b2e; --panel: #151517;
-        --lime: #d7ff42; --violet: #a98bff; --red: #ff6b5f; --grey: #7b7b82; --night: #120e1c;
+        --ink: #0e0d0b; --paper: #f3eee2; --muted: #a39d90; --line: #2e2b25; --panel: #171512;
+        --lime: #d7ff42; --gold: #d6a647; --red: #ff6b5f; --grey: #8c877d; --night: #18110a;
         --font: Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
         --mono: "SFMono-Regular", ui-monospace, Menlo, monospace;
         --ease: cubic-bezier(.2, .8, .2, 1);
@@ -48,7 +48,7 @@
       .who { display: flex; align-items: center; gap: 9px; min-width: 0; color: var(--muted); font: 600 11px/1 var(--mono); letter-spacing: .09em; text-transform: uppercase; }
       .who i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--grey); }
       .who[data-state="watching"] i { background: var(--lime); }
-      .who:is([data-state="private"], [data-state="private-surface"], [data-state="paused"]) i { background: var(--violet); }
+      .who:is([data-state="private"], [data-state="private-surface"], [data-state="paused"]) i { background: var(--gold); }
       .who[data-state="permission"] i { background: #ff9f43; }
       .who b { overflow: hidden; color: var(--paper); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
       .tools { display: flex; gap: 8px; }
@@ -72,26 +72,26 @@
       .big[data-group="other"] b { color: #8a8a90; }
 
       /* A question: the question, a field to answer in, a way out. */
-      .ask { position: relative; margin: 0 0 16px; padding: 16px 16px 18px; overflow: hidden; border-radius: 17px; background: var(--violet); color: var(--night); animation: arrive .42s var(--ease) both; }
+      .ask { position: relative; margin: 0 0 16px; padding: 16px 16px 18px; overflow: hidden; border-radius: 17px; background: var(--gold); color: var(--night); animation: arrive .42s var(--ease) both; }
       .ask h2 { margin: 0; padding-right: 34px; font-size: 25px; line-height: 1.06; letter-spacing: -.04em; font-weight: 700; text-wrap: balance; }
-      .ask .dismiss { position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: rgba(18, 14, 28, .12); color: var(--night); }
-      .ask .dismiss:hover { background: rgba(18, 14, 28, .22); }
+      .ask .dismiss { position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: rgba(24, 17, 10, .12); color: var(--night); }
+      .ask .dismiss:hover { background: rgba(24, 17, 10, .22); }
       .ask .dismiss svg { width: 10px; height: 10px; }
       .composer { position: relative; display: flex; align-items: flex-end; gap: 8px; min-height: 54px; margin-top: 14px; padding: 7px 7px 7px 16px; border-radius: 27px; background: var(--night); color: var(--paper); }
       .composer textarea { flex: 1; align-self: center; min-width: 0; max-height: 96px; padding: 0; resize: none; border: 0; outline: 0; background: transparent; font-size: 16px; line-height: 1.35; user-select: text; -webkit-user-select: text; }
-      .composer textarea::placeholder { color: #8d86a0; }
+      .composer textarea::placeholder { color: #a39a85; }
       .composer .live { display: none; flex: 1; align-self: center; min-width: 0; }
       .composer .live p { margin: 0 0 6px; font-size: 16px; line-height: 1.3; }
       .composer .live p:empty { display: none; }
       /* Before the first word: whether the microphone is open and hears anything. */
-      .composer .live p.ghost { color: #8d86a0; }
+      .composer .live p.ghost { color: #a39a85; }
       .composer[data-ear="hearing"] .live p.ghost { color: var(--lime); }
       .composer[data-ear="silent"] .live p.ghost { color: var(--red); }
       .composer .live canvas { display: block; width: 100%; height: 26px; }
       .composer .note { display: none; flex: 1; align-self: center; margin: 0; font-size: 16px; font-weight: 600; }
       .mic { background: var(--paper); color: var(--night); }
       .mic:hover { background: #fff; }
-      .send { display: none; background: var(--violet); color: var(--night); }
+      .send { display: none; background: var(--gold); color: var(--night); }
       .stop { display: none; position: relative; background: var(--lime); color: var(--night); }
       .stop::after { content: ""; position: absolute; inset: -5px; border: 2px solid var(--lime); border-radius: 50%; opacity: .5; animation: ring 1.4s ease-out infinite; }
       .composer[data-state="typing"] .send { display: grid; }
@@ -106,7 +106,7 @@
       .trouble { display: block; margin: 10px 2px 0; padding: 0; border: 0; background: none; color: var(--night); font-size: 14px; font-weight: 650; line-height: 1.3; text-align: left; }
       .trouble:empty { display: none; }
       .trouble[data-fix] { text-decoration: underline; text-underline-offset: 3px; }
-      .timer { position: absolute; inset: auto 0 0; height: 3px; background: rgba(18, 14, 28, .12); }
+      .timer { position: absolute; inset: auto 0 0; height: 3px; background: rgba(24, 17, 10, .12); }
       .timer i { display: block; height: 100%; background: var(--night); transform-origin: left; }
 
       /* A call: what is being said, who is talking, what was kept. */
@@ -130,7 +130,7 @@
       .ear .dot svg { width: 14px; height: 14px; }
       .ear canvas { display: block; flex: 1; min-width: 0; width: auto; height: 30px; }
       .ear b { flex: none; max-width: 46%; overflow: hidden; color: var(--tone); font: 600 11px/1.2 var(--mono); letter-spacing: .1em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; transition: color .2s; }
-      .call[data-ear="agent"] .ear { --tone: var(--violet); }
+      .call[data-ear="agent"] .ear { --tone: var(--gold); }
       .call[data-ear="open"] .ear { --tone: var(--paper); }
       .call[data-ear="hearing"] .ear { --tone: var(--lime); }
       .call[data-ear="hearing"] .ear .dot { background: var(--lime); color: var(--night); }
@@ -140,7 +140,7 @@
       .call .saved { display: grid; gap: 6px; margin-top: 10px; }
       .call .saved:empty { display: none; }
       .call .saved p { display: flex; align-items: center; gap: 9px; margin: 0; font-size: 14px; line-height: 1.25; animation: arrive .35s var(--ease) both; }
-      .call .saved p::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--violet); }
+      .call .saved p::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
       .call .saved p[data-kind="stopped"]::before { background: var(--red); }
       .call .saved p[data-kind="cleared"]::before { background: var(--lime); }
       .call[data-state="ended"] :is(.ear, .you) { display: none; }
@@ -152,7 +152,7 @@
       .access h2 { margin: 0; font-size: 27px; line-height: 1.06; letter-spacing: -.04em; font-weight: 680; text-wrap: balance; }
       html[data-access="needed"][data-mode="full"] .access { display: block; }
       html[data-access="needed"][data-mode="full"] :is(.headline, .bigs, .tools) { display: none; }
-      .call[data-state="ended"] .call-top i { background: var(--violet); }
+      .call[data-state="ended"] .call-top i { background: var(--gold); }
 
       @keyframes rise { to { opacity: 1; transform: none; } }
       @keyframes arrive { from { opacity: 0; transform: translateY(-10px) scale(.985); } }
@@ -409,7 +409,7 @@
             onUser: (text) => { $("#call-you").textContent = text; reportHeight(); },
             onInterrupt: () => $("#call-agent").classList.add("cut"),
             onSaved: (step) => { $("#call-saved").insertAdjacentHTML("beforeend", `<p data-kind="${esc(step.kind)}">${esc(step.title)}</p>`); reportHeight(); },
-            onLevels: (bars, who) => drawLevels($("#call-wave"), bars, who === "agent" ? "#a98bff" : node.dataset.ear === "silent" ? "#ff6b5f" : node.dataset.ear === "hearing" ? "#d7ff42" : "#77777d"),
+            onLevels: (bars, who) => drawLevels($("#call-wave"), bars, who === "agent" ? "#d6a647" : node.dataset.ear === "silent" ? "#ff6b5f" : node.dataset.ear === "hearing" ? "#d7ff42" : "#77777d"),
             onMic: (level, { muted, agent, duplex }) => {
               $("#call-dot").style.setProperty("--level", level.toFixed(2));
               if (node.dataset.state !== "live") return;
@@ -418,7 +418,7 @@
               const now = ear(level, { muted, floor: agent ? 0.3 : 0.09 });
               if (now === "silent") return setEar("silent", call?.device ? `No sound · ${call.device.replace(/\s*\(.*\)$/, "")}` : "No sound");
               if (now === "hearing") return setEar("hearing", "Hearing you");
-              setEar(agent ? "agent" : "open", agent ? (duplex === "half" ? "Tap to cut in" : "Apprentice") : "Your turn");
+              setEar(agent ? "agent" : "open", agent ? (duplex === "half" ? "Tap to cut in" : "Mason") : "Your turn");
             },
           });
           const result = await call.done;
@@ -479,7 +479,7 @@
         const locked = state.presence === "permission";
         document.documentElement.dataset.access = locked ? "needed" : "ok";
         if (!locked && fixing) { clearInterval(fixing); fixing = null; }
-        $("#access-line").textContent = fixing ? "Switch Apprentice on." : "Can’t see your work.";
+        $("#access-line").textContent = fixing ? "Switch Mason on." : "Can’t see your work.";
         $("#fix-access").textContent = fixing ? "Waiting" : "Fix access";
         $("#fix-access").disabled = Boolean(fixing);
         const who = $("#who");

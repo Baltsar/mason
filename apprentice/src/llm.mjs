@@ -20,7 +20,7 @@ export function askModel(system, prompt, { timeoutMs = 75_000, model = process.e
     if (!modelAvailable()) return resolve(null);
     // A summary needs no long deliberation: without thinking the same answer
     // comes in seconds instead of a minute. A session's own CLAUDE_* settings
-    // are not passed on, so the call behaves the same however Apprentice was started.
+    // are not passed on, so the call behaves the same however Mason was started.
     const env = { ...process.env, MAX_THINKING_TOKENS: "0" };
     for (const key of Object.keys(env)) if (/^CLAUDE_|^CLAUDECODE$/.test(key)) delete env[key];
     const child = spawn(bin, [

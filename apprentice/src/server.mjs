@@ -38,7 +38,7 @@ let desktopStartedAt = 0;
 const desktopPid = Number(process.env.APPRENTICE_DESKTOP_PID) || null;
 let stopping = false;
 
-const mime = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".json": "application/json; charset=utf-8" };
+const mime = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".json": "application/json; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp" };
 const short = (text, max = 64) => {
   const clean = String(text ?? "").replace(/\s+/g, " ").trim();
   return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
@@ -394,7 +394,7 @@ const server = http.createServer(async (request, response) => {
     if (url.pathname === "/api/call" && post) {
       const input = await body(request);
       const [map, runtime] = await Promise.all([loadMap(), loadRuntime()]);
-      // Recall: Apprentice asks the expert how their own project is put together.
+      // Recall: Mason asks the expert how their own project is put together.
       // The project is the one named, the one aimed at from the app window, or
       // the first one something is remembered about.
       if (input.kind === "recall" && input.action === "aim") {
@@ -562,7 +562,7 @@ const server = http.createServer(async (request, response) => {
       if (!text) return json(response, 400, { error: "Empty transcript" });
       const map = await loadMap();
       const source = "ElevenLabs Scribe v2 Realtime";
-      // A spoken sentence goes to whatever the apprentice asked last: a live
+      // A spoken sentence goes to whatever Mason asked last: a live
       // question, a debrief gap, or the teach-back waiting for a yes.
       const question = map.questions.find((item) => item.status === "open" && Date.now() - Date.parse(item.askedAt) > 4000);
       const gap = debriefProgress(map.debrief).current;
@@ -698,7 +698,7 @@ server.listen(port, "127.0.0.1", () => {
     desktop = spawn(paths.status, [], { stdio: "ignore", env: { ...process.env, APPRENTICE_URL: `http://127.0.0.1:${port}` } });
     desktopStartedAt = Date.now();
     desktop.once("error", () => { desktop = null; });
-    // Quitting the desktop app is how Apprentice is stopped. A crash is not a quit.
+    // Quitting the desktop app is how Mason is stopped. A crash is not a quit.
     desktop.once("exit", (code) => { desktop = null; if (code === 0) shutdown(); });
   }
   // The first read of the project logs takes a couple of seconds; do it before anyone asks.
@@ -706,8 +706,8 @@ server.listen(port, "127.0.0.1", () => {
   // Cheap when nothing was said since: a project is only summarised again
   // after new prompts, and at most every ten minutes.
   setInterval(refreshMemories, 60_000).unref();
-  console.log(`Apprentice is running locally: http://127.0.0.1:${port}`);
-  console.log("Stop with Ctrl+C or by quitting Apprentice. No data leaves this Mac unless an ElevenLabs key is configured.");
+  console.log(`Mason is running locally: http://127.0.0.1:${port}`);
+  console.log("Stop with Ctrl+C or by quitting Mason. No data leaves this Mac unless an ElevenLabs key is configured.");
 });
 
 for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, shutdown);

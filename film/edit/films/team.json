@@ -1,105 +1,74 @@
 {
   "out": "01-team-introduction.mp4",
+  "fit": 32.3,
+  "pause": {
+    "x0": 13.95
+  },
   "voices": {
-    "anchor": "onwK4e9ZLuTAKqWW03F9",
-    "reporter": "Xb7hH8MSUJpSbSDYk0k2",
-    "apprentice": "JBFqnCBsd6RMkjVDRZzb"
+    "narrator": "8HM5FCz1RLSISpAef8i0"
   },
   "lines": [
     {
-      "id": "a1",
-      "voice": "anchor",
-      "text": "The team is one person.",
-      "hl": "one person"
-    },
-    {
-      "id": "r1",
-      "voice": "reporter",
-      "text": "And us. We're Apprentice, the app he built.",
-      "say": "[deadpan] And us. We're Apprentice, the app he built.",
-      "hl": "Apprentice"
+      "id": "x0",
+      "voice": "narrator",
+      "text": "The team.",
+      "caption": false
     },
     {
       "id": "a2",
-      "voice": "anchor",
+      "voice": "narrator",
       "text": "Gustaf Garnow, designer, Stockholm. He builds by talking to agents.",
       "hl": "talking to agents"
     },
     {
       "id": "r2",
-      "voice": "reporter",
+      "voice": "narrator",
       "text": "This week: eight projects, a hundred and seventy-five instructions. On Wednesday the agents worked until thirteen past three.",
       "caption": "This week: 8 projects, 175 instructions. On Wednesday the agents worked until 03:13.",
       "hl": "03:13"
     },
     {
       "id": "a3",
-      "voice": "reporter",
-      "text": "A month later, he can't explain what he built. So he built us.",
-      "hl": "can't explain|So he built us."
+      "voice": "narrator",
+      "text": "A month later, he can't explain what he built. So he built me. I'm Mason.",
+      "hl": "can't explain|I'm Mason."
     },
     {
       "id": "r3",
-      "voice": "reporter",
-      "text": "We remember how he built it, ask him until it sticks, and hand his taste to every agent he uses.",
+      "voice": "narrator",
+      "text": "I remember how he built it, ask him until it sticks, and hand his taste to every agent he uses.",
       "hl": "remember|ask him until it sticks|every agent"
     },
     {
-      "id": "t1",
-      "voice": "anchor",
-      "text": "The expert is him, today. The new hire is him, in a month.",
-      "hl": "him, in a month"
-    },
-    {
       "id": "a4",
-      "voice": "anchor",
-      "text": "Next: the always-on apprentice, for every team.",
+      "voice": "narrator",
+      "text": "Next: a Mason for every team.",
       "hl": "for every team"
     },
     {
-      "id": "a5",
-      "voice": "anchor",
-      "text": "He would tell you this himself.",
-      "caption": false
-    },
-    {
-      "id": "r5",
-      "voice": "reporter",
-      "text": "He is talking to another agent.",
-      "say": "[deadpan] He is talking to another agent.",
-      "caption": false
-    },
-    {
       "id": "a6",
-      "voice": "anchor",
-      "text": "Apprentice. Learning by doing, without the forgetting.",
+      "voice": "narrator",
+      "text": "Mason. Learning by doing, without the forgetting.",
       "caption": false
     }
   ],
   "shots": [
     {
       "lines": [
-        "a1",
-        "r1"
+        "x0"
       ],
-      "bug": true,
       "clip": {
         "card": {
           "kind": "title",
-          "kicker": "Team news",
-          "headline": "The team is one person.",
-          "hl": "one person."
+          "kicker": "The team",
+          "headline": ""
         }
-      },
-      "slot": {
-        "src": "raw/me-team.mp4"
       }
     },
     {
       "lines": [
         "a2"
       ],
-      "bug": true,
       "clip": {
         "card": {
           "kind": "title",
@@ -107,16 +76,12 @@
           "headline": "Gustaf Garnow",
           "sub": "Designer · Stockholm · builds by talking to agents"
         }
-      },
-      "slot": {
-        "image": "raw/team.jpg"
       }
     },
     {
       "lines": [
         "r2"
       ],
-      "bug": true,
       "clip": {
         "card": {
           "kind": "stats",
@@ -131,9 +96,12 @@
         "a3"
       ],
       "clip": {
-        "src": "raw/built.mp4",
-        "in": 0,
-        "frame": true
+        "card": {
+          "kind": "title",
+          "kicker": "A month later",
+          "headline": "He can't explain what he built.",
+          "hl": "can't explain"
+        }
       }
     },
     {
@@ -141,28 +109,11 @@
         "r3"
       ],
       "clip": {
-        "src": "raw/built.mp4",
-        "in": 5.6,
-        "frame": true,
-        "zoom": {
-          "x": 24,
-          "y": 96,
-          "w": 1320,
-          "h": 742
-        }
-      }
-    },
-    {
-      "lines": [
-        "t1"
-      ],
-      "bug": true,
-      "clip": {
         "card": {
           "kind": "title",
-          "kicker": "The twist",
-          "headline": "The expert is him today. The new hire is him in a month.",
-          "hl": "him in a month."
+          "kicker": "Mason",
+          "headline": "Remembers. Asks. Hands it on.",
+          "hl": "Hands it on."
         }
       }
     },
@@ -170,34 +121,14 @@
       "lines": [
         "a4"
       ],
-      "bug": true,
       "clip": {
         "card": {
           "kind": "title",
           "kicker": "Next",
-          "headline": "The always-on apprentice, for every team.",
+          "headline": "A Mason for every team.",
           "sub": "People teach it first. Then every agent works inside the same guardrails.",
           "hl": "for every team."
         }
-      }
-    },
-    {
-      "lines": [
-        "a5",
-        "r5"
-      ],
-      "bug": true,
-      "clip": {
-        "card": {
-          "kind": "title",
-          "kicker": "Statement",
-          "headline": "He would tell you this himself.",
-          "sub": "He is talking to another agent.",
-          "hl": "himself."
-        }
-      },
-      "slot": {
-        "src": "raw/me-team-end.mp4"
       }
     },
     {
@@ -208,10 +139,9 @@
         "card": {
           "kind": "end",
           "tagline": "Learning by doing, without the forgetting.",
-          "foot": "github.com/Baltsar/apprentice"
+          "foot": "github.com/Baltsar/mason"
         }
       }
     }
-  ],
-  "fit": 57.2
+  ]
 }

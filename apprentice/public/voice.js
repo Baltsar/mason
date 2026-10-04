@@ -1,7 +1,7 @@
 // Push-to-talk dictation with ElevenLabs Scribe v2 Realtime.
 //
 // The microphone and the socket exist only between a press and the end of the
-// sentence, so nothing is streamed (or paid for) while Apprentice is waiting.
+// sentence, so nothing is streamed (or paid for) while Mason is waiting.
 
 const TARGET_RATE = 16000;
 const MAX_SECONDS = 45;

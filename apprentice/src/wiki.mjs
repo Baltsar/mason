@@ -27,7 +27,7 @@ export async function writeWiki(map) {
 export function buildRecap(map, events, activity = null) {
   const decisions = map.decisions.filter((item) => item.kind !== "context");
   const apps = [...new Set(events.filter((event) => event.app).map((event) => event.app))];
-  const summary = map.sessions[0]?.summary || "The apprentice does not have a complete session to summarize yet.";
+  const summary = map.sessions[0]?.summary || "Mason does not have a complete session to summarize yet.";
   const open = map.uncertainties.find((item) => item.status !== "resolved");
   const split = activity?.totalSeconds
     ? `Today was ${activity.workPercent} percent work, ${activity.socialPercent} percent social and ${activity.otherPercent} percent other, over ${Math.max(1, Math.round(activity.totalSeconds / 60))} active minutes.`

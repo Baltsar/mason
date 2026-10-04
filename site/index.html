@@ -4,14 +4,17 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="color-scheme" content="dark" />
-<title>Apprentice — learning by doing, without the forgetting</title>
-<meta name="description" content="I vibe-coded it. A month later I can't explain it. Apprentice was there: it remembers how I built it, asks me until it sticks, and hands my taste to every agent I use." />
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101010'/%3E%3Cpath d='M18 18v28h28' fill='none' stroke='%23d7ff42' stroke-width='8' stroke-linecap='round'/%3E%3Ccircle cx='45' cy='19' r='7' fill='%23a98bff'/%3E%3C/svg%3E" />
+<title>Mason — learning by doing, without the forgetting</title>
+<meta name="description" content="I vibe-coded it. A month later I can't explain it. Mason was there: it remembers how I built it, asks me until it sticks, and hands my taste to every agent I use." />
+<link rel="icon" type="image/png" href="logo.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&display=swap" />
 <style>
   :root {
-    --ink: #0b0b0c; --paper: #f4f3ef; --muted: #9f9f9b; --faint: #6c6c70; --line: #2b2b2e;
-    --panel: #151517; --raised: #1d1d20; --lime: #d7ff42; --violet: #a98bff; --red: #ff6b5f;
-    --font: Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    --ink: #1b120c; --paper: #eadfc6; --muted: #a99a82; --faint: #7d6d59; --line: #3d2c1f;
+    --panel: #261910; --raised: #2e2015; --lime: #dba743; --violet: #cf7a56; --red: #c2452f;
+    --font: "IM FELL English", "Iowan Old Style", Georgia, serif; --sans: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
     --mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
     --gutter: clamp(16px, 5vw, 72px);
   }
@@ -25,8 +28,8 @@
   section { padding-block: clamp(56px, 9vw, 120px); border-top: 1px solid var(--line); }
 
   .top { display: flex; align-items: center; justify-content: space-between; height: 64px; }
-  .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.03em; text-decoration: none; }
-  .brand svg { width: 22px; height: 22px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-size: 24px; line-height: 1; text-decoration: none; }
+  .brand img { width: 34px; height: 34px; }
   .top a.repo { color: var(--muted); font: 500 13px var(--mono); text-decoration: none; }
   .top a.repo:hover { color: var(--paper); }
 
@@ -44,9 +47,10 @@
   .stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: clamp(28px, 4vw, 56px); margin-top: clamp(32px, 5vw, 64px); }
   .stages h3 { font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
   .stages .big { margin-top: 10px; font-size: clamp(44px, 5.6vw, 84px); line-height: 1; font-weight: 700; letter-spacing: -.045em; white-space: nowrap; }
-  .stages .big i { font-style: normal; font-size: .42em; margin-left: .14em; color: var(--muted); font-weight: 600; }
+  .stages .big i { font-style: normal; font-size: .42em; margin-left: .14em; color: var(--muted); }
   .stages article:nth-child(1) .big { color: var(--lime); }
   .stages article:nth-child(2) .big { color: var(--violet); }
+  .stages article:nth-child(3) .big { color: var(--red); }
   .stages p { margin-top: 14px; max-width: 34ch; color: var(--muted); font-size: 16px; line-height: 1.45; }
 
   .try { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(16px, 2.4vw, 32px); margin-top: clamp(28px, 4vw, 56px); align-items: start; }
@@ -70,21 +74,29 @@
   .films video { border: 1px solid var(--line); border-radius: 14px; }
   .films figcaption { margin-top: 10px; color: var(--muted); font-size: 15px; }
 
-  pre.run { margin-top: clamp(24px, 3vw, 40px); padding: clamp(16px, 2vw, 26px); border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: #cfcfca; font: clamp(13px, 1.25vw, 17px)/1.7 var(--mono); overflow-x: auto; }
+  pre.run { margin-top: clamp(24px, 3vw, 40px); padding: clamp(16px, 2vw, 26px); border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: #d8ccb4; font: clamp(13px, 1.25vw, 17px)/1.7 var(--mono); overflow-x: auto; }
   pre.run b { color: var(--lime); font-weight: 400; }
   pre.run s { text-decoration: none; color: var(--faint); }
   .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px 40px; margin-top: 32px; color: var(--muted); font-size: 16px; line-height: 1.45; }
   .facts b { display: block; color: var(--paper); font-weight: 600; }
 
   footer { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; padding-block: 28px 40px; border-top: 1px solid var(--line); color: var(--faint); font: 13px var(--mono); }
+
+  /* Mason: IM Fell has one weight and wants almost no tightening. It carries the
+     headlines, the big figures and the quoted rule. Everything else is set in sans. */
+  h1, h2, .stages .big, .verdict h3 { font-weight: 400 !important; letter-spacing: -.012em !important; }
+  .hero p, .stages h3, .stages p, .facts, .chips button, textarea, .primary, .verdict p, .films figcaption { font-family: var(--sans); }
+  .stages .big { font-family: var(--font); }
+  /* IM Fell draws 1, 2 and 0 at x-height. Raised to cap height so the three figures read as one row. */
+  .stages .big .low { font-size: 1.4em; line-height: 0; }
 </style>
 </head>
 <body>
 
 <header class="top">
-  <a class="brand" href="#top" aria-label="Apprentice">
-    <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 16v30h30" fill="none" stroke="#d7ff42" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" /><circle cx="46" cy="18" r="7.5" fill="#a98bff" /></svg>
-    <span>Apprentice</span>
+  <a class="brand" href="#top" aria-label="Mason">
+    <img src="logo.png" alt="Mason" width="34" height="34">
+    <span>Mason</span>
   </a>
   <a class="repo" href="__REPO__">source on GitHub</a>
 </header>
@@ -92,7 +104,7 @@
 <main id="top">
   <section class="hero">
     <h1>Learning by doing, without the <em>forgetting.</em></h1>
-    <p>I vibe-coded it. A month later I can't explain it. Apprentice was there: it remembers how I built it, asks me until it sticks, and hands my taste to every agent I use.</p>
+    <p>I vibe-coded it. A month later I can't explain it. Mason was there: it remembers how I built it, asks me until it sticks, and hands my taste to every agent I use.</p>
     <div class="film"><video controls playsinline preload="metadata" src="films/02-product-demo.mp4"></video></div>
   </section>
 
@@ -100,7 +112,7 @@
     <p class="eyebrow"><b>01</b> What it does</p>
     <h2>A workflow assistant that was there.</h2>
     <div class="stages">
-      <article><h3>It remembers</h3><p class="big">120</p><p>Agent sessions in three weeks, across 37 folders. The memory is built from the logs already on the Mac: what was asked, which files changed, what I kept repeating.</p></article>
+      <article><h3>It remembers</h3><p class="big"><span class="low">120</span></p><p>Agent sessions in three weeks, across 37 folders. The memory is built from the logs already on the Mac: what was asked, which files changed, what I kept repeating.</p></article>
       <article><h3>It asks</h3><p class="big">6<i>s</i></p><p>While I work it waits until a prompt has been still for six seconds, then asks why, out loud. Later it quizzes me on my own project: “What do you remember?”</p></article>
       <article><h3>It hands it on</h3><p class="big">Stop.</p><p>A new person or another agent about to break one of my rules is stopped before it happens, in my own words. The same memory is an MCP server.</p></article>
     </div>
@@ -136,9 +148,9 @@
     <p class="eyebrow"><b>04</b> Run it</p>
     <h2>It lives on your Mac, not here.</h2>
 <pre class="run">git clone <b>__REPO__</b>
-cd apprentice
+cd __CLONE__/apprentice
 cp .env.local.example .env.local   <s># add an ElevenLabs key</s>
-open "Start Apprentice.command"</pre>
+open "Start Mason.command"</pre>
     <div class="facts">
       <p><b>Events, not pixels</b>No screenshots and no keystroke log. It reads the front app, the window title and the prompt field.</p>
       <p><b>Private by default</b>Password managers, mail, chat and banking are refused before anything is written. One press pauses everything.</p>
@@ -149,7 +161,7 @@ open "Start Apprentice.command"</pre>
 </main>
 
 <footer>
-  <span>Built solo by Gustaf Garnow, Stockholm</span>
+  <span>Mason · built solo by Gustaf Garnow, Stockholm</span>
   <span>Challenge 01, The AI Apprentice · Hack-Nation 7th Global AI Hackathon</span>
 </footer>
 

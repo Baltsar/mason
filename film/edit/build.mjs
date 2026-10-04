@@ -31,13 +31,13 @@ const abs = (file) => (path.isAbsolute(file) ? file : path.join(film, file));
 // One browser for every still. `--screenshot` starts a new Chrome per image
 // and each one takes a minute to quit, so the page is driven over the
 // DevTools socket instead.
-const PORT = 9347;
+const PORT = Number(process.env.BUILD_PORT || 9347);
 let browser = null;
 
 async function openBrowser() {
   const child = spawn(CHROME, [
-    "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run", "--disable-background-networking",
-    `--user-data-dir=${path.join(cache, "chrome")}`, `--remote-debugging-port=${PORT}`, "about:blank",
+    "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run", "--disable-background-networking", "--allow-file-access-from-files",
+    `--user-data-dir=${path.join(cache, `chrome-${PORT}`)}`, `--remote-debugging-port=${PORT}`, "about:blank",
   ], { stdio: "ignore" });
   let target = null;
   for (let attempt = 0; attempt < 60 && !target; attempt += 1) {

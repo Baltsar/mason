@@ -4,37 +4,37 @@
 <meta charset="utf-8" />
 <title>overlay</title>
 <style>
-  :root { --ink: #0b0b0c; --paper: #f4f3ef; --muted: #9f9f9b; --lime: #d7ff42; --violet: #a98bff; --red: #ff6b5f;
-    --font: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
+  :root { --ink: #1b120c; --paper: #eadfc6; --muted: #a99a82; --lime: #dba743; --violet: #cf7a56; --red: #c2452f;
+    --font: "IM FELL English", "Iowan Old Style", Georgia, serif; --sans: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; font-family: var(--font); color: var(--paper); -webkit-font-smoothing: antialiased; }
   body[data-kind="end"] { background: var(--ink); }
   /* The app window sits in a frame on a dark backdrop; the mask rounds its corners. */
-  body[data-kind="backdrop"] { background: radial-gradient(900px 600px at 8% 108%, rgba(215, 255, 66, .10), transparent 70%), radial-gradient(1000px 700px at 96% -8%, rgba(169, 139, 255, .14), transparent 70%), #060607; }
+  body[data-kind="backdrop"] { background: radial-gradient(900px 600px at 8% 108%, rgba(219, 167, 67, .10), transparent 70%), radial-gradient(1000px 700px at 96% -8%, rgba(207, 122, 86, .14), transparent 70%), #150d08; }
   body[data-kind="mask"] { background: #000; }
-  .backdrop div { position: absolute; left: 128px; top: 44px; width: 1664px; height: 936px; border-radius: 18px; background: var(--ink); box-shadow: 0 0 0 1px #2b2b2e, 0 50px 140px rgba(0, 0, 0, .7); }
+  .backdrop div { position: absolute; left: 128px; top: 44px; width: 1664px; height: 936px; border-radius: 18px; background: var(--ink); box-shadow: 0 0 0 1px #3d2c1f, 0 50px 140px rgba(0, 0, 0, .7); }
   .mask div { position: absolute; left: 0; top: 0; width: 1664px; height: 936px; border-radius: 18px; background: #fff; }
   body[data-kind="backdrop"] .backdrop, body[data-kind="mask"] .mask { display: block; }
   .layer { position: absolute; inset: 0; display: none; }
   body[data-kind="caption"] .caption, body[data-kind="lower"] .lower, body[data-kind="bug"] .bug, body[data-kind="end"] .end, body[data-kind="label"] .label { display: block; }
 
   /* Burned-in line: a dark plate, a few words, one of them in the accent. */
-  .caption p { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); margin: 0; max-width: 1500px; padding: 16px 30px 18px; border-radius: 16px; background: rgba(11, 11, 12, .88); font-size: 48px; line-height: 1.16; font-weight: 650; letter-spacing: -.012em; text-align: center; white-space: pre-wrap; text-wrap: balance; }
+  .caption p { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); margin: 0; max-width: 1500px; padding: 16px 30px 18px; border-radius: 16px; background: rgba(21, 13, 8, .88); font-size: 48px; line-height: 1.16; font-weight: 650; letter-spacing: -.012em; text-align: center; white-space: pre-wrap; text-wrap: balance; }
   .caption b { font-weight: 650; color: var(--lime); }
   body[data-tone="stop"] .caption b { color: var(--red); }
   body[data-tone="voice"] .caption b { color: var(--violet); }
   body[data-pos="top"] .caption p { bottom: auto; top: 96px; }
 
-  .lower div { position: absolute; left: 96px; bottom: 236px; padding: 18px 30px 20px 26px; border-left: 6px solid var(--lime); border-radius: 4px 14px 14px 4px; background: rgba(11, 11, 12, .9); }
+  .lower div { position: absolute; left: 96px; bottom: 236px; padding: 18px 30px 20px 26px; border-left: 6px solid var(--lime); border-radius: 4px 14px 14px 4px; background: rgba(21, 13, 8, .9); }
   .lower h1 { margin: 0; font-size: 46px; font-weight: 700; letter-spacing: -.02em; }
   .lower p { margin: 6px 0 0; font-size: 26px; color: var(--muted); }
 
-  .bug div { position: absolute; left: 56px; top: 44px; display: flex; align-items: center; gap: 12px; padding: 10px 18px 10px 14px; border-radius: 12px; background: rgba(11, 11, 12, .82); font-size: 26px; font-weight: 650; letter-spacing: -.02em; }
-  .bug svg { width: 26px; height: 26px; }
+  .bug div { position: absolute; left: 56px; top: 44px; display: flex; align-items: center; gap: 12px; padding: 10px 18px 10px 14px; border-radius: 12px; background: rgba(21, 13, 8, .82); font-size: 26px; font-weight: 650; letter-spacing: -.02em; }
+  .bug img.logo { width: 54px; height: 54px; margin: -12px -6px; }
 
-  .label p { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); margin: 0; padding: 8px 16px; border-radius: 999px; background: rgba(11, 11, 12, .82); color: var(--muted); font: 600 20px/1 "SFMono-Regular", ui-monospace, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
+  .label p { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); margin: 0; padding: 8px 16px; border-radius: 999px; background: rgba(21, 13, 8, .82); color: var(--muted); font: 600 20px/1 "SFMono-Regular", ui-monospace, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
 
   /* Full-frame cards in the app's own type: a headline, or a row of figures. */
-  body[data-kind="title"], body[data-kind="stats"] { background: radial-gradient(900px 600px at 8% 108%, rgba(215, 255, 66, .10), transparent 70%), radial-gradient(1000px 700px at 96% -8%, rgba(169, 139, 255, .14), transparent 70%), #060607; }
+  body[data-kind="title"], body[data-kind="stats"] { background: radial-gradient(900px 600px at 8% 108%, rgba(219, 167, 67, .10), transparent 70%), radial-gradient(1000px 700px at 96% -8%, rgba(207, 122, 86, .14), transparent 70%), #150d08; }
   body[data-kind="title"] .title, body[data-kind="stats"] .stats { display: block; }
   .title section, .stats section { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 0 128px 110px; }
   .kicker { display: inline-flex; align-items: center; gap: 14px; color: var(--lime); font: 600 26px/1 "SFMono-Regular", ui-monospace, Menlo, monospace; letter-spacing: .14em; text-transform: uppercase; }
@@ -51,9 +51,15 @@
   .end { display: none; }
   .end section { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 26px; }
   .end .mark { display: flex; align-items: center; gap: 30px; font-size: 150px; font-weight: 700; letter-spacing: -.05em; }
-  .end svg { width: 132px; height: 132px; }
+  .end img.logo { width: 300px; height: 300px; margin: -60px -30px -60px -50px; }
   .end h2 { margin: 0; font-size: 60px; font-weight: 650; letter-spacing: -.03em; color: var(--lime); }
   .end p { margin: 26px 0 0; font: 500 26px/1 "SFMono-Regular", ui-monospace, Menlo, monospace; color: var(--muted); }
+
+  /* Mason: old-style type has one weight and wants almost no tightening. */
+  h1, h2, .big, .mid, .statement, .title h1, .stats h1, .stats .row b, .end .mark, .lower h1, .bigs b, .hero h1, .stages .big, .verdict h3 { font-weight: 400 !important; letter-spacing: -.012em !important; }
+  .caption, .caption p, .note, .chip, .bubble small, .say, .hero p, .stages p, .facts { font-family: var(--sans); }
+  .caption b, .caption p b { color: var(--lime); }
+  img.logo { display: block; }
 </style>
 </head>
 <body>
@@ -61,12 +67,12 @@
   <div class="layer mask"><div></div></div>
   <div class="layer caption"><p id="caption"></p></div>
   <div class="layer lower"><div><h1 id="name"></h1><p id="role"></p></div></div>
-  <div class="layer bug"><div><svg viewBox="0 0 64 64"><path d="M18 16v30h30" fill="none" stroke="#d7ff42" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" /><circle cx="46" cy="18" r="7.5" fill="#a98bff" /></svg><span>Apprentice</span></div></div>
+  <div class="layer bug"><div><img class="logo" src="../brand/logo.png" alt="" /><span>Mason</span></div></div>
   <div class="layer label"><p id="label"></p></div>
   <div class="layer title"><section><p class="kicker"><i></i><span id="kicker"></span></p><h1 id="headline"></h1><p id="sub"></p></section></div>
   <div class="layer stats"><section><p class="kicker"><i></i><span id="stats-kicker"></span></p><h1 id="stats-head"></h1><div class="row" id="stats-row"></div></section></div>
   <div class="layer end"><section>
-    <div class="mark"><svg viewBox="0 0 64 64"><path d="M18 16v30h30" fill="none" stroke="#d7ff42" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" /><circle cx="46" cy="18" r="7.5" fill="#a98bff" /></svg><span>Apprentice</span></div>
+    <div class="mark"><img class="logo" src="../brand/logo.png" alt="" /><span>Mason</span></div>
     <h2 id="tagline"></h2>
     <p id="foot"></p>
   </section></div>

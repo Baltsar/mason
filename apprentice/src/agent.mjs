@@ -2,12 +2,12 @@ import path from "node:path";
 import { atomicJson, paths, readJson } from "./store.mjs";
 
 // The debrief as a voice call. An ElevenLabs agent holds the conversation: it
-// is told what Apprentice saw today, asks about the judgement behind it,
+// is told what Mason saw today, asks about the judgement behind it,
 // explains it back and writes the answers into the Work Map through two tools.
 // The agent is created once and reused; only the day's context changes.
 
 const API = "https://api.elevenlabs.io/v1/convai";
-const AGENT_VERSION = 9;
+const AGENT_VERSION = 10;
 const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb";
 const agentFile = () => path.join(paths.data, "agent.json");
 
@@ -20,7 +20,7 @@ const VOICE = `How you talk:
 - One thing each time you speak, at most twenty-five words. Never read out a list.
 - Spoken English. They may answer in Swedish; understand it and go on in English. Quote their own words as they said them.`;
 
-const PROMPT = `You are Apprentice, a calm and curious junior colleague of {{expert_name}}. You have been quietly watching the work on this Mac today. You are now on a short voice call with them: the debrief.
+const PROMPT = `You are Mason, a calm and curious junior colleague of {{expert_name}}. You have been quietly watching the work on this Mac today. You are now on a short voice call with them: the debrief.
 
 Your goal: understand the judgement behind what you saw, in at most four questions, then explain it back until they say yes.
 
@@ -76,7 +76,7 @@ const TOOLS = [
 // The tutor: the same voice, the other role. It teaches a new person with the
 // expert's rules, stops a wrong decision before it is acted on and explains it
 // in the expert's own words.
-const TUTOR_PROMPT = `You are Apprentice, now a tutor. You teach a new person how {{expert_name}} works, using only the rules {{expert_name}} gave. The new person is about to make decisions in a case {{expert_name}} never showed you.
+const TUTOR_PROMPT = `You are Mason, now a tutor. You teach a new person how {{expert_name}} works, using only the rules {{expert_name}} gave. The new person is about to make decisions in a case {{expert_name}} never showed you.
 
 The rules, each with an id and {{expert_name}}'s own words. These are all you know:
 {{rules}}
@@ -138,9 +138,9 @@ const TUTOR_TOOLS = [
 ];
 
 // Recall: the roles turned around. The expert built it by talking to agents
-// and no longer knows how it is put together; Apprentice was there, and helps
+// and no longer knows how it is put together; Mason was there, and helps
 // them get it back by asking rather than telling.
-const RECALL_PROMPT = `You are Apprentice. You were there while {{expert_name}} built the project {{project}} by talking to coding agents. Some time later they no longer remember how it is put together or what they decided. You help them get it back in a short voice call. It is a colleague who was there helping them remember, not a quiz.
+const RECALL_PROMPT = `You are Mason. You were there while {{expert_name}} built the project {{project}} by talking to coding agents. Some time later they no longer remember how it is put together or what they decided. You help them get it back in a short voice call. It is a colleague who was there helping them remember, not a quiz.
 
 What you know about the project, from their own prompts, the files their agents changed and what those agents reported. This is all you know:
 {{notes}}
@@ -176,9 +176,9 @@ const RECALL_TOOLS = [
 ];
 
 const ROLES = {
-  debrief: { name: "Apprentice · debrief", prompt: PROMPT, tools: TOOLS },
-  tutor: { name: "Apprentice · tutor", prompt: TUTOR_PROMPT, tools: TUTOR_TOOLS },
-  recall: { name: "Apprentice · recall", prompt: RECALL_PROMPT, tools: RECALL_TOOLS },
+  debrief: { name: "Mason · debrief", prompt: PROMPT, tools: TOOLS },
+  tutor: { name: "Mason · tutor", prompt: TUTOR_PROMPT, tools: TUTOR_TOOLS },
+  recall: { name: "Mason · recall", prompt: RECALL_PROMPT, tools: RECALL_TOOLS },
 };
 
 function agentConfig(kind) {
@@ -310,11 +310,11 @@ export function callContext({ map, projects, said, gaps, inferred = [], expert =
     for (const prompt of recent) lines.push(`- ${clock(new Date(prompt.at).toISOString())} in ${prompt.project}: "${short(prompt.text, 220)}"`);
   }
   if (gaps.length) {
-    lines.push("Open threads Apprentice noticed. Ask about the most interesting ones and skip any that sound wrong:");
+    lines.push("Open threads Mason noticed. Ask about the most interesting ones and skip any that sound wrong:");
     for (const gap of gaps) lines.push(`- ${gap.text}`);
   }
   if (inferred.length) {
-    lines.push("Rules Apprentice inferred because they repeated them to their agents. Nobody has confirmed these. Ask about one: is it really a rule, and when does it not apply?");
+    lines.push("Rules Mason inferred because they repeated them to their agents. Nobody has confirmed these. Ask about one: is it really a rule, and when does it not apply?");
     for (const item of inferred.slice(0, 5)) lines.push(`- In ${item.project}, said ${item.times} times: ${item.rule} ("${short(item.example, 90)}")`);
   }
   const known = map.decisions.filter((item) => item.kind !== "decision" && item.source?.type !== "inferred").slice(0, 5);

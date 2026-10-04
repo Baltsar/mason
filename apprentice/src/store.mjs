@@ -3,7 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-const app = path.join(root, "Apprentice.app");
+const app = path.join(root, "Mason.app");
 // APPRENTICE_DATA points a second instance at its own memory, so a rehearsal
 // never writes into the real Work Map.
 const data = process.env.APPRENTICE_DATA || path.join(root, "data");
@@ -17,7 +17,7 @@ export const paths = {
   public: path.join(root, "public"),
   reader: path.join(root, ".runtime", "ApprenticeReader"),
   app,
-  status: path.join(app, "Contents", "MacOS", "Apprentice"),
+  status: path.join(app, "Contents", "MacOS", "Mason"),
 };
 
 const RUNTIME_DEFAULTS = {
@@ -30,7 +30,7 @@ const RUNTIME_DEFAULTS = {
   questionsToday: 0,
   questionsDay: null,
   privateRefusals: 0,
-  // Off by default: in the background Apprentice only watches and keeps what
+  // Off by default: in the background Mason only watches and keeps what
   // it wants to ask for the debrief. It speaks up only inside a capture session.
   ambientQuestions: false,
   debriefReady: false,

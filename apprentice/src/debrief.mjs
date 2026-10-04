@@ -90,7 +90,7 @@ export function buildGaps(map, events, { since = 0, projects = null, said = [] }
   return gaps.sort((a, b) => b.priority - a.priority).slice(0, 3).map(({ priority, ...gap }) => gap);
 }
 
-// The teach-back is the apprentice explaining the process in its own words,
+// The teach-back is Mason explaining the process in its own words,
 // built only from sourced decisions, so the expert can confirm or correct it.
 export function buildTeachBack(map) {
   const corrections = map.debrief?.teachBack?.corrections || [];

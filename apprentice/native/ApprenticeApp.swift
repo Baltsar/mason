@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 
-// Apprentice on the desktop, in three stages:
+// Mason on the desktop, in three stages:
 //   1. the island that hangs from the top of the screen, beside the notch,
 //   2. the drop panel with today's numbers in large type,
 //   3. the app window with Capture, Map and Teach.
@@ -11,20 +11,27 @@ import WebKit
 // notch sits only the eye: one small symbol for whether it is looking. Nothing here animates continuously, so a small still pane of glass
 // on top of everything costs next to nothing to draw.
 
-// Opened by a double-click, the app is the whole of Apprentice: it starts the
+// Opened by a double-click, the app is the whole of Mason: it starts the
 // local server itself and stops it when it quits. Started by the server (the
 // old command file), it is handed the address and only shows what it is told.
 let standalone = ProcessInfo.processInfo.environment["APPRENTICE_URL"] == nil
 let port = ProcessInfo.processInfo.environment["PORT"] ?? "4317"
 let baseURL = ProcessInfo.processInfo.environment["APPRENTICE_URL"] ?? "http://127.0.0.1:\(port)"
 
+// Mason: the strong green stays as the one loud colour. Around it the greys
+// are warmed towards stone, and the second colour is the sandstone of the mark.
 enum Palette {
-    static let ink = NSColor(srgbRed: 0.043, green: 0.043, blue: 0.047, alpha: 1)
+    static let ink = NSColor(srgbRed: 0.055, green: 0.051, blue: 0.043, alpha: 1)
     static let lime = NSColor(srgbRed: 0.843, green: 1.0, blue: 0.259, alpha: 1)
-    static let violet = NSColor(srgbRed: 0.663, green: 0.545, blue: 1.0, alpha: 1)
+    static let gold = NSColor(srgbRed: 0.839, green: 0.651, blue: 0.278, alpha: 1)
     static let red = NSColor(srgbRed: 1.0, green: 0.42, blue: 0.373, alpha: 1)
-    static let grey = NSColor(white: 0.46, alpha: 1)
+    static let grey = NSColor(srgbRed: 0.55, green: 0.53, blue: 0.49, alpha: 1)
 }
+
+// The hewn stone with its tools: the Dock icon and the file icon.
+let markImage: NSImage? = Bundle.main.image(forResource: "mason-mark")
+// The hand at work on its mouse: the one picture on the island.
+let workImage: NSImage? = Bundle.main.image(forResource: "mason-work")
 
 struct IslandState: Equatable {
     var status = "starting"
@@ -45,7 +52,7 @@ struct IslandState: Equatable {
     var busy = false
 }
 
-// The eye: whether Apprentice is looking, in one small symbol. It blinks now
+// The eye: whether Mason is looking, in one small symbol. It blinks now
 // and then while it watches, sends out one ripple each time it takes in
 // something new on screen, turns while it is working something out, and is
 // shut while it looks away. Nothing moves between those moments.
@@ -192,7 +199,7 @@ final class IslandView: NSView {
     var tone: NSColor {
         switch state.status {
         case "watching": return state.category == "Social" ? Palette.red : Palette.lime
-        case "private", "private-surface", "paused": return Palette.violet
+        case "private", "private-surface", "paused": return Palette.gold
         case "permission": return NSColor.systemOrange
         default: return Palette.grey
         }
@@ -209,7 +216,7 @@ final class IslandView: NSView {
 
     private var figure: (text: String, color: NSColor) {
         switch state.status {
-        case "private", "paused": return ("private", Palette.violet)
+        case "private", "paused": return ("private", Palette.gold)
         case "permission": return ("access", NSColor.systemOrange)
         default: return state.totalSeconds > 0 ? ("\(state.work)%", Palette.lime) : ("–", Palette.grey)
         }
@@ -221,10 +228,11 @@ final class IslandView: NSView {
     enum Detail { case all, figure, mark, nothing }
     private(set) var shows = Detail.all
 
-    private let edge: CGFloat = 13, markWidth: CGFloat = 13, extraWidth: CGFloat = 22, gap: CGFloat = 14
+    private let edge: CGFloat = 11, markWidth: CGFloat = 41, markHeight: CGFloat = 26, gap: CGFloat = 12
     // The mark: always there.
     private var lead: CGFloat { edge + markWidth }
-    private var hasExtra: Bool { !state.question.isEmpty || state.debriefReady || (state.totalSeconds > 0 && figure.color == Palette.lime) }
+    // Before the figure: a small sign when a question or a debrief is waiting.
+    private var signWidth: CGFloat { !state.question.isEmpty ? 15 : state.debriefReady ? 11 : 0 }
 
     private var label: NSAttributedString {
         let showsWord = !hint.isEmpty
@@ -245,7 +253,7 @@ final class IslandView: NSView {
         let showsWord = !hint.isEmpty
         let text = ceil(label.size().width)
         let plain = lead + gap + text + edge
-        let full = plain + (showsWord || !hasExtra ? 0 : extraWidth + 7)
+        let full = plain + (showsWord || signWidth == 0 ? 0 : signWidth + 7)
         let before = shows
         var width = lead + edge
         if full <= room { shows = .all; width = full }
@@ -262,7 +270,7 @@ final class IslandView: NSView {
         // The row ends where the notch begins.
         let visible = bounds.width - trailing
         guard shows != .nothing else { return }
-        drawMark(x: edge, y: middle - 6.5)
+        drawMark(x: edge, y: middle - markHeight / 2)
         guard shows != .mark else { return }
         let text = label
         let size = text.size()
@@ -271,50 +279,29 @@ final class IslandView: NSView {
         text.draw(with: NSRect(x: labelX, y: middle - size.height / 2, width: labelWidth, height: size.height), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine])
         // While a word is shown the island holds only the word.
         guard hint.isEmpty, shows == .all else { return }
+        let left = labelX
         if !state.question.isEmpty {
-            let badge = NSRect(x: labelX - 7 - 15, y: middle - 7.5, width: 15, height: 15)
-            Palette.violet.setFill()
+            let badge = NSRect(x: left - 7 - 15, y: middle - 7.5, width: 15, height: 15)
+            Palette.gold.setFill()
             NSBezierPath(ovalIn: badge).fill()
             let mark = NSAttributedString(string: "?", attributes: [.font: NSFont.systemFont(ofSize: 10.5, weight: .bold), .foregroundColor: NSColor.black])
             let markSize = mark.size()
             mark.draw(at: NSPoint(x: badge.midX - markSize.width / 2, y: badge.midY - markSize.height / 2))
         } else if state.debriefReady {
             // A debrief is waiting: one small ring, nothing more.
-            let ring = NSBezierPath(ovalIn: NSRect(x: labelX - 7 - 11, y: middle - 5.5, width: 11, height: 11).insetBy(dx: 1, dy: 1))
-            ring.lineWidth = 2
+            let ring = NSRect(x: left - 7 - 11, y: middle - 5.5, width: 11, height: 11)
+            let path = NSBezierPath(ovalIn: ring.insetBy(dx: 1, dy: 1))
+            path.lineWidth = 2
             Palette.lime.setStroke()
-            ring.stroke()
-        } else if state.totalSeconds > 0 && figure.color == Palette.lime {
-            drawSplit(in: NSRect(x: labelX - 7 - extraWidth, y: middle - 2, width: extraWidth, height: 4))
+            path.stroke()
         }
     }
 
+    // The hand on its mouse, as large as the menu bar allows.
     private func drawMark(x: CGFloat, y: CGFloat) {
-        let stroke = NSBezierPath()
-        stroke.lineWidth = 2.6
-        stroke.lineCapStyle = .round
-        stroke.lineJoinStyle = .round
-        stroke.move(to: NSPoint(x: x + 2, y: y + 1.5))
-        stroke.line(to: NSPoint(x: x + 2, y: y + 11))
-        stroke.line(to: NSPoint(x: x + 11.5, y: y + 11))
-        Palette.lime.setStroke()
-        stroke.stroke()
-        Palette.violet.setFill()
-        NSBezierPath(ovalIn: NSRect(x: x + 8.5, y: y, width: 4.5, height: 4.5)).fill()
+        workImage?.draw(in: NSRect(x: x, y: y, width: markWidth, height: markHeight), from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: [.interpolation: NSImageInterpolation.high.rawValue])
     }
 
-    private func drawSplit(in rect: NSRect) {
-        NSGraphicsContext.saveGraphicsState()
-        NSBezierPath(roundedRect: rect, xRadius: 2, yRadius: 2).addClip()
-        var x = rect.minX
-        for (share, color) in [(state.work, Palette.lime), (state.social, Palette.red), (state.other, Palette.grey)] {
-            let part = rect.width * CGFloat(share) / 100
-            color.setFill()
-            NSRect(x: x, y: rect.minY, width: part, height: rect.height).fill()
-            x += part
-        }
-        NSGraphicsContext.restoreGraphicsState()
-    }
 }
 
 // The shape glass is cut to. Hanging from the top edge it is square above and
@@ -428,7 +415,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { self?.measureMenus() }
         }
         measureMenus()
-        setHint("Apprentice", for: 3)
+        setHint("Mason", for: 3)
         // The server nudges with USR1 the moment something changed, so a question
         // shows at once instead of at the next poll. USR2 opens the window.
         listen(SIGUSR1) { [weak self] in self?.refresh() }
@@ -650,7 +637,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
         islandView.barHeight = g.top
         islandView.notchWidth = g.notch
         islandView.trailing = trailing(g)
-        islandView.toolTip = "Apprentice · press for today"
+        islandView.toolTip = "Mason · press for today"
         islandView.onPress = { [weak self] in self?.toggleDrop() }
         islandView.onMenu = { [weak self] event in self?.showContextMenu(event) }
         pane.addSubview(islandView)
@@ -874,7 +861,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
             let size = NSSize(width: min(1060, visible.width - 160), height: min(740, visible.height - 72))
             let frame = NSRect(x: visible.midX - size.width / 2, y: visible.midY - size.height / 2, width: size.width, height: size.height)
             let window = NSWindow(contentRect: frame, styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
-            window.title = "Apprentice"
+            window.title = "Mason"
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
             window.isOpaque = false
@@ -992,12 +979,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
 
     private func showContextMenu(_ event: NSEvent) {
         let menu = NSMenu()
-        let open = NSMenuItem(title: "Open Apprentice", action: #selector(openApprentice), keyEquivalent: "")
+        let open = NSMenuItem(title: "Open Mason", action: #selector(openApprentice), keyEquivalent: "")
         open.target = self
         menu.addItem(open)
         menu.addItem(privateItem())
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit Apprentice", action: #selector(NSApplication.terminate(_:)), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Quit Mason", action: #selector(NSApplication.terminate(_:)), keyEquivalent: ""))
         NSMenu.popUpContextMenu(menu, with: event, for: islandView)
     }
 
@@ -1005,7 +992,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
         let bar = NSMenu()
         let appItem = NSMenuItem()
         let appMenu = NSMenu()
-        let open = NSMenuItem(title: "Open Apprentice", action: #selector(openApprentice), keyEquivalent: "o")
+        let open = NSMenuItem(title: "Open Mason", action: #selector(openApprentice), keyEquivalent: "o")
         open.target = self
         appMenu.addItem(open)
         let away = NSMenuItem(title: "Go Private / Resume", action: #selector(togglePrivate), keyEquivalent: "p")
@@ -1013,7 +1000,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
         away.target = self
         appMenu.addItem(away)
         appMenu.addItem(.separator())
-        appMenu.addItem(NSMenuItem(title: "Quit Apprentice", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        appMenu.addItem(NSMenuItem(title: "Quit Mason", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         appItem.submenu = appMenu
         bar.addItem(appItem)
 
@@ -1047,22 +1034,16 @@ func drawIcon(side: CGFloat) -> NSImage {
         let unit = side / 256
         Palette.ink.setFill()
         NSBezierPath(roundedRect: rect.insetBy(dx: 20 * unit, dy: 20 * unit), xRadius: 50 * unit, yRadius: 50 * unit).fill()
-        let stroke = NSBezierPath()
-        stroke.lineWidth = 26 * unit
-        stroke.lineCapStyle = .round
-        stroke.lineJoinStyle = .round
-        stroke.move(to: NSPoint(x: 86 * unit, y: 180 * unit))
-        stroke.line(to: NSPoint(x: 86 * unit, y: 86 * unit))
-        stroke.line(to: NSPoint(x: 180 * unit, y: 86 * unit))
-        Palette.lime.setStroke()
-        stroke.stroke()
-        Palette.violet.setFill()
-        NSBezierPath(ovalIn: NSRect(x: 150 * unit, y: 148 * unit, width: 42 * unit, height: 42 * unit)).fill()
+        guard let mark = markImage else { return true }
+        // The stone sits on the tile at its own proportions, with air around it.
+        let width = 176 * unit
+        let height = width * mark.size.height / max(mark.size.width, 1)
+        mark.draw(in: NSRect(x: (side - width) / 2, y: (side - height) / 2, width: width, height: height), from: .zero, operation: .sourceOver, fraction: 1)
         return true
     }
 }
 
-// `Apprentice --icon <file.png>` writes the icon and exits. The build uses it
+// `Mason --icon <file.png>` writes the icon and exits. The build uses it
 // to make the file icon, so the mark is drawn in one place only.
 if let flag = CommandLine.arguments.firstIndex(of: "--icon"), CommandLine.arguments.count > flag + 1 {
     let image = drawIcon(side: 1024)

@@ -23,3 +23,7 @@ film/edit/.frames/
 site/dist/
 site/.vercel-link/
 .DS_Store
+
+# Raw footage and brand source images stay local.
+own footage/
+new brand/

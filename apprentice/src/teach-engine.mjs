@@ -6,7 +6,7 @@ const forwardAction = /\b(bygg|putsa|iterera|förbättra|fortsätt|vidare|skicka
 const STOP = new Set(`the a an and or but for with without from into onto over under about this that these those then than have has had
 will would should could must never always not what when where which who why how you your his her its our their they them there here just only
 also very more most some any each every been being was were are is it in on at to of as by be do does did done if so no yes can may might we he
-she me my us use make made get got need want like new next first last own same real work apprentice gustaf every before after because
+she me my us use make made get got need want like new next first last own same real work apprentice mason gustaf every before after because
 det den de att och eller men för med utan från på av är var ska skulle kan måste inte en ett som om så vi jag han hon du din ditt här där bara`.split(/\s+/));
 
 // Words that mean the same move. A new hire rarely repeats the expert's verb.

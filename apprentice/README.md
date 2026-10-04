@@ -1,26 +1,26 @@
-# Apprentice
+# MASON
 
 You install it and work. Nothing to fill in, nothing to configure, no rules to write.
 
-Apprentice sits behind real work on this Mac and learns it from what you already do: which project you are in, and what you tell your coding agents. From that alone it can tell you where you left a project a week ago, what you keep having to repeat, and where the day went. When it wants to understand more it does not interrupt: it offers a two-minute voice call you take when you have time.
+Mason sits behind real work on this Mac and learns it from what you already do: which project you are in, and what you tell your coding agents. From that alone it can tell you where you left a project a week ago, what you keep having to repeat, and where the day went. When it wants to understand more it does not interrupt: it offers a two-minute voice call you take when you have time.
 
 The rejected invoice demo in `../demo/index.html` is neither used nor modified.
 
 ## Start
 
-Double-click **Apprentice.app** in this folder (drag it to the Dock to keep it there). It starts its own local server and stops it when it quits. `npm run build:reader` builds the app if it is not there yet. The first run may ask for permission under **System Settings → Privacy & Security → Accessibility** (to read the active app, window title and focused prompt field) and for the microphone (for spoken answers and the call). It takes no screenshots and logs no keystrokes.
+Double-click **Mason.app** in this folder (drag it to the Dock to keep it there). It starts its own local server and stops it when it quits. `npm run build:reader` builds the app if it is not there yet. The first run may ask for permission under **System Settings → Privacy & Security → Accessibility** (to read the active app, window title and focused prompt field) and for the microphone (for spoken answers and the call). It takes no screenshots and logs no keystrokes.
 
-If the island says `access` although the switch in System Settings is already on: macOS ties that switch to the exact build it was given to, so after the app has been rebuilt it still reads "on" but no longer counts. Press the island and **Fix access**. Apprentice forgets the old grant, asks again for this build and opens the list; switch it on there.
+If the island says `access` although the switch in System Settings is already on: macOS ties that switch to the exact build it was given to, so after the app has been rebuilt it still reads "on" but no longer counts. Press the island and **Fix access**. Mason forgets the old grant, asks again for this build and opens the list; switch it on there.
 
-Quit from the island (right-click → Quit Apprentice), with ⌘Q in the app window, or with **Stop Apprentice.command**.
+Quit from the island (right-click → Quit Mason), with ⌘Q in the app window, or with **Stop Mason.command**.
 
 ## Three stages on the desktop
 
-Apprentice is a native macOS app. Nothing opens in a browser.
+Mason is a native macOS app. Nothing opens in a browser.
 
 Every surface is made to be read in one to three seconds: a figure or a few words in large type, icons instead of labels, the detail one press away.
 
-1. **Island.** A strip of dark glass inside the menu bar, growing leftwards from the notch: the mark, a status dot and the work share. It measures where the menus of the app in front end and takes only the free part between them and the notch, so it covers no menu, no status icon and no window. With little room it drops the small bar, then keeps only the mark, and behind a browser with ten menus it is not there at all. When something changes, one word shows for a few seconds: `HACKNATION`, `Private`, `Debrief ready`.
+1. **Island.** A strip of dark glass inside the menu bar, growing leftwards from the notch: a hand at work on its mouse, and the work share. It measures where the menus of the app in front end and takes only the free part between them and the notch, so it covers no menu, no status icon and no window. With little room it drops the small bar, then keeps only the mark, and behind a browser with ten menus it is not there at all. When something changes, one word shows for a few seconds: `HACKNATION`, `Private`, `Debrief ready`.
    To the right of the notch sits **the eye**, always: a ring with a pupil while it watches, blinking now and then; one ripple each time it takes in something new on screen (another window, a prompt); a turning arc while it is working something out (a project summary, an episode); a closed line while it looks away; a broken orange ring when it has no access. Nothing moves between those moments.
 2. **Numbers.** Press the island. The project you were last in, where you left it in six words, and today's split in large type: work, social, other. Two round buttons: hear where you left off, and the debrief call (lime when one is ready).
 3. **App.** Press a number. Three stages, each opening with its own figures:
@@ -31,11 +31,11 @@ Every surface is made to be read in one to three seconds: a figure or a few word
 
 ## What it understands
 
-**Projects.** A project is a folder your tools work in. Apprentice reads the traces they already leave on this Mac: Claude Code keeps a log per project folder with every prompt and its time, Cursor keeps the folder of every workspace. From that it knows which project the Claude window is about (the one last spoken to), counts a browser tab named after a project as that project, and treats time inside a project as work whatever the window is called. A game you are building is not leisure.
+**Projects.** A project is a folder your tools work in. Mason reads the traces they already leave on this Mac: Claude Code keeps a log per project folder with every prompt and its time, Cursor keeps the folder of every workspace. From that it knows which project the Claude window is about (the one last spoken to), counts a browser tab named after a project as that project, and treats time inside a project as work whatever the window is called. A game you are building is not leisure.
 
-**How you built it.** You build by talking to agents, in a hundred sessions, and a month later the answer is somewhere in session 73. Apprentice folds every Claude Code session of a project folder into one memory: what it is, how it is put together (the parts, named after the files the agents changed and what the agents reported back), what was built, where you stopped, what was still open. It goes back three weeks. The history is there from the first day you worked on the project, not from the day Apprentice was installed. Come back to a project after hours or days and the island says so in one line; press and it is read to you in half a minute.
+**How you built it.** You build by talking to agents, in a hundred sessions, and a month later the answer is somewhere in session 73. Mason folds every Claude Code session of a project folder into one memory: what it is, how it is put together (the parts, named after the files the agents changed and what the agents reported back), what was built, where you stopped, what was still open. It goes back three weeks. The history is there from the first day you worked on the project, not from the day Mason was installed. Come back to a project after hours or days and the island says so in one line; press and it is read to you in half a minute.
 
-**What you keep saying.** A correction you gave an agent on two or more occasions is a rule you have not written down ("de ska kännas simple as fuck", three times). Apprentice finds these itself and puts them in the Work Map as inferred guardrails, each with your own words as evidence. A rule only counts when its quote really is something you said. Nobody is asked to set a boundary.
+**What you keep saying.** A correction you gave an agent on two or more occasions is a rule you have not written down ("de ska kännas simple as fuck", three times). Mason finds these itself and puts them in the Work Map as inferred guardrails, each with your own words as evidence. A rule only counts when its quote really is something you said. Nobody is asked to set a boundary.
 
 The summaries are written by the Claude login already on this Mac, through the Claude Code CLI in its leanest form (no tools, no plugins, no thinking): a few seconds and a fraction of a cent per project, at most once every ten minutes. Without it the memory is your own last prompts, verbatim.
 
@@ -53,7 +53,7 @@ Voice is not a notification with a microphone. It is the conversation at the end
 - It explains the whole thing back and asks *"What did I get wrong?"* When nothing is, the teach-back is confirmed and it hangs up.
 - It talks like a colleague who was there: no greeting, no praise, no farewell, nothing a yes or a no answers, one thing at a time.
 
-You always see whether you are heard. The microphone's own level moves around its icon the whole call, and one word says who has the floor: `Apprentice`, `Your turn`, `Hearing you`. What it understood appears in your words under the caption. A microphone that is open but delivers nothing says `No sound` with the name of the input after two and a half seconds; a blocked one says so with a button to the right setting. The spoken-answer field does the same: `Listening`, `Hearing you`, then your words.
+You always see whether you are heard. The microphone's own level moves around its icon the whole call, and one word says who has the floor: `Mason`, `Your turn`, `Hearing you`. What it understood appears in your words under the caption. A microphone that is open but delivers nothing says `No sound` with the name of the input after two and a half seconds; a blocked one says so with a button to the right setting. The spoken-answer field does the same: `Listening`, `Hearing you`, then your words.
 
 Captions, a live waveform and the saved steps are on screen during the call. Without ElevenLabs the same debrief runs in writing in the app window.
 
@@ -61,7 +61,7 @@ Captions, a live waveform and the saved steps are on screen during the call. Wit
 
 **The week as a podcast.** Recap → Make episode. Two voices, a studio anchor and a field reporter, read your week as a two-minute news bulletin: three headlines, a story per project, the line you repeated most, the numbers, and what is still open on Monday. The figures are counted from the project logs and the quote is one you really said; only the telling is written by the model, and it is told to invent nothing. Text to Dialogue records both voices in one take. It plays from the app itself, so it keeps going with the window closed, and the line being read is on screen. An episode is recorded once and replayed from disk.
 
-**The recall call.** The roles turned around: Apprentice asks *you* how your own project is put together. In the panel, the round **?** next to the project; in the app window, **Quiz me** in a project's detail. It opens with *"Tell me about KUBB. What do you remember?"* and lets you tell it. Then it says what you had right and brings up what you left out, one thing at a time: *"You also moved matchmaking. What did you decide there?"* If you do not know, it tells you straight, in your own words when it has them. It keeps what you still knew and what it had to remind you of, and it waits twenty seconds for an answer, because remembering takes longer than talking.
+**The recall call.** The roles turned around: Mason asks *you* how your own project is put together. In the panel, the round **?** next to the project; in the app window, **Quiz me** in a project's detail. It opens with *"Tell me about KUBB. What do you remember?"* and lets you tell it. Then it says what you had right and brings up what you left out, one thing at a time: *"You also moved matchmaking. What did you decide there?"* If you do not know, it tells you straight, in your own words when it has them. It keeps what you still knew and what it had to remind you of, and it waits twenty seconds for an answer, because remembering takes longer than talking.
 
 **Live questions** happen only inside a capture session you started (the five-to-ten-minute task of the challenge): three to five spoken questions, each after a real pause, at least one about a boundary. A question drops a small panel under the island that never takes the keyboard, opens the microphone by itself, and leaves on a timer. In the background nothing is ever asked.
 
@@ -98,7 +98,7 @@ What leaves the Mac for ElevenLabs, and only when a key is set: the text to be s
 | Map | The debrief call, then 02 Map | The agent asks what the task left open, explains it back, and the expert confirms aloud. Every step shows its moment, the decision, the expert's words and the guardrail. |
 | Teach | 03 Teach → Tutor call | A new person decides aloud in a case the expert never showed. The tutor stops a wrong decision before it is made, explains why in the expert's own words, and records what stopped them and what they got right on the second try. **Check** does the same for one written decision, without a model. |
 
-The five questions of the Apprentice Test:
+The five questions of the Mason Test:
 
 1. **When to ask.** Never in the background. In a session: the prompt text has been still for six seconds, or the hands have been still since a move between apps, then ninety seconds of cooldown. The debrief is offered at a break, not started.
 2. **What to ask.** The agent is given the projects, the moves, the detours and your own prompts, and is told never to ask what the screen already answers.
@@ -111,7 +111,7 @@ The five questions of the Apprentice Test:
 ```json
 {
   "mcpServers": {
-    "apprentice": {
+    "mason": {
       "command": "node",
       "args": ["/Users/baltsar/Documents/Cursor/HACKNATION/apprentice/src/mcp.mjs"]
     }
@@ -123,7 +123,7 @@ Tools: `what_happened_last`, `what_did_you_learn`, `what_are_you_unsure_about`, 
 
 ## Recording the demo
 
-1. Start Apprentice. Work in your own tools; the island shows the project you are in.
+1. Start Mason. Work in your own tools; the island shows the project you are in.
 2. **01 Capture → Start a capture session**, close the window, keep working for five to ten minutes and answer the spoken questions aloud.
 3. Press the island, **End session**, then **Take the call**. Answer three questions, say yes to the teach-back. Use headphones, or let it finish each sentence before you answer.
 4. **02 Map**: open a step saved from the call. **03 Teach**: **Tutor call**, say a decision that breaks a rule, get stopped, correct it.

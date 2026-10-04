@@ -7,7 +7,7 @@ import { projectMemory } from "./memory.mjs";
 const toolDefinitions = [
   { name: "what_happened_last", description: "Summarize the latest observed work session with source references.", inputSchema: { type: "object", properties: {} } },
   { name: "what_did_you_learn", description: "Return learned decisions and guardrails in Gustaf's own words, with sources.", inputSchema: { type: "object", properties: {} } },
-  { name: "what_are_you_unsure_about", description: "Return unresolved questions the apprentice should ask when timing is right.", inputSchema: { type: "object", properties: {} } },
+  { name: "what_are_you_unsure_about", description: "Return unresolved questions Mason should ask when timing is right.", inputSchema: { type: "object", properties: {} } },
   { name: "how_was_the_day", description: "Today's measured active time split into work, social and other, with the top apps. Private surfaces and idle time are never included.", inputSchema: { type: "object", properties: {} } },
   { name: "check_decision", description: "Check a planned action against the expert's guardrails before doing it. Returns STOP with the expert's own words, or CLEAR.", inputSchema: { type: "object", required: ["decision"], properties: { decision: { type: "string", minLength: 4 } } } },
   { name: "guardrails_for_agents", description: "Export the Work Map as instructions an agent can load: the steps to follow and where to stop and ask.", inputSchema: { type: "object", properties: {} } },
@@ -80,7 +80,7 @@ export async function callTool(name, args = {}) {
 
 export async function handleMcp(message) {
   const { id = null, method, params = {} } = message || {};
-  if (method === "initialize") return { jsonrpc: "2.0", id, result: { protocolVersion: "2025-06-18", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "apprentice", version: "0.1.0" } } };
+  if (method === "initialize") return { jsonrpc: "2.0", id, result: { protocolVersion: "2025-06-18", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "mason", version: "0.1.0" } } };
   if (method === "notifications/initialized") return null;
   if (method === "ping") return { jsonrpc: "2.0", id, result: {} };
   if (method === "tools/list") return { jsonrpc: "2.0", id, result: { tools: toolDefinitions } };

@@ -183,7 +183,7 @@ export class Collector {
       const snapshot = await runReader({ prompt: this.first, enhance: this.enhanceNext });
       this.first = false;
       this.enhanceNext = false;
-      // Looking at Apprentice itself is neither work nor a private surface:
+      // Looking at Mason itself is neither work nor a private surface:
       // the last real app stays on the island and no time is counted.
       if (snapshot.bundle === OWN_BUNDLE) {
         await this.flushActivity();
@@ -259,7 +259,7 @@ export class Collector {
             if (intervention) {
               this.pendingPrompt.asked = true;
               await appendEvent({ type: "intervention", ...intervention });
-              await notifyAndSpeak(intervention.text, { id: intervention.id, title: "Apprentice · guardrail" });
+              await notifyAndSpeak(intervention.text, { id: intervention.id, title: "Mason · guardrail" });
               this.onChange("intervention");
             } else if (question) {
               this.pendingPrompt.asked = await this.ask(runtime, map, question, {

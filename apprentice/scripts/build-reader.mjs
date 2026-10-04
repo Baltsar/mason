@@ -1,4 +1,4 @@
-import { mkdir, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { paths } from "../src/store.mjs";
@@ -8,17 +8,17 @@ const targets = [
   { source: path.join(paths.root, "native", "ApprenticeApp.swift"), output: paths.status, frameworks: ["-framework", "AppKit", "-framework", "WebKit"], bundle: true },
 ];
 
-// Apprentice.app is what is double-clicked. It knows where this folder is and
+// Mason.app is what is double-clicked. It knows where this folder is and
 // which Node to run, starts the local server itself, and has the usage texts
 // macOS shows when it asks for the microphone and for the Documents folder.
 const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>Apprentice</string>
-  <key>CFBundleDisplayName</key><string>Apprentice</string>
+  <key>CFBundleName</key><string>Mason</string>
+  <key>CFBundleDisplayName</key><string>Mason</string>
   <key>CFBundleIdentifier</key><string>design.headless.apprentice</string>
-  <key>CFBundleExecutable</key><string>Apprentice</string>
+  <key>CFBundleExecutable</key><string>Mason</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>0.3.0</string>
@@ -27,8 +27,8 @@ const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
   <key>NSHighResolutionCapable</key><true/>
   <key>ApprenticeRoot</key><string>${paths.root}</string>
   <key>ApprenticeNode</key><string>${process.execPath}</string>
-  <key>NSMicrophoneUsageDescription</key><string>Apprentice listens when you answer a question or take the debrief call.</string>
-  <key>NSDocumentsFolderUsageDescription</key><string>Apprentice runs from a folder in Documents and keeps its memory there.</string>
+  <key>NSMicrophoneUsageDescription</key><string>Mason listens when you answer a question or take the debrief call.</string>
+  <key>NSDocumentsFolderUsageDescription</key><string>Mason runs from a folder in Documents and keeps its memory there.</string>
   <key>NSAppTransportSecurity</key>
   <dict>
     <key>NSAllowsLocalNetworking</key><true/>
@@ -50,6 +50,8 @@ async function makeIcon() {
   const iconset = path.join(paths.root, ".runtime", "AppIcon.iconset");
   const master = path.join(paths.root, ".runtime", "icon-1024.png");
   await mkdir(resources, { recursive: true });
+  // The app draws its icon from the mark, so the pictures go in first.
+  for (const picture of ["mason-mark.png", "mason-work.png"]) await copyFile(path.join(paths.root, "native", picture), path.join(resources, picture));
   await rm(iconset, { recursive: true, force: true });
   await mkdir(iconset, { recursive: true });
   await run(paths.status, ["--icon", master]);

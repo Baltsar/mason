@@ -6,10 +6,10 @@ const LEISURE = /\b(spotify|netflix|steam|geforce now|game|gaming|twitch|apple t
 const PRIVATE = /\b(password|keychain|1password|bitwarden|bank|swedbank|seb|handelsbanken|nordea|klarna|1177|health|medical|journal|mail|outlook|gmail|messages|whatsapp|signal|telegram|discord|slack)\b/i;
 const BROWSER = /^(comet|safari|google chrome|chrome|arc|dia|firefox|microsoft edge|brave browser|brave|opera|vivaldi|orion|zen)$/i;
 // The lock screen and the screen saver are not work, leisure or anything else.
-const SYSTEM = /^(loginwindow|screensaverengine|apprentice)$/i;
+const SYSTEM = /^(loginwindow|screensaverengine|apprentice|mason)$/i;
 
 const GROUP_COLORS = { work: "#d7ff42", social: "#ff6b5f", other: "#7b7b82" };
-// The apprentice's day turns over at 04:00, so a late night stays one day.
+// Mason's day turns over at 04:00, so a late night stays one day.
 const DAY_STARTS_AT_HOUR = 4;
 
 export function classifyActivity({ app = "", window = "" } = {}) {

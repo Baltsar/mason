@@ -33,9 +33,10 @@ const graph = [];
 let video = "0:v";
 if (hasVideo) {
   const [width, height] = (await probe(clip, "stream=width,height", "v:0")).split(",").map(Number);
-  // Phones record portrait with a rotation flag; ffmpeg turns the picture, so the
-  // shape is judged after scaling by what it does to a 16:9 frame.
-  const portrait = height > width;
+  // Phones store a portrait clip as a landscape frame plus a rotation flag, and
+  // ffmpeg turns the picture when it decodes. So the flag decides the shape.
+  const turned = Math.abs(Number((await probe(clip, "stream_side_data=rotation", "v:0")).split(",").filter(Boolean).at(-1) || 0)) === 90;
+  const portrait = turned ? width > height : height > width;
   const shape = portrait
     ? "scale=-2:1080,setsar=1"
     : "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,setsar=1";

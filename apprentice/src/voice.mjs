@@ -33,7 +33,7 @@ function track(child) {
 }
 
 // All speech is played by this process, never by a page. A question can then
-// be heard while every Apprentice window is closed.
+// be heard while every Mason window is closed.
 export async function speak(text) {
   stopSpeaking();
   const clean = String(text ?? "").trim().slice(0, 5000);
@@ -55,7 +55,7 @@ export function playFile(file, seconds = 0) {
   return { done: track(child) };
 }
 
-export async function notifyAndSpeak(text, { title = "Apprentice · one question" } = {}) {
+export async function notifyAndSpeak(text, { title = "Mason · one question" } = {}) {
   if (process.env.APPRENTICE_MUTE) return { engine: null, done: Promise.resolve() };
   const notice = spawn("osascript", ["-e", `display notification ${JSON.stringify(text)} with title ${JSON.stringify(title)}`], { detached: true, stdio: "ignore" });
   notice.once("error", () => {});

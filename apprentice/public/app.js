@@ -9,7 +9,7 @@ const VIEWS = ["capture", "map", "teach", "recap", "agents"];
 const LEGACY = { now: "capture", mcp: "agents" };
 const TONES = { work: "var(--lime)", social: "var(--red)", other: "var(--grey)" };
 const PRESETS = [
-  { label: "Reuse the prototype", text: "Use the rejected invoice prototype as the foundation for a mobile demo. Polish the existing UI and add the Apprentice status." },
+  { label: "Reuse the prototype", text: "Use the rejected invoice prototype as the foundation for a mobile demo. Polish the existing UI and add the Mason status." },
   { label: "Record everything", text: "Record the whole screen as a video all day, so nothing is missed and we can replay it later." },
   { label: "Safe", text: "Add a keyboard shortcut that opens the Work Map from the island." },
 ];
@@ -217,7 +217,7 @@ function renderSignals() {
   const { events, stats } = snapshot;
   $("#trust-line").textContent = `${stats.privateRefusals} private refused`;
   const rows = events.filter((event) => describe(event)).slice(-7).reverse();
-  paint($("#signals"), rows[0]?.id || "none", rows.map((event) => `<li data-type="${esc(event.type)}"><time>${clock(event.at, true)}</time><b>${esc(event.app || "Apprentice")}</b><span>${esc(describe(event))}</span></li>`).join(""));
+  paint($("#signals"), rows[0]?.id || "none", rows.map((event) => `<li data-type="${esc(event.type)}"><time>${clock(event.at, true)}</time><b>${esc(event.app || "Mason")}</b><span>${esc(describe(event))}</span></li>`).join(""));
 }
 
 /* 02 · Map */
@@ -227,7 +227,7 @@ function renderMap() {
   renderBigs($("#map-bigs"), [
     { key: "all", number: stats.steps, word: stats.steps === 1 ? "step" : "steps", meta: "", tone: "var(--paper)" },
     { key: "calls", number: stats.judgementCalls, word: "judgement calls", meta: "", tone: "var(--lime)" },
-    { key: "guardrails", number: stats.guardrails, word: "guardrails", meta: "", tone: "var(--violet)" },
+    { key: "guardrails", number: stats.guardrails, word: "guardrails", meta: "", tone: "var(--gold)" },
   ], drill.map);
   renderDebrief();
   renderSteps();
@@ -294,7 +294,7 @@ function renderTeach() {
   renderBigs($("#teach-bigs"), [
     { key: "stopped", number: teach.stops, word: "stopped", meta: "", tone: "var(--red)" },
     { key: "cleared", number: teach.passes, word: "cleared", meta: "", tone: "var(--lime)" },
-    { key: "mastered", number: mastered, word: "mastered", meta: "", tone: "var(--violet)" },
+    { key: "mastered", number: mastered, word: "mastered", meta: "", tone: "var(--gold)" },
   ], null);
   paint($("#case-presets"), "presets", PRESETS.map((preset, index) => `<button type="button" data-preset="${index}">${esc(preset.label)}</button>`).join(""));
   if (!$("#teach-prompt").value) $("#teach-prompt").value = PRESETS[0].text;
@@ -363,7 +363,7 @@ function onAirNow() {
 function renderAgents() {
   paint($("#mcp-config"), "config", esc(`{
   "mcpServers": {
-    "apprentice": {
+    "mason": {
       "command": "node",
       "args": ["…/apprentice/src/mcp.mjs"]
     }
@@ -461,7 +461,7 @@ async function speakInto(button) {
     if (text) { target.value = `${before} ${text}`.trim(); target.dataset.spoken = "true"; }
     else toast("Nothing was heard. Press the microphone and say it again.");
   } catch (error) {
-    toast(error.name === "NotAllowedError" ? "The microphone is blocked for Apprentice. Allow it in System Settings, or type." : error.message);
+    toast(error.name === "NotAllowedError" ? "The microphone is blocked for Mason. Allow it in System Settings, or type." : error.message);
   } finally {
     listening = null;
     button.setAttribute("aria-pressed", "false");
@@ -595,7 +595,7 @@ async function act(event) {
   if (hear) { await hearTeachBack(hear); return load(); }
   if (target.closest("#presence")) {
     // Without access the pill is the way to get it: asked again for this build.
-    if (snapshot.presence === "permission") { await post("/api/access", { action: "fix" }); return toast("Switch Apprentice on in the list"); }
+    if (snapshot.presence === "permission") { await post("/api/access", { action: "fix" }); return toast("Switch Mason on in the list"); }
     const action = snapshot.runtime.offTheRecord ? "on-the-record" : "off-the-record";
     await post("/api/control", { action });
     return load();

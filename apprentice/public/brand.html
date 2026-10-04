@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>MASON · style guide</title>
+    <link rel="icon" type="image/png" href="/brand/mason-mark.png" />
+    <style>
+      /* MASON on one page: the mark, the colours, the type and the three
+         screens they are used on. The values are the ones in styles.css,
+         overview.html and the native palette; change them there first. */
+      :root {
+        --ink: #0e0d0b; --panel: #171512; --raised: #201d19; --line: #2e2b25;
+        --paper: #f3eee2; --muted: #a39d90; --grey: #8c877d;
+        --lime: #d7ff42; --gold: #d6a647; --red: #ff6b5f; --stone-ink: #18110a;
+        --font: Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+        --mono: "SFMono-Regular", ui-monospace, Menlo, monospace;
+      }
+      * { box-sizing: border-box; }
+      html { background: var(--ink); color: var(--paper); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+      body { display: grid; gap: 34px; max-width: 1180px; margin: 0 auto; padding: 40px 32px 56px; }
+      h2 { margin: 0 0 14px; color: var(--muted); font: 600 11px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+      p { margin: 0; }
+
+      .brand { display: flex; align-items: center; gap: 22px; }
+      .brand img { width: 112px; }
+      .brand h1 { margin: 0; font-size: 56px; font-weight: 800; letter-spacing: .22em; line-height: 1; }
+      .brand p { margin-top: 10px; color: var(--muted); font-size: 17px; }
+
+      .cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: start; }
+      @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+
+      .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+      .swatches div { display: grid; align-content: end; gap: 3px; height: 92px; padding: 10px 12px; border-radius: 12px; font: 600 11px/1.2 var(--mono); }
+      .swatches b { font-size: 12px; font-family: var(--font); }
+      .rules { display: grid; gap: 7px; margin-top: 16px; color: #cfc9bb; font-size: 15px; line-height: 1.4; }
+      .rules b { color: var(--paper); }
+
+      .type b { display: block; color: var(--lime); font-size: 104px; font-weight: 720; letter-spacing: -.075em; line-height: .9; }
+      .type b i { font-size: .36em; font-style: normal; letter-spacing: -.02em; }
+      .type .word { margin-top: 2px; font-size: 34px; font-weight: 680; letter-spacing: -.05em; }
+      .type .head { margin-top: 18px; font-size: 27px; font-weight: 680; letter-spacing: -.04em; line-height: 1.06; }
+      .type .label { margin-top: 14px; color: var(--muted); font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+      .type .mark { margin-top: 14px; font-size: 15px; font-weight: 800; letter-spacing: .2em; }
+
+      .bar { position: relative; height: 34px; overflow: hidden; border-radius: 10px; background: linear-gradient(90deg, #3c49b9, #4b5cc4 38%, #2c3273 62%, #5a67b3); }
+      .island { position: absolute; top: 0; left: 50%; display: flex; height: 34px; transform: translateX(-62%); }
+      .island .wing { display: flex; align-items: center; gap: 11px; padding: 0 12px 0 10px; border-radius: 0 0 0 12px; background: rgba(14, 13, 11, .8); color: var(--lime); font: 700 12px/1 var(--mono); }
+      .island .wing img { height: 25px; }
+      .island .notch { width: 150px; background: #000; border-radius: 0 0 9px 9px; }
+      .island .eye { display: grid; place-items: center; width: 30px; border-radius: 0 0 12px 0; background: rgba(14, 13, 11, .8); }
+      .island .eye span { display: grid; place-items: center; width: 12px; height: 12px; border: 2px solid var(--lime); border-radius: 50%; }
+      .island .eye span::after { content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--lime); }
+
+      .screens { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; align-items: start; }
+      .panel { padding: 20px 22px 14px; border: 1px solid rgba(255, 255, 255, .12); border-radius: 24px; background: var(--panel); }
+      .who { display: flex; align-items: center; gap: 9px; color: var(--muted); font: 600 11px/1 var(--mono); letter-spacing: .09em; text-transform: uppercase; }
+      .who i { width: 7px; height: 7px; border-radius: 50%; background: var(--lime); }
+      .who b { color: var(--paper); }
+      .who span { display: grid; place-items: center; width: 34px; height: 34px; margin-left: auto; border-radius: 50%; background: var(--lime); color: #101100; font-size: 14px; }
+      .panel .head { margin: 10px 0 2px; font-size: 25px; font-weight: 680; letter-spacing: -.04em; line-height: 1.06; }
+      .big { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 12px; }
+      .big b { min-width: 2.05ch; font-size: 86px; font-weight: 720; letter-spacing: -.075em; line-height: .9; text-align: right; font-variant-numeric: tabular-nums; }
+      .big b i { font-size: .36em; font-style: normal; letter-spacing: -.02em; }
+      .big span { font-size: 31px; font-weight: 680; letter-spacing: -.05em; }
+      .big.work b { color: var(--lime); }
+      .big.social b { color: var(--red); }
+      .big.other b { color: var(--grey); }
+      .stack { display: grid; gap: 18px; }
+      .ask { padding: 16px 16px 18px; border-radius: 17px; background: var(--gold); color: var(--stone-ink); }
+      .ask h3 { margin: 0; font-size: 23px; font-weight: 700; letter-spacing: -.04em; line-height: 1.06; }
+      .ask div { display: flex; align-items: center; height: 50px; margin-top: 14px; padding: 0 8px 0 16px; border-radius: 25px; background: var(--stone-ink); color: #a39a85; font-size: 15px; }
+      .ask div i { width: 36px; height: 36px; margin-left: auto; border-radius: 50%; background: var(--paper); }
+      .call { padding: 14px 16px 16px; border-radius: 17px; background: var(--panel); border: 1px solid rgba(255, 255, 255, .12); }
+      .call h3 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -.035em; line-height: 1.16; }
+      .call .you { margin-top: 8px; color: var(--lime); font-size: 14px; }
+      .ear { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+      .ear .mic { width: 28px; height: 28px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 5px rgba(215, 255, 66, .25); }
+      .ear .bars { display: flex; flex: 1; align-items: center; gap: 3px; height: 26px; }
+      .ear .bars i { flex: 1; border-radius: 2px; background: var(--lime); }
+      .ear b { color: var(--lime); font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+      .kept { display: grid; gap: 6px; margin-top: 10px; font-size: 13px; }
+      .kept p { display: flex; align-items: center; gap: 9px; }
+      .kept p::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--lime); }
+      .kept p + p::before { background: var(--gold); }
+    </style>
+  </head>
+  <body>
+    <header class="brand">
+      <img src="/brand/mason-mark.png" alt="" />
+      <div><h1>MASON</h1><p>The mason was there.</p></div>
+    </header>
+
+    <div class="cols">
+      <section>
+        <h2>Colour</h2>
+        <div class="swatches">
+          <div style="background:#d7ff42;color:#101100"><b>Green</b>#d7ff42</div>
+          <div style="background:#d6a647;color:#18110a"><b>Sandstone</b>#d6a647</div>
+          <div style="background:#ff6b5f;color:#1c0806"><b>Red</b>#ff6b5f</div>
+          <div style="background:#8c877d;color:#0e0d0b"><b>Stone</b>#8c877d</div>
+          <div style="background:#0e0d0b;box-shadow:inset 0 0 0 1px #2e2b25"><b>Ground</b>#0e0d0b</div>
+          <div style="background:#171512"><b>Panel</b>#171512</div>
+          <div style="background:#201d19"><b>Raised</b>#201d19</div>
+          <div style="background:#f3eee2;color:#18110a"><b>Bone</b>#f3eee2</div>
+        </div>
+        <div class="rules">
+          <p><b>Green</b> is the one loud colour: the figures, work, "it hears you", the thing to press.</p>
+          <p><b>Sandstone</b> is Mason speaking or asking: the question card, its turn in a call, private, what it had to remind you of.</p>
+          <p><b>Red</b> is social time and a stop. <b>Stone</b> is everything else.</p>
+          <p>The greys are warm. No purple, no gradients on surfaces.</p>
+        </div>
+      </section>
+      <section class="type">
+        <h2>Type</h2>
+        <b>97<i>%</i></b>
+        <p class="word">work</p>
+        <p class="head">Rematch broken, lobby rebuilt</p>
+        <p class="label">Label · SF Mono 11 · caps · .1em</p>
+        <p class="mark">MASON</p>
+        <p class="label">Figures: Inter / SF Pro 720, −.075em. The name: 800, +.2em</p>
+      </section>
+    </div>
+
+    <section>
+      <h2>On screen</h2>
+      <div class="bar">
+        <div class="island">
+          <div class="wing"><img src="/brand/mason-work.png" alt="" />97%</div>
+          <div class="notch"></div>
+          <div class="eye"><span></span></div>
+        </div>
+      </div>
+      <div class="screens">
+        <div class="panel">
+          <div class="who"><i></i><b>KUBB</b><span>☎</span></div>
+          <p class="head">Rematch broken, lobby rebuilt</p>
+          <div class="big work"><b>97<i>%</i></b><span>work</span></div>
+          <div class="big social"><b>0<i>%</i></b><span>social</span></div>
+          <div class="big other"><b>3<i>%</i></b><span>other</span></div>
+        </div>
+        <div class="stack">
+          <div class="ask"><h3>When should I stop and ask you?</h3><div>Answer<i></i></div></div>
+          <div class="call">
+            <h3>Tell me about KUBB. What do you remember?</h3>
+            <p class="you">“A Viking kubb brawler, multiplayer, with a lobby.”</p>
+            <div class="ear"><span class="mic"></span><div class="bars"><i style="height:30%"></i><i style="height:70%"></i><i style="height:100%"></i><i style="height:55%"></i><i style="height:20%"></i><i style="height:85%"></i><i style="height:100%"></i><i style="height:60%"></i><i style="height:35%"></i><i style="height:90%"></i><i style="height:45%"></i><i style="height:75%"></i></div><b>Hearing you</b></div>
+            <div class="kept"><p>Remembered · the lobby</p><p>Reminded · why the rematch broke</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>
