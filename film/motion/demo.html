@@ -66,20 +66,25 @@
   .island.right { left: 1110px; width: 60px; justify-content: center; }
   .island i { width: 40px; height: 5px; border-radius: 3px; background: var(--lime); }
   .island em { font: 600 18px/1 var(--mono); font-style: normal; color: var(--lime); }
-  .deskwin { position: absolute; left: 230px; top: 150px; width: 1460px; height: 790px; border-radius: 18px; background: #1d140e; box-shadow: 0 0 0 1px #4a3828, 0 40px 120px rgba(0, 0, 0, .6); overflow: hidden; }
-  .deskwin .bar { display: flex; align-items: center; gap: 9px; height: 52px; padding: 0 20px; border-bottom: 1px solid #3d2c1f; }
-  .deskwin .bar i { width: 13px; height: 13px; border-radius: 50%; background: #5a4634; }
-  .deskwin .bar span { margin-left: 16px; color: var(--faint); font: 500 18px/1 var(--mono); }
+  .deskwin { position: absolute; left: 230px; top: 150px; width: 1460px; height: 790px; border-radius: 18px; background: #3a2a1d; box-shadow: 0 0 0 2px #8a6e4e, 0 40px 120px rgba(0, 0, 0, .6); overflow: hidden; }
+  .deskwin .bar { display: flex; align-items: center; gap: 9px; height: 52px; padding: 0 20px; border-bottom: 1px solid #6b5642; background: #46331f; }
+  .deskwin .bar i { width: 13px; height: 13px; border-radius: 50%; background: #b09070; }
+  .deskwin .bar span { margin-left: 16px; color: var(--paper); font: 500 18px/1 var(--mono); }
   .deskwin .side { position: absolute; left: 0; top: 52px; bottom: 0; width: 250px; padding: 26px 22px; border-right: 1px solid #3d2c1f; display: grid; align-content: start; gap: 18px; }
-  .deskwin .side i { height: 12px; border-radius: 6px; background: #3d2c1f; }
+  .deskwin .side i { height: 12px; border-radius: 6px; background: #6b5642; }
   .deskwin .side i:nth-child(2) { width: 70%; } .deskwin .side i:nth-child(4) { width: 55%; }
   .deskwin .chat { position: absolute; left: 250px; right: 0; top: 52px; bottom: 0; padding: 40px 48px; display: flex; flex-direction: column; gap: 26px; }
-  .deskwin .chat i { height: 54px; border-radius: 16px; background: #2e2015; }
-  .deskwin .chat .typed { margin-top: auto; padding: 26px 30px; border: 1px solid #4a3828; border-radius: 16px; font-size: 38px; }
+  .deskwin .chat i { height: 54px; border-radius: 16px; background: #57422f; }
+  .deskwin .chat .typed { margin-top: auto; padding: 26px 30px; border: 2px solid #8a6e4e; border-radius: 16px; font-size: 38px; background: #2a1c12; }
   .drop { position: absolute; left: 560px; top: 48px; width: 800px; padding: 34px 44px 38px; border-radius: 0 0 30px 30px; background: #000; box-shadow: 0 30px 90px rgba(0, 0, 0, .6); text-align: center; }
   .drop h1 { font-size: 150px; line-height: 1; color: var(--red); }
   .drop p { margin-top: 14px; font: 500 34px/1.25 var(--mono); color: var(--paper); }
   .drop small { display: block; margin-top: 14px; color: var(--muted); font: 500 20px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+
+  .kept { padding: 20px 26px; border-radius: 18px; background: #000; border: 1px solid var(--lime); }
+  .kept small { display: block; color: var(--lime); font: 600 18px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+  .kept b { display: block; margin-top: 10px; font-size: 40px; font-weight: 400; line-height: 1.1; }
+  #f-rows .row3 b { font-size: 58px; } #f-rows .row3 b em { color: var(--muted); font-size: .62em; font-family: var(--sans); }
 
   .pill { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border: 1.5px solid var(--violet); border-radius: 999px; color: var(--violet); font: 600 16px/1 var(--mono); letter-spacing: .1em; }
   .chip { display: inline-flex; align-items: center; gap: 12px; height: 64px; padding: 0 26px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font-size: 30px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; }
@@ -122,7 +127,7 @@
   </div>
   <div class="abs" id="c-mark" style="left:128px; top:60px; display:flex; align-items:center; gap:22px; height:90px">
     <img class="logo" src="../brand/logo.png" width="117" height="117" alt="" />
-    <span class="mid" style="font-size:66px">Mason <em>was there.</em></span>
+    <span class="mid" style="font-size:66px">He remembers <em>three.</em></span>
   </div>
   <p class="abs" style="right:128px; top:40px; text-align:right; font-size:128px; line-height:1; font-weight:700; letter-spacing:-.05em; color:var(--lime)"><span id="c-count">0</span><span style="font-size:44px; color:var(--muted); letter-spacing:-.02em; margin-left:14px">chats</span></p>
   <div class="abs" id="c-castle" style="left:78px; top:210px; width:1764px; height:558px"></div>
@@ -195,13 +200,13 @@
   <div class="abs" id="a-orb" style="left:128px; top:230px; width:230px; height:230px; border-radius:50%; border:3px solid var(--violet); display:grid; place-items:center">
     <img class="logo" src="../brand/logo.png" width="156" height="156" alt="" />
   </div>
-  <p class="abs eyebrow" style="left:400px; top:250px; color:var(--violet)">Teach · recall call · ElevenLabs agent</p>
+  <p class="abs eyebrow" style="left:400px; top:250px; color:var(--violet)">Teach · the recall call · ElevenLabs agent</p>
   <p class="abs mid" id="a-hear" style="left:400px; top:610px; font-size:64px; color:var(--lime)">Hearing you</p>
   <h1 class="abs mid" style="left:400px; top:292px; width:1400px; font-size:76px; color:var(--violet)" id="a-q"></h1>
   <div class="abs" id="a-chips" style="left:400px; top:610px; display:flex; flex-wrap:wrap; gap:18px; width:1300px">
-    <span class="chip"><i></i><b>Remembered</b> the keywords</span>
-    <span class="chip" data-tone="violet"><i></i><b>Reminded</b> what it was built with</span>
-    <span class="chip" data-tone="violet"><i></i><b>Reminded</b> why it was built that way</span>
+    <span class="chip" data-tone="violet"><i></i><b>Day 1</b> 1 of 4 remembered</span>
+    <span class="chip" data-tone="violet"><i></i><b>Day 7</b> 3 of 4</span>
+    <span class="chip"><i></i><b>Day 30</b> 4 of 4</span>
   </div>
   <p class="abs mid" id="a-score" style="left:400px; top:800px; font-size:64px"><em>1 of 4</em> remembered</p>
 </section>
@@ -223,6 +228,48 @@
   <p class="abs eyebrow" style="left:128px; top:210px">Vibecoder</p>
   <h1 class="abs" id="l-quote" style="left:128px; top:270px; width:1130px; font-size:128px; line-height:1.05; font-style:italic; font-weight:400"></h1>
   <p class="abs note" id="l-by" style="left:128px; top:760px; font-size:34px"></p>
+</section>
+
+<!-- U1. While he works: Mason beside the notch, a question at the pause, the answer kept. -->
+<section class="scene" id="desk">
+  <div class="abs" style="left:0; top:0; width:1920px; height:1080px; translate:0 0; background: radial-gradient(1200px 800px at 20% 110%, #6b3f24, transparent 70%), radial-gradient(1100px 700px at 90% -10%, #7a5a2c, transparent 70%), #2a1a10">
+    <div class="menubar">
+      <span class="apple"></span><b>Cursor</b><span>File</span><span>Edit</span><span>View</span>
+      <div class="island left" id="d-island"><img class="logo" src="../brand/logo.png" width="34" height="34" alt="" /><i></i><em>97%</em></div>
+      <div class="notch"></div>
+      <div class="island right" id="d-eye"><svg viewBox="0 0 24 24" width="26" height="26"><ellipse cx="12" cy="12" rx="9" ry="6" fill="none" stroke="currentColor" stroke-width="2" /><circle cx="12" cy="12" r="3" fill="currentColor" /></svg></div>
+      <span class="clock">Sun 14:07</span>
+    </div>
+    <p id="d-here" style="position:absolute; left:600px; top:66px; margin:0; color:var(--lime); font:600 34px/1 var(--mono); letter-spacing:.1em">↑ MASON LIVES HERE</p>
+    <div class="deskwin" id="d-win" style="width:1000px">
+      <div class="bar"><i></i><i></i><i></i><span>agent · working</span></div>
+      <div class="side" style="width:180px"><i></i><i></i><i></i><i></i></div>
+      <div class="chat" style="left:180px"><i style="width:60%"></i><i style="width:44%; margin-left:auto"></i>
+        <p class="typed" id="d-plan" style="font-size:32px"><span style="color:var(--faint)">&gt; </span><span id="d-typed"></span></p>
+      </div>
+    </div>
+    <div class="drop" id="d-ask" style="left:500px; width:920px">
+      <small style="margin:0 0 14px">Mason asks, at the pause</small>
+      <p id="d-q" style="font:400 68px/1.1 var(--font); color:var(--violet); margin:0"></p>
+    </div>
+    <div id="d-kept" style="position:absolute; left:1290px; top:330px; width:520px; display:grid; gap:18px">
+      <div class="kept"><small>Decision kept</small><b>Events, not a film</b></div>
+      <div class="kept"><small>Decision kept</small><b>One question, then silence</b></div>
+      <div class="kept"><small>Rule kept</small><b>Keep the UI minimal</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- U2. A month later, the same question, and this time an answer. -->
+<section class="scene" id="after">
+  <p class="abs eyebrow" style="left:128px; top:110px">A month later · the interview</p>
+  <h1 class="abs big" id="f-q" style="left:128px; top:150px; width:1700px; font-size:104px">“So, Gustaf. How did you <em>build it?</em>”</h1>
+  <div class="abs" id="f-rows" style="left:128px; top:330px; width:1660px">
+    <div class="row3"><span>Decision</span><b>Events, not a film <em>· it never records my day</em></b></div>
+    <div class="row3"><span>Decision</span><b>One question, then silence <em>· asked at the pause</em></b></div>
+    <div class="row3"><span>Rule</span><b>Keep the UI minimal <em>· “de ska bara visa de enklaste”</em></b></div>
+  </div>
+  <p class="abs mid" id="f-all" style="left:128px; top:800px; font-size:76px"><em>16 of 16</em> decisions, and why.</p>
 </section>
 
 <!-- 6. Every agent gets the same memory, and is stopped where he would stop. -->
@@ -259,7 +306,7 @@
 
 <!-- 8. End. -->
 <section class="scene" id="end">
-  <h1 class="abs big" id="e-not" style="left:0; top:400px; width:1920px; text-align:center; font-size:170px">Not <em>anymore.</em></h1>
+  <h1 class="abs big" id="e-not" style="left:0; top:400px; width:1920px; text-align:center; font-size:170px"></h1>
   <div class="abs" id="e-mark" style="left:0; top:370px; width:1920px; display:flex; justify-content:center; align-items:center; gap:34px">
     <img class="logo" src="../brand/logo.png" width="225" height="225" alt="" />
     <span style="font-size:190px; font-weight:400">Mason</span>
@@ -294,7 +341,7 @@
   // whose alternatives was spoken in this take is left out, which is how two
   // openings share one film.
   const defined = [];
-  function scene(id, lines, build, after) { defined.push({ id, el: document.getElementById(id), options: Array.isArray(lines[0]) ? lines : [lines], build, after, anims: [], ticks: [] }); }
+  function scene(id, lines, build, after) { defined.push({ id, el: document.getElementById(id === "quiz" ? "asks" : id), options: Array.isArray(lines[0]) ? lines : [lines], build, after, anims: [], ticks: [] }); }
 
   function init(data) {
     film = data;
@@ -395,7 +442,7 @@
     fly("#k-q", RISE(70), { at: 40, dur: 650 });
   });
 
-  scene("castle", ["m1", "n1", "n2"], ({ fly, at, until, tick }) => {
+  scene("castle", ["m1", "n1"], ({ fly, at, until, tick }) => {
     const MAP = [
       "..........#..........",
       "#.##....#.#.#....##.#",
@@ -439,18 +486,18 @@
     });
     const bricks = [...castle.children];
     const ANSWER = 58;
-    const kept = [12, 27, 41, 58, 66, 79, 88, 97, 104, 111, 116, 119];
+    const kept = [27, 58, 97];  // the three keywords he remembers
     // One of them has the answer. Then it is one grey brick among the rest.
     fly(bricks[ANSWER], [{ backgroundColor: "#3b2a1b", borderColor: "#7a6148", transform: "none" }, { backgroundColor: "#dba743", borderColor: "#dba743", transform: "scale(1.45)", offset: 0.25 }, { backgroundColor: "#dba743", borderColor: "#dba743", transform: "scale(1.45)", offset: 0.6 }, { backgroundColor: "#3b2a1b", borderColor: "#7a6148", transform: "none" }], { at: at("n1") + 1700, dur: Math.max(1400, until("n1") - at("n1") - 1500), ease: "linear" });
     // Apprentice was there: the chats that hold a decision light up, the rest fall back.
     bricks.forEach((brick, index) => {
-      const wave = at("n2") + 200 + brick.offsetLeft * 0.45;
+      const wave = (at("n1") + (until("n1") - at("n1")) * 0.62) + 200 + brick.offsetLeft * 0.45;
       if (kept.includes(index)) fly(brick, [{ backgroundColor: "#3b2a1b", borderColor: "#7a6148", transform: "none" }, { backgroundColor: "#dba743", borderColor: "#dba743", transform: "scale(1.18)" }], { at: wave, dur: 320, ease: QUART });
       else fly(brick, [{ opacity: 1 }, { opacity: 0.3 }], { at: wave, dur: 320, ease: QUART });
     });
     fly("#c-lead", RISE(20), { at: 60, dur: 400 });
-    fly("#c-lead", [{ opacity: 1 }, { opacity: 0 }], { at: at("n2") - 60, dur: 220, ease: QUART });
-    fly("#c-mark", FROM_LEFT(200), { at: at("n2") + 120, dur: 650 });
+    fly("#c-lead", [{ opacity: 1 }, { opacity: 0 }], { at: (at("n1") + (until("n1") - at("n1")) * 0.62) - 60, dur: 220, ease: QUART });
+    fly("#c-mark", FROM_LEFT(200), { at: (at("n1") + (until("n1") - at("n1")) * 0.62) + 120, dur: 650 });
     tick((now) => { $("#c-count").textContent = times.filter((when) => when <= now).length; });
   });
 
@@ -521,12 +568,12 @@
     tick((now) => { $("#h-count").textContent = Math.round(120 * outExpo(ramp(now, 80, 900))); });
   });
 
-  scene("remembers", ["n4"], ({ fly, dur }) => {
+  scene("remembers", ["old-n4"], ({ fly, dur }) => {
     fly("#m-name", RISE(60), { at: 40, dur: 650 });
     [...$("#m-rows").children].forEach((row, index) => fly(row, RISE(40), { at: 500 + index * Math.max(700, (dur - 1400) / 3), dur: 600 }));
   });
 
-  scene("rules", [["p6"], ["n5"]], ({ fly, at, until, lines }) => {
+  scene("rules", [["p6"]], ({ fly, at, until, lines }) => {
     // Said once. Said again. The two become one rule.
     const becomes = at(lines[0]) + (until(lines[0]) - at(lines[0])) * 0.5;
     fly("#u-a", FROM_LEFT(520), { at: 60, dur: 680 });
@@ -536,7 +583,7 @@
     fly("#u-rule", [{ opacity: 0, transform: "scale(.86)" }, { opacity: 1, transform: "none" }], { at: becomes + 260, dur: 700 });
   });
 
-  scene("asks", [["p7", "g1", "p8"], ["n6", "g1", "n7"]], ({ fly, at, until, tick, lines }) => {
+  scene("asks", [["p7", "g1", "p8"]], ({ fly, at, until, tick, lines }) => {
     const QUESTION = "“Tell me about the food app you built a month ago. What do you remember?”";
     fly("#a-orb", [{ opacity: 0, transform: "scale(.5)" }, { opacity: 1, transform: "none" }], { at: 80, dur: 700 });
     // After the question there may be a silence for his answer. The chips land as it ends.
@@ -586,6 +633,43 @@
     tick((now) => { $("#g-typed").textContent = PLAN.slice(0, Math.round(PLAN.length * ramp(now, 500, Math.max(1100, until("n9") - at("n9") - 700)))); });
   });
 
+  scene("desk", ["n2", "n3", "g1", "n4"], ({ fly, at, until, tick }) => {
+    const PLAN = "store events, not screenshots. keep it local.";
+    const QUESTION = "“Why this path, and not the other?”";
+    fly("#d-win", RISE(40), { at: 60, dur: 600 });
+    fly("#d-island", [{ transform: "scale(1)" }, { transform: "scale(1.22)", offset: 0.5 }, { transform: "scale(1)" }], { at: 500, dur: 700, ease: QUART });
+    fly("#d-here", RISE(14), { at: 420, dur: 400 });
+    fly("#d-here", [{ opacity: 1 }, { opacity: 0 }], { at: at("n3") + 200, dur: 300, ease: QUART });
+    // He types, then stops. The question drops from the notch at the pause.
+    fly("#d-ask", [{ opacity: 0, transform: "translateY(-140px)" }, { opacity: 1, transform: "none" }], { at: at("g1") - 250, dur: 520 });
+    fly("#d-ask", [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(-60px)" }], { at: at("n4") + 250, dur: 300, ease: QUART });
+    [...$("#d-kept").children].forEach((card, index) => fly(card, [{ opacity: 0, transform: "translateX(120px)" }, { opacity: 1, transform: "none" }], { at: at("n4") + 500 + index * 420, dur: 520 }));
+    tick((now) => {
+      $("#d-typed").textContent = PLAN.slice(0, Math.round(PLAN.length * ramp(now, at("n3") + 100, Math.max(900, until("n3") - at("n3") - 1300))));
+      $("#d-q").textContent = QUESTION.slice(0, Math.round(QUESTION.length * ramp(now, at("g1"), (until("g1") - at("g1")) * 0.8)));
+      $("#d-eye").style.color = now > until("n3") - 900 && now < at("n4") ? "#cf7a56" : "";
+    });
+  });
+
+  scene("quiz", ["n5", "g2"], ({ fly, at, until, dur, tick }) => {  // drawn in the #asks section
+    const QUESTION = "“Tell me about the food app you built a month ago.”";
+    fly("#a-orb", [{ opacity: 0, transform: "scale(.5)" }, { opacity: 1, transform: "none" }], { at: 80, dur: 700 });
+    const chips = [...$("#a-chips").children];
+    chips.forEach((chip, index) => fly(chip, [{ opacity: 0, transform: "translateX(160px)" }, { opacity: 1, transform: "none" }], { at: until("g2") + 100 + index * 330, dur: 480 }));
+    tick((now) => {
+      $("#a-q").textContent = QUESTION.slice(0, Math.round(QUESTION.length * ramp(now, at("g2"), (until("g2") - at("g2")) * 0.8)));
+      const speaking = now > at("g2") && now < until("g2");
+      $("#a-orb").style.boxShadow = speaking ? `0 0 0 ${10 + 9 * Math.sin(now / 95)}px rgba(207, 122, 86, .22)` : "none";
+      $("#a-hear").style.opacity = 0; $("#a-score").style.opacity = 0;
+    });
+  });
+
+  scene("after", ["n6", "q2", "n7"], ({ fly, at, until }) => {
+    fly("#f-q", RISE(50), { at: at("q2") - 150, dur: 600 });
+    [...$("#f-rows").children].forEach((row, index) => fly(row, RISE(36), { at: at("n7") + 150 + index * 520, dur: 520 }));
+    fly("#f-all", RISE(40), { at: at("n7") + 2000, dur: 600 });
+  });
+
   scene("lost", ["m4"], ({ tick }) => {
     // Each word appears as he says it (times measured in his clip).
     const WORDS = [["“All", 200], ["those", 700], ["memories", 1450], ["will", 2700], ["be", 3350], ["lost", 3700], ["in", 4300], ["time.”", 4650]];
@@ -597,13 +681,13 @@
     });
   });
 
-  scene("end", [["p11"], ["n11"]], ({ fly }) => {
+  scene("end", [["p11"], ["n8"]], ({ fly }) => {
     fly("#e-not", RISE(50), { at: 60, dur: 500 });
     fly("#e-not", [{ opacity: 1 }, { opacity: 0 }], { at: 1250, dur: 220, ease: QUART });
-    fly("#e-mark", [{ opacity: 0, transform: "scale(.82)" }, { opacity: 1, transform: "none" }], { at: 1450, dur: 800 });
-    fly("#e-tag", RISE(40), { at: 1900, dur: 700 });
-    fly("#e-next", RISE(20), { at: 2300, dur: 500 });
-    fly("#e-foot", GONE.slice().reverse(), { at: 2700, dur: 600, ease: QUART });
+    fly("#e-mark", [{ opacity: 0, transform: "scale(.82)" }, { opacity: 1, transform: "none" }], { at: 80, dur: 800 });
+    fly("#e-tag", RISE(40), { at: 520, dur: 700 });
+    fly("#e-next", RISE(20), { at: 1000, dur: 500 });
+    fly("#e-foot", GONE.slice().reverse(), { at: 1300, dur: 600, ease: QUART });
   });
 </script>
 </body>
