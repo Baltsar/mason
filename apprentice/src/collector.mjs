@@ -7,6 +7,7 @@ import { catchGuardrail } from "./teach-engine.mjs";
 import { classifyActivity, dayStart } from "./activity.mjs";
 import { projectIndex, summarizeProjects } from "./projects.mjs";
 import { readEventsSince } from "./store.mjs";
+import { settings } from "./settings.mjs";
 
 const EXCLUDED_APPS = [
   "com.apple.keychainaccess", "com.apple.Passwords", "com.1password.1password", "com.agilebits.onepassword7",
@@ -21,6 +22,29 @@ const PRIVATE_TITLE_WORDS = [
   "1177", "health", "medical", "journal", "gmail", "outlook", "mail", "messages", "meddelanden",
   "whatsapp", "signal", "telegram", "discord", "slack", "family", "photos",
 ];
+
+// Chat, mail and meetings can be named, never read. With that setting on, a
+// visit is kept as the name of the app or service and the time spent there, so
+// a day's moves between tools are whole. Password managers, banking, health
+// and private windows stay unnamed whatever the setting says.
+const NAMED_APPS = new Set([
+  "com.apple.MobileSMS", "com.apple.mail", "com.tinyspeck.slackmacgap", "net.whatsapp.WhatsApp",
+  "org.whispersystems.signal-desktop", "com.microsoft.Outlook", "com.hnc.Discord", "ru.keepcoder.Telegram",
+  "com.microsoft.teams2", "us.zoom.xos",
+]);
+// A word in a browser tab's title and the service it stands for, the most
+// particular first.
+const NAMED_TITLE_WORDS = [
+  ["discord", "Discord"], ["slack", "Slack"], ["gmail", "Gmail"], ["outlook", "Outlook"], ["whatsapp", "WhatsApp"],
+  ["telegram web", "Telegram"], ["telegram", "Telegram"], ["signal", "Signal"], ["messages", "Messages"],
+  ["meddelanden", "Messages"], ["mail", "Mail"],
+];
+// The name a refused surface may be kept under, or null when it stays unnamed.
+export function namedSurface(snapshot, allowed = settings().chats) {
+  if (!allowed || snapshot?.status !== "excluded") return null;
+  if (snapshot.service) return String(snapshot.service).slice(0, 40);
+  return NAMED_APPS.has(snapshot.bundle) ? redact(snapshot.app, 80) : null;
+}
 
 const TICK_MS = process.env.APPRENTICE_DEMO ? 750 : 2000;
 const OWN_BUNDLE = "design.headless.apprentice";
@@ -45,7 +69,9 @@ function runReader({ prompt = false, enhance = false } = {}) {
       catch { resolve({ status: "error" }); }
     });
     child.stdin.on("error", () => {});
-    child.stdin.end(`${JSON.stringify({ prompt, enhance, excludedApps: EXCLUDED_APPS, privateTitleWords: PRIVATE_TITLE_WORDS })}\n`);
+    // The reader names a chat or mail tab only when it is asked to.
+    const namedTitleWords = settings().chats ? NAMED_TITLE_WORDS : [];
+    child.stdin.end(`${JSON.stringify({ prompt, enhance, excludedApps: EXCLUDED_APPS, privateTitleWords: PRIVATE_TITLE_WORDS, namedTitleWords })}\n`);
   });
 }
 
@@ -94,6 +120,12 @@ export class Collector {
     if (!this.activity || this.activity.seconds < 1) { this.activity = null; return; }
     const segment = this.activity;
     this.activity = null;
+    if (segment.named) {
+      // A named private surface: its name and the time, never a title.
+      await appendEvent({ type: "private", app: segment.app, durationSec: Math.round(segment.seconds), startedAt: segment.startedAt, stored: "name-and-time-only" });
+      this.onChange("activity");
+      return;
+    }
     const index = await projectIndex(dayStart()).catch(() => null);
     await appendEvent({
       type: "activity",
@@ -110,15 +142,15 @@ export class Collector {
     this.onChange("activity");
   }
 
-  async observeActivity(snapshot, app, window) {
+  async observeActivity(snapshot, app, window, named = false) {
     const now = Date.now();
-    const classification = classifyActivity({ app, window });
-    const active = classification && Number(snapshot.idleSeconds ?? 0) < 60;
-    const key = active ? fingerprint(`${app}:${window}:${classification.category}`) : null;
+    const classification = named ? null : classifyActivity({ app, window });
+    const active = (named || classification) && Number(snapshot.idleSeconds ?? 0) < 60;
+    const key = active ? fingerprint(named ? `named:${app}` : `${app}:${window}:${classification.category}`) : null;
     if (!active) { await this.flushActivity(); return; }
     if (!this.activity || this.activity.key !== key) {
       await this.flushActivity();
-      this.activity = { key, app, window, classification, startedAt: new Date(now).toISOString(), lastAt: now, seconds: 0 };
+      this.activity = { key, app, window, classification, named, startedAt: new Date(now).toISOString(), lastAt: now, seconds: 0 };
       return;
     }
     const elapsed = Math.max(0, Math.min((now - this.activity.lastAt) / 1000, 5));
@@ -284,7 +316,8 @@ export class Collector {
         }
       } else {
         const isPrivate = snapshot.status === "excluded";
-        // One refusal per visit to a private surface, never its name or title.
+        // One refusal per visit to a private surface. Its title is never kept,
+        // and its name only for chat and mail, and only when that is switched on.
         if (isPrivate && !this.wasPrivate) runtime.privateRefusals = (runtime.privateRefusals || 0) + 1;
         this.wasPrivate = isPrivate;
         runtime.currentApp = null;
@@ -293,7 +326,9 @@ export class Collector {
         runtime.currentGroup = null;
         runtime.currentIdleSeconds = null;
         runtime.currentPrivate = isPrivate;
-        await this.flushActivity();
+        const name = namedSurface(snapshot);
+        if (name) await this.observeActivity(snapshot, name, "", true);
+        else await this.flushActivity();
       }
       await this.parkStaleQuestions();
       await saveRuntime(runtime);

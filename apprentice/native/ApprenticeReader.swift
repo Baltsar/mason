@@ -35,10 +35,15 @@ guard let front = NSWorkspace.shared.frontmostApplication,
     exit(0)
 }
 
+// How long the hands have been still. It says nothing about what is on screen,
+// so it is known for a private surface too.
+let idleTypes: [CGEventType] = [.keyDown, .mouseMoved, .leftMouseDown, .rightMouseDown, .scrollWheel]
+let idleSeconds = idleTypes.map { CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: $0) }.min() ?? 0
+
 let excluded = Set((input["excludedApps"] as? [String]) ?? [])
 let appName = String((front.localizedName ?? bundle).prefix(80))
 if excluded.contains(bundle) {
-    emit(["status": "excluded", "app": appName, "bundle": bundle])
+    emit(["status": "excluded", "app": appName, "bundle": bundle, "idleSeconds": idleSeconds])
     exit(0)
 }
 
@@ -64,8 +69,23 @@ let defaultPrivateTitleWords = [
     "gmail", "outlook", "mail", "slack", "messages", "meddelanden", "whatsapp", "signal", "telegram", "discord"
 ]
 let privateTitleWords = (input["privateTitleWords"] as? [String]) ?? defaultPrivateTitleWords
-if privateTitleWords.contains(where: rawTitle.lowercased().contains) {
-    emit(["status": "excluded", "app": appName, "bundle": bundle])
+let lowerTitle = rawTitle.lowercased()
+let privateHits = privateTitleWords.filter { lowerTitle.contains($0) }
+if !privateHits.isEmpty {
+    var refusal: [String: Any] = ["status": "excluded", "app": appName, "bundle": bundle, "idleSeconds": idleSeconds]
+    // A chat or mail tab may be named, never read, and only when the collector
+    // asks for it: pairs of a word and the service it stands for. The service
+    // has to be a whole part of the title, as in "Discord | #general", and
+    // nothing else in the title may be private. The title itself stays here.
+    let named = ((input["namedTitleWords"] as? [[String]]) ?? []).filter { $0.count == 2 }
+    if privateHits.allSatisfy({ hit in named.contains { $0[0] == hit } }) {
+        let parts = lowerTitle
+            .replacingOccurrences(of: #"\s+[-|/·–—]\s+"#, with: "\n", options: .regularExpression)
+            .split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: #"^(\(\d+\+?\)|[•*!])\s*"#, with: "", options: .regularExpression) }
+        if let pair = named.first(where: { parts.contains($0[0]) }) { refusal["service"] = pair[1] }
+    }
+    emit(refusal)
     exit(0)
 }
 
@@ -77,14 +97,11 @@ var result: [String: Any] = [
     "pid": Int(front.processIdentifier),
 ]
 
-let lowerTitle = rawTitle.lowercased()
 let promptApps: Set<String> = ["com.openai.codex", "com.openai.chat", "com.anthropic.claudefordesktop", "com.todesktop.230313mzl4w4u92", "com.todesktop.230313mzl4w4u92.helper"]
 let promptWords = ["chatgpt", "claude", "codex", "gemini", "grok", "muse", "lovable", "cursor", "windsurf", "copilot"]
 let promptSurface = promptApps.contains(bundle) || promptWords.contains(where: lowerTitle.contains)
 result["promptSurface"] = promptSurface
 
-let idleTypes: [CGEventType] = [.keyDown, .mouseMoved, .leftMouseDown, .rightMouseDown, .scrollWheel]
-let idleSeconds = idleTypes.map { CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: $0) }.min() ?? 0
 result["idleSeconds"] = idleSeconds
 
 if let focused = element(attribute(app, "AXFocusedUIElement")) {
