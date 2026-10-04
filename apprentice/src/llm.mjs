@@ -3,23 +3,44 @@ import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-// The thinking is done by the Claude login already on this Mac, through the
-// Claude Code CLI in its leanest form: no tools, no plugins, no settings, no
-// saved session. A digest then costs a fraction of a cent instead of loading
-// the whole coding environment for every call.
+// Mason needs a model for two things only: the summary of a project and the
+// script of the weekly recap. Any model can write them. Out of the box it is
+// the Claude login already on this Mac, through the Claude Code CLI in its
+// leanest form: no tools, no plugins, no settings, no saved session, so a
+// digest costs a fraction of a cent instead of loading the whole coding
+// environment. With APPRENTICE_LLM_URL set it is instead whatever answers
+// there in the OpenAI chat format: a model running on this Mac (Ollama,
+// LM Studio) or any provider's endpoint.
 
 const local = path.join(os.homedir(), ".local", "bin", "claude");
 const bin = process.env.APPRENTICE_LLM_BIN || (existsSync(local) ? local : "claude");
+const endpoint = () => (process.env.APPRENTICE_LLM_URL || "").trim().replace(/\/+$/, "");
 
 export const modelAvailable = () => process.env.APPRENTICE_LLM !== "0";
-// Whether the Claude Code CLI is on this Mac at all, for the settings screen.
-export const modelFound = () => existsSync(bin) || bin === "claude" && (process.env.PATH || "").split(":").some((folder) => existsSync(path.join(folder, "claude")));
+// Whether the Claude Code CLI is on this Mac at all.
+const claudeFound = () => existsSync(bin) || bin === "claude" && (process.env.PATH || "").split(":").some((folder) => existsSync(path.join(folder, "claude")));
 
-// Returns the parsed JSON the model replied with, or null when there is no
-// model, it timed out, or the reply was not the JSON that was asked for.
-export function askModel(system, prompt, { timeoutMs = 75_000, model = process.env.APPRENTICE_LLM_MODEL || "haiku" } = {}) {
+// Which model writes the summaries and where it runs, for the settings screen.
+export function modelStatus() {
+  const url = endpoint();
+  if (!url) return { name: "Claude", where: "your own login", ready: claudeFound(), onThisMac: false };
+  let host = url;
+  try { host = new URL(url).host; } catch {}
+  const name = (process.env.APPRENTICE_LLM_MODEL || "").trim();
+  return { name, where: host, ready: Boolean(name), onThisMac: /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(host) };
+}
+
+// The reply is the JSON that was asked for, with or without a fence around it
+// and whatever the model thought aloud before it.
+function parsed(text) {
+  try {
+    const reply = String(text || "").replace(/<think>[\s\S]*?<\/think>/g, "").replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, "").trim();
+    return JSON.parse(reply.slice(reply.indexOf("{"), reply.lastIndexOf("}") + 1));
+  } catch { return null; }
+}
+
+function askClaude(system, prompt, timeoutMs, model) {
   return new Promise((resolve) => {
-    if (!modelAvailable()) return resolve(null);
     // A summary needs no long deliberation: without thinking the same answer
     // comes in seconds instead of a minute. A session's own CLAUDE_* settings
     // are not passed on, so the call behaves the same however Mason was started.
@@ -35,12 +56,33 @@ export function askModel(system, prompt, { timeoutMs = 75_000, model = process.e
     child.once("error", () => { clearTimeout(timer); resolve(null); });
     child.once("exit", () => {
       clearTimeout(timer);
-      try {
-        const reply = String(JSON.parse(output).result || "").replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
-        resolve(JSON.parse(reply.slice(reply.indexOf("{"), reply.lastIndexOf("}") + 1)));
-      } catch { resolve(null); }
+      try { resolve(parsed(JSON.parse(output).result)); } catch { resolve(null); }
     });
     child.stdin.on("error", () => {});
     child.stdin.end(prompt);
   });
+}
+
+async function askEndpoint(system, prompt, timeoutMs) {
+  const model = (process.env.APPRENTICE_LLM_MODEL || "").trim();
+  if (!model) return null;
+  try {
+    const key = process.env.APPRENTICE_LLM_KEY;
+    const response = await fetch(`${endpoint()}/chat/completions`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(key ? { authorization: `Bearer ${key}` } : {}) },
+      body: JSON.stringify({ model, messages: [{ role: "system", content: system }, { role: "user", content: prompt }] }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!response.ok) return null;
+    return parsed((await response.json()).choices?.[0]?.message?.content);
+  } catch { return null; }
+}
+
+// Returns the parsed JSON the model replied with, or null when there is no
+// model, it timed out, or the reply was not the JSON that was asked for.
+// `model` names a Claude model; an endpoint always uses the model it was given.
+export async function askModel(system, prompt, { timeoutMs = 75_000, model = process.env.APPRENTICE_LLM_MODEL || "haiku" } = {}) {
+  if (!modelAvailable()) return null;
+  return endpoint() ? askEndpoint(system, prompt, timeoutMs) : askClaude(system, prompt, timeoutMs, model);
 }

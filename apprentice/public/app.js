@@ -394,12 +394,12 @@ function renderSettings() {
   paint(node, JSON.stringify(prefs), `
     <label class="set"><span>Name</span><input id="set-name" type="text" value="${esc(settings.name || name)}" maxlength="40" autocomplete="off" spellcheck="false" /></label>
     ${toggle("speech", "Sound")}
-    ${toggle("summaries", "Summaries by Claude")}
+    ${toggle("summaries", "Summaries")}
     <div class="set"><span>Screen access</span>${status.access === "on" ? "<b>On</b>" : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
     ${status.elevenLabsKey
       ? `<div class="set"><span>ElevenLabs voice</span><span class="with">${settings.elevenlabs ? (status.credits ? `<b>${thousands(status.credits.left)} credits left</b>` : "") : "<b data-off>Mac voice, no calls</b>"}<button class="switch" type="button" role="switch" aria-checked="${settings.elevenlabs}" aria-label="ElevenLabs voice" data-setting="elevenlabs"></button></span></div>`
       : state("ElevenLabs", false, "", "No key in .env.local")}
-    ${state("Claude", status.claude, "Found", "Not found")}
+    ${state("Summaries by", status.model.ready, status.model.name, status.model.name === "Claude" ? "Claude not found" : "No model named")}
     <div class="set"><span>Memory</span><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Show in Finder</button></div>
     <div class="set"><span>Notes for Obsidian</span><button class="secondary" type="button" data-reveal="notes">Show in Finder</button></div>
     <p class="fine">Mason reads the front app, the window title and the prompt field. No screenshots, no keystrokes. Summaries are written through your own Claude login; without them the memory is your own words. With ElevenLabs and summaries switched off, nothing leaves this Mac.</p>`);

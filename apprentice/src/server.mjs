@@ -17,7 +17,7 @@ import { callContext, ensureAgent, recallContext, signedUrl, tutorContext } from
 import { mergeInferred, projectMemory } from "./memory.mjs";
 import { makeEpisode, playEpisode, podcastBusy, podcastState } from "./podcast.mjs";
 import { hasElevenLabsKey, loadSettings, ownerName, saveSettings, settings } from "./settings.mjs";
-import { modelFound } from "./llm.mjs";
+import { modelStatus } from "./llm.mjs";
 
 useMemoryStore();
 await loadLocalEnv();
@@ -614,7 +614,7 @@ const server = http.createServer(async (request, response) => {
           elevenLabs: Boolean(process.env.ELEVENLABS_API_KEY),
           elevenLabsKey: hasElevenLabsKey(),
           credits: await elevenLabsCredits(),
-          claude: modelFound(),
+          model: modelStatus(),
           data: paths.data.replace(process.env.HOME || "\u0000", "~"),
         },
       });
