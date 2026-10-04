@@ -9,10 +9,13 @@ import { buildRecap, writeVault, writeWiki } from "./wiki.mjs";
 import { elevenLabsCredits, speak, stopSpeaking, voiceStatus } from "./voice.mjs";
 import { handleMcp } from "./mcp-handler.mjs";
 import { loadLocalEnv } from "./config.mjs";
-import { aggregateActivity, dayStart } from "./activity.mjs";
+import { aggregateActivity, classifyActivity, dayStart } from "./activity.mjs";
+import { buildFlow } from "./flow.mjs";
+import { ICON_FILE, iconFolder, iconsFor } from "./icons.mjs";
+import { dayKey, daysPayload, loadDays, refreshDays } from "./days.mjs";
 import { mastery, reviewDecision } from "./teach-engine.mjs";
 import { buildGaps, buildTeachBack, confirmation, debriefProgress } from "./debrief.mjs";
-import { projectIndex, summarizeProjects } from "./projects.mjs";
+import { logSources, projectIndex, summarizeProjects } from "./projects.mjs";
 import { callContext, ensureAgent, recallContext, signedUrl, tutorContext } from "./agent.mjs";
 import { mergeInferred, projectMemory } from "./memory.mjs";
 import { makeEpisode, playEpisode, podcastBusy, podcastState } from "./podcast.mjs";
@@ -63,15 +66,45 @@ function json(response, status, value) {
 
 // Today's split is asked for every few seconds by the island, so it is only
 // recomputed when an event was actually written.
-let activityMemo = { version: -1, day: 0, at: 0, value: null, projects: null };
+let activityMemo = { version: -1, day: 0, at: 0, value: null, projects: null, flow: null };
+// Work, social or other, decided the same way for the flow as for the split:
+// inside a project it is work, and "other" is looked at again.
+const groupFor = (index) => (sample) => index.of(sample) ? "work" : sample.group && sample.group !== "other" ? sample.group : classifyActivity(sample)?.group || "other";
 async function today() {
   const day = dayStart();
   // A new prompt in a project log changes the picture without any new event,
   // so the memo also ages out after a few seconds.
   if (activityMemo.value && activityMemo.version === eventsVersion() && activityMemo.day === day && Date.now() - activityMemo.at < 15_000) return activityMemo;
   const [events, index] = await Promise.all([readEventsSince(day), projectIndex(day)]);
-  activityMemo = { version: eventsVersion(), day, at: Date.now(), value: aggregateActivity(events, Date.now(), (sample) => index.of(sample)), projects: summarizeProjects(events, index) };
+  activityMemo = { version: eventsVersion(), day, at: Date.now(), value: aggregateActivity(events, Date.now(), (sample) => index.of(sample)), projects: summarizeProjects(events, index), flow: buildFlow(events, { groupOf: groupFor(index) }) };
   return activityMemo;
+}
+
+// How a day moved between tools: today, or the day asked for. Each tool comes
+// with its icon when the app is on this Mac.
+async function flowPayload(asked) {
+  const current = dayKey(Date.now());
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(asked || "") ? asked : current;
+  let flow;
+  if (day === current) flow = (await today()).flow;
+  else {
+    const [year, month, date] = day.split("-").map(Number);
+    const from = new Date(year, month - 1, date, 4).getTime();
+    const to = new Date(year, month - 1, date + 1, 4).getTime();
+    const [events, index] = await Promise.all([readEventsSince(from), projectIndex(from)]);
+    flow = buildFlow(events.filter((event) => Date.parse(event.startedAt || event.at) < to), { groupOf: groupFor(index) });
+  }
+  const icons = await iconsFor(flow.tools.slice(0, 16).map((tool) => tool.name));
+  const known = await loadDays();
+  return { ...flow, day, today: current, days: [...new Set([...Object.keys(known.moves), current])].sort(), tools: flow.tools.map((tool) => ({ ...tool, icon: icons[tool.name] || null })) };
+}
+
+// The days are brought up to date in the background, at most every few minutes.
+let daysAt = 0;
+function catchUpDays() {
+  if (Date.now() - daysAt < 5 * 60_000) return;
+  daysAt = Date.now();
+  refreshDays().then(() => broadcast("days")).catch(() => {});
 }
 // What each of today's projects is about and where it was left. Built in the
 // background from the prompts already given to the agents; nothing is asked.
@@ -212,7 +245,7 @@ async function confirmTeachBack(map, source) {
 }
 
 async function statePayload() {
-  const [map, runtime, events, activity, projects, sinceMorning, index, podcast] = await Promise.all([loadMap(), loadRuntime(), readEvents(60), todayActivity(), todayProjects(), readEventsSince(dayStart()), projectIndex(dayStart()), podcastState()]);
+  const [map, runtime, events, activity, projects, sinceMorning, index, podcast, days] = await Promise.all([loadMap(), loadRuntime(), readEvents(60), todayActivity(), todayProjects(), readEventsSince(dayStart()), projectIndex(dayStart()), podcastState(), loadDays()]);
   // The project in front right now (often none: a feed, a video), and the last
   // project that has something remembered about it.
   const inFront = runtime.currentApp && !runtime.currentPrivate ? index.resolve({ app: runtime.currentApp, window: runtime.currentWindow || "", at: new Date().toISOString() }) : null;
@@ -228,6 +261,9 @@ async function statePayload() {
     projects,
     memories: Object.fromEntries(memories),
     podcast,
+    // The figures the top bar shows for the two views that load by themselves.
+    flow: { jumps: (await today()).flow.jumps },
+    days: Object.keys(days.days).length,
     now: { project: inFront, recent },
     presence: presence(runtime),
     voice: voiceStatus(),
@@ -287,6 +323,20 @@ const server = http.createServer(async (request, response) => {
     const post = request.method === "POST";
     if (url.pathname === "/api/island" && request.method === "GET") return json(response, 200, await islandPayload());
     if (url.pathname === "/api/state" && request.method === "GET") return json(response, 200, await statePayload());
+    if (url.pathname === "/api/flow" && request.method === "GET") return json(response, 200, await flowPayload(url.searchParams.get("day")));
+    if (url.pathname === "/api/days" && request.method === "GET") {
+      // What is known is given at once; anything newer follows as an update.
+      catchUpDays();
+      return json(response, 200, await daysPayload());
+    }
+    if (url.pathname.startsWith("/icons/") && request.method === "GET") {
+      const name = url.pathname.slice("/icons/".length);
+      if (!ICON_FILE.test(name)) return json(response, 404, { error: "Not found" });
+      const picture = await readFile(path.join(iconFolder(), name));
+      response.writeHead(200, { "content-type": "image/png", "cache-control": "max-age=86400" });
+      response.end(picture);
+      return;
+    }
     if (url.pathname === "/api/stream" && request.method === "GET") {
       response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
       response.write(`event: ready\ndata: {}\n\n`);
@@ -603,6 +653,8 @@ const server = http.createServer(async (request, response) => {
           return json(response, 200, { ok: true });
         }
         await saveSettings(input);
+        // Switching the agents' logs on or off shows at once, not at the next reading.
+        if ("logs" in input) { await projectIndex(dayStart(), { maxAgeMs: 0 }); activityMemo.at = 0; }
         broadcast("settings");
       }
       const runtime = await loadRuntime();
@@ -615,6 +667,7 @@ const server = http.createServer(async (request, response) => {
           elevenLabsKey: hasElevenLabsKey(),
           credits: await elevenLabsCredits(),
           model: modelStatus(),
+          logs: await logSources(),
           data: paths.data.replace(process.env.HOME || "\u0000", "~"),
         },
       });
@@ -739,6 +792,9 @@ server.listen(port, "127.0.0.1", () => {
   // Cheap when nothing was said since: a project is only summarised again
   // after new prompts, and at most every ten minutes.
   setInterval(refreshMemories, 60_000).unref();
+  // The long view is caught up once Mason is running, not while it starts.
+  setTimeout(catchUpDays, 15_000).unref();
+  setInterval(catchUpDays, 10 * 60_000).unref();
   console.log(`Mason is running locally: http://127.0.0.1:${port}`);
   console.log("Stop with Ctrl+C or by quitting Mason. No data leaves this Mac unless an ElevenLabs key is configured.");
 });

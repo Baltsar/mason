@@ -5,7 +5,7 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 const native = window.webkit?.messageHandlers?.apprentice;
 
-const VIEWS = ["capture", "map", "teach", "recap", "agents", "settings"];
+const VIEWS = ["capture", "flow", "days", "map", "teach", "recap", "agents", "settings"];
 const LEGACY = { now: "capture", mcp: "agents" };
 const TONES = { work: "var(--lime)", social: "var(--red)", other: "var(--grey)" };
 // Cases to try in Teach are made from the rules that are really in the map:
@@ -30,7 +30,7 @@ const TOOLS = [
 let snapshot;
 let view = "capture";
 // Which line of each result is pressed open.
-const drill = { capture: null, map: null };
+const drill = { capture: null, map: null, flow: null };
 let verdict = null;
 let lastStop = null;
 let listening = null;
@@ -42,6 +42,17 @@ let todayPlaying = false;
 let airTimer = null;
 // What the settings screen shows: the settings and the state of what Mason depends on.
 let prefs = null;
+// How a day moved between tools: the day shown (none is today) and the tool picked in it.
+let flow = null;
+let flowDay = null;
+let flowTool = null;
+// Whether the picture shows every tool, or only the few that matter most.
+let flowAll = false;
+// The long view: every day with its projects, the month shown, and what is picked in it.
+let days = null;
+let month = null;
+let dayOpen = null;
+let lane = null;
 let toldError = null;
 
 function toast(text) {
@@ -325,6 +336,264 @@ function renderVerdict() {
   paint(node, `passed-${verdict.at}`, `<h2>Clear.</h2>`);
 }
 
+/* Flow: how the day moved between tools */
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const GROUP_TONES = { ...TONES, chat: "var(--gold)" };
+const dateOf = (day) => { const [year, number, date] = day.split("-").map(Number); return new Date(year, number - 1, date); };
+// Dark letters on a light tile, light letters on a dark one.
+const inkOn = (color) => {
+  const [red, green, blue] = [1, 3, 5].map((start) => parseInt(color.slice(start, start + 2), 16));
+  return red * .299 + green * .587 + blue * .114 > 150 ? "#141414" : "#ffffff";
+};
+const tileFor = (tool) => tool?.tile || { text: String(tool?.name || "?").slice(0, 1).toUpperCase(), color: "#2b2823" };
+// A tool's face: its app icon when the app is on this Mac, otherwise a letter
+// or two on the colour it is known by.
+function face(tool, size = 28) {
+  if (tool?.icon) return `<img class="logo" style="--s:${size}px" src="${tool.icon}" alt="" />`;
+  const tile = tileFor(tool);
+  return `<span class="logo" style="--s:${size}px;--bg:${tile.color};--fg:${inkOn(tile.color)}">${esc(tile.text)}</span>`;
+}
+
+async function loadFlow() {
+  flow = await api(`/api/flow${flowDay ? `?day=${flowDay}` : ""}`);
+  if (flowTool && !flow.tools.some((tool) => tool.name === flowTool)) flowTool = null;
+  if (view === "flow") renderFlow();
+}
+
+// The tools as a picture, and only what is read at a glance: the five tools
+// with the most time, each as large as its time, and the three habits between
+// them as lines as thick as their jumps. The two biggest sit left and right, so
+// the main loop lies flat, and the others go round them. Pressing a tool shows
+// its own lines; the rest of the tools are one press away.
+const FLOW_FEW = 5;
+const FLOW_ALL = 10;
+
+function flowMap(tools, total) {
+  const width = 1000, height = flowAll ? 470 : 410, cx = width / 2, cy = flowAll ? 225 : 200, rx = 372, ry = flowAll ? 150 : 112;
+  const count = tools.length;
+  const above = Math.ceil((count - 2) / 2);
+  const below = count - 2 - above;
+  // On each arc the middle place is taken first.
+  const middleFirst = (places) => Array.from({ length: places }, (_, index) => index).sort((a, b) => Math.abs(a - (places - 1) / 2) - Math.abs(b - (places - 1) / 2) || a - b);
+  const [upper, lower] = [middleFirst(above), middleFirst(below)];
+  const angleOf = (rank) => {
+    if (rank < 2) return rank ? 0 : 180;
+    const turn = Math.floor((rank - 2) / 2);
+    return (rank - 2) % 2 === 0 ? 180 - ((upper[turn] + 1) * 180) / (above + 1) : 180 + ((lower[turn] + 1) * 180) / (below + 1);
+  };
+  const most = tools[0].seconds;
+  const at = new Map(tools.map((tool, rank) => {
+    const angle = (angleOf(rank) * Math.PI) / 180;
+    const place = count === 1 ? [cx, cy] : [cx + rx * Math.cos(angle), cy - ry * Math.sin(angle)];
+    return [tool.name, { x: Math.round(place[0]), y: Math.round(place[1]), r: Math.round((flowAll ? 20 : 30) + (flowAll ? 30 : 34) * Math.sqrt(tool.seconds / most)) }];
+  }));
+  const between = flow.pairs.filter((pair) => at.has(pair.a) && at.has(pair.b));
+  const touches = (pair) => pair.a === flowTool || pair.b === flowTool;
+  // A single jump between two tools is not a habit.
+  const habits = flowTool ? between.filter(touches) : flowAll ? between.filter((pair) => pair.count > 1).slice(0, 14) : between.slice(0, 3);
+  // A tool none of the habits reaches is still tied to the one it trades places with most, by a quiet line.
+  const reached = new Set(habits.flatMap((pair) => [pair.a, pair.b]));
+  const ties = flowTool ? [] : tools.filter((tool) => !reached.has(tool.name)).map((tool) => between.find((pair) => pair.a === tool.name || pair.b === tool.name)).filter(Boolean);
+  const lines = [...habits, ...ties.filter((pair, index) => ties.indexOf(pair) === index)];
+  const strongest = lines[0]?.count || 1;
+  const linked = new Set(lines.flatMap((pair) => [pair.a, pair.b]));
+  const edges = [...lines].reverse().map((pair) => {
+    const a = at.get(pair.a), b = at.get(pair.b);
+    // The line bows towards the middle, so neighbours do not hide behind each other.
+    const bend = [(a.x + b.x) / 2 + (cx - (a.x + b.x) / 2) * .28, (a.y + b.y) / 2 + (cy - (a.y + b.y) / 2) * .28];
+    const share = pair.count / strongest;
+    const main = pair === lines[0];
+    const lit = main || Boolean(flowTool);
+    const quiet = !habits.includes(pair);
+    const numbered = !quiet && (!flowAll || lit || lines.indexOf(pair) < 3);
+    return {
+      line: `<path class="edge ${lit ? "on" : ""}" d="M${a.x} ${a.y} Q${Math.round(bend[0])} ${Math.round(bend[1])} ${b.x} ${b.y}" style="stroke-width:${quiet ? 2 : (3 + 15 * share).toFixed(1)};opacity:${(quiet ? .16 : main ? .95 : flowTool ? .4 + .5 * share : .16 + .34 * share).toFixed(2)}" />`,
+      label: numbered ? `<g class="count ${main ? "main" : ""} ${lit ? "on" : ""}" transform="translate(${Math.round(.25 * a.x + .5 * bend[0] + .25 * b.x)} ${Math.round(.25 * a.y + .5 * bend[1] + .25 * b.y)})"><circle r="${main ? 31 : 20}" /><text>${pair.count}</text></g>` : "",
+    };
+  });
+  const nodes = tools.map((tool) => {
+    const { x, y, r } = at.get(tool.name);
+    const tile = tileFor(tool);
+    const side = r * 1.8;
+    const mark = tool.icon
+      ? `<image href="${tool.icon}" x="${x - r * 1.1}" y="${y - r * 1.1}" width="${r * 2.2}" height="${r * 2.2}" />`
+      : `<rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" fill="${tile.color}" stroke="rgba(255,255,255,.16)" /><text class="letters" x="${x}" y="${y}" fill="${inkOn(tile.color)}" font-size="${Math.round(side * .42)}">${esc(tile.text)}</text>`;
+    const faded = flowTool && tool.name !== flowTool && !linked.has(tool.name);
+    // A name never stands between its tool and the middle of the picture.
+    const nameAt = y < cy - 10 ? y - r - 16 : y + r + 30;
+    return `<g class="node" data-tool="${esc(tool.name)}" role="button" tabindex="0" aria-pressed="${tool.name === flowTool}" aria-label="${esc(tool.name)}, ${minutes(tool.seconds)}" ${faded ? "data-faded" : ""}><circle cx="${x}" cy="${y}" r="${r + 12}" />${mark}<text class="name" x="${x}" y="${nameAt}">${esc(short(tool.name, 20))}</text></g>`;
+  });
+  const more = total > FLOW_FEW ? `<button class="all" type="button" data-flow-all aria-pressed="${flowAll}">${flowAll ? "Fewer" : `All ${Math.min(total, FLOW_ALL)}`}</button>` : "";
+  return `<svg viewBox="0 0 ${width} ${height}" role="img">${edges.map((edge) => edge.line).join("")}${nodes.join("")}${edges.map((edge) => edge.label).join("")}</svg>${more}`;
+}
+
+// The day in order, as one band: work, social, other and chat by colour. With a
+// tool picked, the band shows where in the day that tool was, under its face.
+function flowRibbon(byName) {
+  const start = new Date(flow.from);
+  start.setMinutes(0, 0, 0);
+  const end = new Date(flow.to);
+  if (end.getMinutes() || end.getSeconds()) end.setHours(end.getHours() + 1, 0, 0, 0);
+  const span = Math.max(3_600_000, end - start);
+  const place = (time) => ((time - start) / span) * 100;
+  const block = (from, to, group, more = "") => `<i style="left:${place(from).toFixed(3)}%;width:${(place(to) - place(from)).toFixed(3)}%;--tone:${GROUP_TONES[group] || TONES.other}" ${more}></i>`;
+  // Neighbours of the same kind are drawn as one stretch.
+  const kinds = [];
+  for (const stretch of flow.track) {
+    const [from, to] = [Date.parse(stretch.startedAt), Date.parse(stretch.endedAt)];
+    const last = kinds.at(-1);
+    if (last && last.group === stretch.group && from - last.to < 120_000) last.to = Math.max(last.to, to);
+    else kinds.push({ group: stretch.group, from, to });
+  }
+  const picked = flowTool ? flow.track.filter((stretch) => stretch.tool === flowTool) : [];
+  const marks = [];
+  for (const stretch of [...picked].sort((a, b) => b.seconds - a.seconds)) {
+    const middle = place((Date.parse(stretch.startedAt) + Date.parse(stretch.endedAt)) / 2);
+    if (marks.length >= 8 || marks.some((mark) => Math.abs(mark.middle - middle) < 7)) continue;
+    marks.push({ middle, html: `<span style="left:${middle.toFixed(2)}%" title="${clock(stretch.startedAt)} · ${minutes(stretch.seconds)}">${face(byName.get(stretch.tool), 26)}</span>` });
+  }
+  const hours = span / 3_600_000;
+  const step = hours <= 8 ? 1 : hours <= 16 ? 2 : 3;
+  const ticks = [];
+  for (let hour = 0; hour <= hours; hour += step) ticks.push(`<span style="left:${((hour / hours) * 100).toFixed(2)}%">${String(new Date(start.getTime() + hour * 3_600_000).getHours()).padStart(2, "0")}</span>`);
+  return `<div class="marks">${marks.map((mark) => mark.html).join("")}</div>
+    <div class="band" ${flowTool ? "data-picked" : ""}>${kinds.map((kind) => block(kind.from, kind.to, kind.group, `title="${kind.group} · ${clock(new Date(kind.from).toISOString())}"`)).join("")}${picked.map((stretch) => block(Date.parse(stretch.startedAt), Date.parse(stretch.endedAt), stretch.group, "data-on")).join("")}</div>
+    <div class="hours">${ticks.join("")}</div>`;
+}
+
+function renderFlow() {
+  if (!flow) return;
+  const measured = flow.totalSeconds > 0;
+  const today = flow.day === flow.today;
+  const label = today ? "Today" : dateOf(flow.day).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  $("#flow-meta").textContent = measured ? `${label} · ${minutes(flow.totalSeconds)}` : `${label} · nothing measured yet`;
+  const here = flow.days.indexOf(flow.day);
+  $('[data-flow-step="-1"]').disabled = here <= 0;
+  $('[data-flow-step="1"]').disabled = here < 0 || here >= flow.days.length - 1;
+  const byName = new Map(flow.tools.map((tool) => [tool.name, tool]));
+  const stay = flow.longest;
+  renderBigs($("#flow-bigs"), [
+    { key: "jumps", number: measured ? flow.jumps : "–", word: flow.jumps === 1 ? "jump" : "jumps", meta: flow.perHour ? `${flow.perHour} an hour` : "", tone: "var(--paper)" },
+    { key: "stay", number: stay ? Math.max(1, Math.round(stay.seconds / 60)) : "–", unit: stay ? "min" : "", word: "unbroken", meta: stay ? `${stay.tool} · ${clock(stay.startedAt)}` : "", tone: "var(--lime)" },
+  ], drill.flow);
+
+  const open = $("#flow-drill");
+  open.hidden = !drill.flow || !measured;
+  if (open.hidden) delete open.dataset.sig;
+  else if (drill.flow === "jumps") {
+    const top = flow.pairs.slice(0, 6);
+    const most = Math.max(1, top[0]?.count || 1);
+    paint(open, JSON.stringify(["jumps", top]), `<ul class="bars wide">${top.map((pair) => `<li style="--w:${Math.round((pair.count / most) * 100)}%;--tone:var(--lime)"><span>${face(byName.get(pair.a) || { name: pair.a }, 26)}${face(byName.get(pair.b) || { name: pair.b }, 26)}<em>${esc(pair.a)} · ${esc(pair.b)}</em></span><i></i><b>${pair.count}</b></li>`).join("")}</ul>`);
+  } else {
+    const longest = [...flow.track].sort((a, b) => b.seconds - a.seconds).slice(0, 5);
+    const most = Math.max(1, longest[0]?.seconds || 1);
+    paint(open, JSON.stringify(["stay", longest]), `<ul class="bars wide">${longest.map((stretch) => `<li style="--w:${Math.round((stretch.seconds / most) * 100)}%;--tone:${GROUP_TONES[stretch.group] || TONES.other}"><span>${face(byName.get(stretch.tool) || { name: stretch.tool }, 26)}<em>${esc(stretch.tool)} · ${clock(stretch.startedAt)}</em></span><i></i><b>${minutes(stretch.seconds)}</b></li>`).join("")}</ul>`);
+  }
+
+  const visited = flow.tools.filter((tool) => tool.visits);
+  const tools = visited.slice(0, flowAll ? FLOW_ALL : FLOW_FEW);
+  const map = $("#flow-map");
+  map.hidden = !tools.length;
+  if (tools.length) paint(map, JSON.stringify([flow.day, flowTool, flowAll, visited.length, tools.map((tool) => [tool.name, Math.round(tool.seconds / 20), tool.icon]), flow.pairs.slice(0, 18)]), flowMap(tools, visited.length));
+  const ribbon = $("#flow-ribbon");
+  ribbon.hidden = !flow.track.length;
+  if (flow.track.length) paint(ribbon, JSON.stringify([flow.day, flowTool, flow.track.length, flow.to]), flowRibbon(byName));
+
+  // One tool picked: where its jumps went.
+  const detail = $("#flow-tool");
+  const picked = byName.get(flowTool);
+  detail.hidden = !picked;
+  if (!picked) { delete detail.dataset.sig; return; }
+  const ways = flow.pairs.filter((pair) => pair.a === flowTool || pair.b === flowTool).slice(0, 6).map((pair) => ({ other: pair.a === flowTool ? pair.b : pair.a, count: pair.count }));
+  const most = Math.max(1, ways[0]?.count || 1);
+  paint(detail, JSON.stringify([flowTool, picked.seconds, ways]), `<header>${face(picked, 40)}<h2>${esc(picked.name)}</h2><p>${minutes(picked.seconds)} · ${picked.visits} ${picked.visits === 1 ? "visit" : "visits"}</p></header>
+    ${ways.length ? `<ul class="bars wide">${ways.map((way) => `<li data-tool="${esc(way.other)}" style="--w:${Math.round((way.count / most) * 100)}%;--tone:var(--lime)"><span>${face(byName.get(way.other) || { name: way.other }, 26)}<em>${esc(way.other)}</em></span><i></i><b>${way.count}</b></li>`).join("")}</ul>` : `<p class="empty">No jumps to or from it.</p>`}`);
+}
+
+/* Days: the long view */
+
+// The four biggest projects of a month have a colour of their own. Red is
+// kept for what it means elsewhere: social, and a stop.
+const PALETTE = ["var(--lime)", "var(--gold)", "var(--cyan)", "var(--paper)"];
+const brief = (count) => count >= 60 ? `${Math.round(count / 60)}h` : `${count}m`;
+
+async function loadDays() {
+  days = await api("/api/days");
+  month ||= days.today.slice(0, 7);
+  if (view === "days") renderDays();
+}
+
+function renderDays() {
+  if (!days) return;
+  const [year, number] = month.split("-").map(Number);
+  const length = new Date(year, number, 0).getDate();
+  const keys = Array.from({ length }, (_, index) => `${month}-${String(index + 1).padStart(2, "0")}`);
+  const all = Object.keys(days.days).sort();
+  const first = (all[0] || days.today).slice(0, 7);
+  $("#days-meta").textContent = new Date(year, number - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  $('[data-month-step="-1"]').disabled = month <= first;
+  $('[data-month-step="1"]').disabled = month >= days.today.slice(0, 7);
+
+  const totals = new Map();
+  for (const key of keys) {
+    for (const [name, work] of Object.entries(days.days[key] || {})) {
+      const total = totals.get(name) || { name, minutes: 0, prompts: 0, days: 0 };
+      total.minutes += work.minutes;
+      total.prompts += work.prompts;
+      total.days += 1;
+      totals.set(name, total);
+    }
+  }
+  const projects = [...totals.values()].sort((a, b) => b.minutes - a.minutes).map((project, rank) => ({ ...project, tone: PALETTE[rank] || "var(--grey)" }));
+  const toneOf = new Map(projects.map((project) => [project.name, project.tone]));
+  if (lane && !toneOf.has(lane)) lane = null;
+  const worked = (key) => Object.entries(days.days[key] || {}).filter(([name]) => !lane || name === lane).sort((a, b) => b[1].minutes - a[1].minutes);
+  const sum = (key) => worked(key).reduce((total, [, work]) => total + work.minutes, 0);
+  const workedDays = keys.filter((key) => sum(key) > 0);
+  const total = workedDays.reduce((count, key) => count + sum(key), 0);
+  renderBigs($("#days-bigs"), [
+    { key: "days", number: workedDays.length, word: workedDays.length === 1 ? "day" : "days", meta: "", tone: "var(--paper)" },
+    { key: "hours", number: Math.round(total / 60), unit: "h", word: "built", meta: "", tone: "var(--lime)" },
+  ], null);
+
+  const busiest = Math.max(1, ...keys.map(sum));
+  const blanks = (new Date(year, number - 1, 1).getDay() + 6) % 7;
+  // The weeks that have not begun yet are left out of the month that is still running.
+  const now = keys.indexOf(days.today);
+  const until = now < 0 ? length : Math.min(length, now + 7 - (blanks + now) % 7);
+  const cells = keys.slice(0, until).map((key, index) => {
+    const minutesOfDay = sum(key);
+    const today = key === days.today ? "data-today" : "";
+    if (!minutesOfDay) return `<div class="day rest" ${today}><small>${index + 1}</small></div>`;
+    return `<button class="day" type="button" data-day="${key}" aria-pressed="${dayOpen === key}" ${today} style="--heat:${(minutesOfDay / busiest).toFixed(2)}"><small>${index + 1}</small><b>${brief(minutesOfDay)}</b><i class="mix">${worked(key).map(([name, work]) => `<u style="flex:${work.minutes};--tone:${toneOf.get(name)}"></u>`).join("")}</i></button>`;
+  });
+  paint($("#days-month"), JSON.stringify([month, lane, dayOpen, days.through, days.today]), `${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((name) => `<span class="wd">${name}</span>`).join("")}${"<span></span>".repeat(blanks)}${cells.join("")}`);
+
+  const open = $("#days-drill");
+  const shown = dayOpen && dayOpen.startsWith(month) ? Object.entries(days.days[dayOpen] || {}).sort((a, b) => b[1].minutes - a[1].minutes) : [];
+  open.hidden = !shown.length;
+  if (!shown.length) delete open.dataset.sig;
+  else {
+    const most = Math.max(1, shown[0][1].minutes);
+    const moved = days.moves[dayOpen];
+    paint(open, JSON.stringify([dayOpen, shown, moved]), `<header><h2>${dateOf(dayOpen).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</h2>${moved ? `<p>${moved.jumps} jumps · ${minutes(moved.seconds)} in front</p><button type="button" data-flow-day="${dayOpen}">Flow →</button>` : ""}</header>
+      <ul class="bars wide">${shown.map(([name, work]) => `<li style="--w:${Math.round((work.minutes / most) * 100)}%;--tone:${toneOf.get(name)}"><span>${esc(name)}</span><i></i><b>${minutes(work.minutes * 60)}</b></li>`).join("")}</ul>`);
+  }
+
+  // Each project's month as a strip: the days it was worked on.
+  const lanes = $("#days-lanes");
+  if (lane) lanes.dataset.picked = "true"; else delete lanes.dataset.picked;
+  paint(lanes, JSON.stringify([month, lane, days.through, projects.map((project) => [project.name, project.minutes])]), projects.map((project) => {
+    const peak = Math.max(1, ...keys.map((key) => days.days[key]?.[project.name]?.minutes || 0));
+    const strip = keys.map((key) => {
+      const count = days.days[key]?.[project.name]?.minutes || 0;
+      return count ? `<u data-on style="--heat:${(count / peak).toFixed(2)}"></u>` : "<u></u>";
+    }).join("");
+    return `<button class="lane" type="button" data-lane="${esc(project.name)}" aria-pressed="${lane === project.name}" style="--tone:${project.tone};--n:${length}"><i class="dot"></i><b>${esc(project.name)}</b><span class="strip">${strip}</span><span class="time">${minutes(project.minutes * 60)}</span></button>`;
+  }).join("") || `<p class="empty">Nothing was built this month.</p>`);
+}
+
 /* Recap and Agents */
 
 const mmss = (seconds) => `${Math.floor(seconds / 60)}:${String(Math.round(seconds) % 60).padStart(2, "0")}`;
@@ -385,24 +654,33 @@ function renderAgents() {
 
 const thousands = (count) => count >= 10_000 ? `${Math.round(count / 1000)}k` : String(count);
 
+// Three questions, one line per answer: what Mason reads, what it sends away
+// from this Mac, and where it keeps what it learned.
 function renderSettings() {
   const node = $("#settings");
   if (!prefs) return paint(node, "loading", "");
   const { settings, status, name } = prefs;
-  const toggle = (key, label) => `<div class="set"><span>${label}</span><button class="switch" type="button" role="switch" aria-checked="${settings[key]}" aria-label="${label}" data-setting="${key}"></button></div>`;
-  const state = (label, on, yes, no) => `<div class="set"><span>${label}</span><b ${on ? "" : "data-off"}>${on ? yes : no}</b></div>`;
+  const row = (key, label, note = "") => `<div class="set"><span>${label}</span><span class="with">${note}<button class="switch" type="button" role="switch" aria-checked="${settings[key]}" aria-label="${label}" data-setting="${key}"></button></span></div>`;
+  const on = (text) => `<b>${esc(text)}</b>`;
+  const off = (text) => `<b data-off>${esc(text)}</b>`;
+  const { model, logs } = status;
+  const writer = model.ready ? (model.name === "Claude" ? "Claude" : `${model.name} · ${model.onThisMac ? "on this Mac" : model.where}`) : model.name === "Claude" ? "Claude not found" : "No model named";
   paint(node, JSON.stringify(prefs), `
     <label class="set"><span>Name</span><input id="set-name" type="text" value="${esc(settings.name || name)}" maxlength="40" autocomplete="off" spellcheck="false" /></label>
-    ${toggle("speech", "Sound")}
-    ${toggle("summaries", "Summaries")}
-    <div class="set"><span>Screen access</span>${status.access === "on" ? "<b>On</b>" : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
+    ${row("speech", "Sound")}
+    <p class="group">Reads</p>
+    <div class="set"><span>Screen: app, window, prompt</span>${status.access === "on" ? on("On") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
+    ${row("logs", "Agent logs", settings.logs ? on(`Claude Code · ${logs.claude} ${logs.claude === 1 ? "project" : "projects"}`) : off("Not read"))}
+    ${row("chats", "Chat and mail by name", settings.chats ? on("Name and time") : off("Counted, not named"))}
+    <p class="group">Sends</p>
+    ${row("summaries", "Summaries", settings.summaries ? (model.ready ? on(writer) : off(writer)) : off("Your own words"))}
     ${status.elevenLabsKey
-      ? `<div class="set"><span>ElevenLabs voice</span><span class="with">${settings.elevenlabs ? (status.credits ? `<b>${thousands(status.credits.left)} credits left</b>` : "") : "<b data-off>Mac voice, no calls</b>"}<button class="switch" type="button" role="switch" aria-checked="${settings.elevenlabs}" aria-label="ElevenLabs voice" data-setting="elevenlabs"></button></span></div>`
-      : state("ElevenLabs", false, "", "No key in .env.local")}
-    ${state("Summaries by", status.model.ready, status.model.name, status.model.name === "Claude" ? "Claude not found" : "No model named")}
+      ? row("elevenlabs", "ElevenLabs voice", settings.elevenlabs ? (status.credits ? on(`${thousands(status.credits.left)} credits left`) : "") : off("Mac voice, no calls"))
+      : `<div class="set"><span>ElevenLabs voice</span>${off("No key in .env.local")}</div>`}
+    <p class="group">Keeps</p>
     <div class="set"><span>Memory</span><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Show in Finder</button></div>
     <div class="set"><span>Notes for Obsidian</span><button class="secondary" type="button" data-reveal="notes">Show in Finder</button></div>
-    <p class="fine">Mason reads the front app, the window title and the prompt field. No screenshots, no keystrokes. Summaries are written through your own Claude login; without them the memory is your own words. With ElevenLabs and summaries switched off, nothing leaves this Mac.</p>`);
+    <p class="fine">No screenshots, no keystrokes. The agent logs are the files Claude Code already writes on this Mac; Mason keeps short, redacted excerpts. With Summaries and ElevenLabs switched off, nothing leaves this Mac.</p>`);
 }
 
 async function loadPrefs() {
@@ -415,6 +693,8 @@ async function loadPrefs() {
 function renderShell() {
   const { activity, stats, teach, runtime, presence } = snapshot;
   $("#nav-capture").textContent = activity.totalSeconds ? `${activity.workPercent}%` : "–";
+  $("#nav-flow").textContent = activity.totalSeconds ? snapshot.flow.jumps : "–";
+  $("#nav-days").textContent = snapshot.days || "–";
   $("#nav-map").textContent = stats.steps;
   $("#nav-teach").textContent = teach.stops;
   const pill = $("#presence");
@@ -433,21 +713,28 @@ function renderShell() {
 
 function render() {
   renderShell();
-  ({ capture: renderCapture, map: renderMap, teach: renderTeach, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
+  ({ capture: renderCapture, flow: renderFlow, days: renderDays, map: renderMap, teach: renderTeach, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
 }
 
 async function load() {
   snapshot = await api("/api/state");
   render();
+  // Today's flow follows the day as it happens; an earlier day is finished.
+  if (view === "flow" && !flowDay) loadFlow().catch(() => {});
 }
 
 function show(name, arg) {
   view = VIEWS.includes(name) ? name : LEGACY[name] || "capture";
   $$("[data-page]").forEach((section) => { section.hidden = section.dataset.page !== view; });
   $$("[data-view]").forEach((button) => button.setAttribute("aria-current", button.dataset.view === view ? "page" : "false"));
-  if (arg !== undefined && view in drill) drill[view] = arg || null;
+  if (view === "flow") {
+    // "#flow/2026-10-03" opens that day; without a day it is today.
+    if (arg !== undefined) { flowDay = DAY.test(arg) ? arg : null; flowTool = null; }
+    loadFlow().catch(() => {});
+  } else if (arg !== undefined && view in drill) drill[view] = arg || null;
   history.replaceState(null, "", `#${view}`);
   if (view === "settings") loadPrefs().catch(() => {});
+  if (view === "days") loadDays().catch(() => {});
   window.scrollTo(0, 0);
   if (snapshot) render();
 }
@@ -542,8 +829,35 @@ async function act(event) {
   const nav = target.closest("[data-view]");
   if (nav) return show(nav.dataset.view);
 
+  const step = target.closest("[data-flow-step]");
+  if (step) {
+    const next = flow.days[flow.days.indexOf(flow.day) + Number(step.dataset.flowStep)];
+    if (!next) return;
+    flowDay = next === flow.today ? null : next;
+    flowTool = null;
+    return loadFlow();
+  }
+  if (target.closest("[data-flow-all]")) { flowAll = !flowAll; return renderFlow(); }
+  const tool = target.closest(".flowmap [data-tool], #flow-tool [data-tool], #flow-drill [data-tool]");
+  if (tool) { flowTool = flowTool === tool.dataset.tool ? null : tool.dataset.tool; return renderFlow(); }
+  const turn = target.closest("[data-month-step]");
+  if (turn) {
+    const [year, number] = month.split("-").map(Number);
+    const moved = new Date(year, number - 1 + Number(turn.dataset.monthStep), 1);
+    month = `${moved.getFullYear()}-${String(moved.getMonth() + 1).padStart(2, "0")}`;
+    dayOpen = null;
+    return renderDays();
+  }
+  const day = target.closest("[data-day]");
+  if (day) { dayOpen = dayOpen === day.dataset.day ? null : day.dataset.day; return renderDays(); }
+  const picked = target.closest("[data-lane]");
+  if (picked) { lane = lane === picked.dataset.lane ? null : picked.dataset.lane; return renderDays(); }
+  const toFlow = target.closest("[data-flow-day]");
+  if (toFlow) return show("flow", toFlow.dataset.flowDay === days.today ? "" : toFlow.dataset.flowDay);
+
   const big = target.closest(".big");
   if (big) {
+    if (view === "days") return;
     if (view === "teach") return $("#mastery").scrollIntoView({ behavior: "smooth", block: "center" });
     const key = big.dataset.key === "all" ? null : big.dataset.key;
     drill[view] = drill[view] === key ? null : key;
@@ -650,9 +964,9 @@ async function act(event) {
     return load();
   }
 
-  const tool = target.closest("[data-tool]");
-  if (tool) {
-    const reply = await post("/mcp", { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: tool.dataset.tool, arguments: {} } });
+  const asked = target.closest("#tools [data-tool]");
+  if (asked) {
+    const reply = await post("/mcp", { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: asked.dataset.tool, arguments: {} } });
     $("#mcp-answer").textContent = reply.result?.content?.[0]?.text || "No answer.";
   }
 }
@@ -664,6 +978,8 @@ document.addEventListener("change", (event) => {
   post("/api/settings", { name: event.target.value }).then((value) => { prefs = value; toast("Saved"); }).catch((error) => toast(error.message));
 });
 document.addEventListener("keydown", (event) => {
+  // A tool in the flow picture is pressed with the keyboard like any button.
+  if ((event.key === "Enter" || event.key === " ") && event.target.matches?.(".flowmap .node")) { event.preventDefault(); return event.target.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
   if (event.key !== "Enter" || event.shiftKey) return;
   const button = { "live-answer": "[data-answer]", "gap-answer": '[data-debrief="answer"]', correction: '[data-debrief="correct"]' }[event.target.id];
   if (!button) return;
@@ -676,7 +992,9 @@ function connect() {
   stream = new EventSource("/api/stream");
   let timer;
   stream.addEventListener("update", (event) => {
-    if (JSON.parse(event.data).kind === "spoken") { playing = null; todayPlaying = false; if (snapshot) render(); return; }
+    const { kind } = JSON.parse(event.data);
+    if (kind === "spoken") { playing = null; todayPlaying = false; if (snapshot) render(); return; }
+    if (kind === "days" && view === "days") loadDays().catch(() => {});
     clearTimeout(timer);
     timer = setTimeout(() => load().catch(() => {}), 250);
   });
@@ -689,5 +1007,10 @@ document.addEventListener("visibilitychange", () => {
 
 const [initialView, initialArg] = location.hash.slice(1).split("/");
 show(initialView, initialArg);
+// An address typed or followed while the window is open goes there too.
+window.addEventListener("hashchange", () => {
+  const [name, arg] = location.hash.slice(1).split("/");
+  if (name && (name !== view || arg !== undefined)) show(name, arg);
+});
 await load();
 connect();

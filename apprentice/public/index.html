@@ -19,6 +19,8 @@
       </a>
       <nav class="stages" aria-label="Stages">
         <button type="button" data-view="capture" aria-current="page"><span>Capture</span><b id="nav-capture">–</b></button>
+        <button type="button" data-view="flow"><span>Flow</span><b id="nav-flow">–</b></button>
+        <button type="button" data-view="days"><span>Days</span><b id="nav-days">–</b></button>
         <button type="button" data-view="map"><span>Map</span><b id="nav-map">–</b></button>
         <button type="button" data-view="teach"><span>Teach</span><b id="nav-teach">–</b></button>
       </nav>
@@ -44,6 +46,23 @@
           <summary>Log<span id="trust-line"></span></summary>
           <ol id="signals"></ol>
         </details>
+      </section>
+
+      <section class="view" data-page="flow" hidden>
+        <p class="eyebrow walk"><button type="button" data-flow-step="-1" aria-label="The day before">‹</button><span id="flow-meta"></span><button type="button" data-flow-step="1" aria-label="The day after">›</button></p>
+        <div class="bigs" id="flow-bigs"></div>
+        <div class="drill" id="flow-drill" hidden></div>
+        <figure class="flowmap" id="flow-map" aria-label="How the day moved between tools"></figure>
+        <div class="ribbon" id="flow-ribbon" aria-label="The day in order"></div>
+        <div class="drill" id="flow-tool" hidden></div>
+      </section>
+
+      <section class="view" data-page="days" hidden>
+        <p class="eyebrow walk"><button type="button" data-month-step="-1" aria-label="The month before">‹</button><span id="days-meta"></span><button type="button" data-month-step="1" aria-label="The month after">›</button></p>
+        <div class="bigs" id="days-bigs"></div>
+        <div class="month" id="days-month"></div>
+        <div class="drill" id="days-drill" hidden></div>
+        <section class="lanes" id="days-lanes" aria-label="Projects this month"></section>
       </section>
 
       <section class="view" data-page="map" hidden>

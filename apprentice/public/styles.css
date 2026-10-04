@@ -289,6 +289,16 @@ dialog mark { background: rgba(215, 255, 66, .16); color: var(--lime); }
 .big em:empty { display: none; }
 .stages button { min-width: 0; padding: 0 16px; }
 .stages b { padding-left: 14px; }
+/* Five stages in a narrow window: each gives up a little air, and in a very
+   narrow one only the stage in front keeps its figure. */
+.stages { min-width: 0; max-width: 100%; }
+@media (max-width: 1040px) {
+  .stages button { flex: 1 1 auto; gap: 6px; padding: 0 11px; }
+  .stages b { padding-left: 4px; }
+}
+@media (max-width: 720px) {
+  .stages button:not([aria-current="page"]) b { display: none; }
+}
 .view > .bigs:first-child { margin-top: 0; }
 .pair:has(> [hidden]) { grid-template-columns: 1fr; }
 .pair > .card { min-height: 0; }
@@ -345,6 +355,8 @@ dialog mark { background: rgba(215, 255, 66, .16); color: var(--lime); }
 .settings .set b { color: var(--lime); font-size: 15px; font-weight: 600; letter-spacing: 0; }
 .settings .set b[data-off] { color: var(--muted); }
 .settings .with { display: flex; align-items: center; gap: 16px; }
+.settings .with b { overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.settings .group { margin: 30px 0 0; padding-bottom: 10px; border-bottom: 1px solid var(--line); color: var(--muted); font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
 .settings input { width: 240px; height: 42px; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); font-size: 17px; text-align: right; }
 .settings input:focus { outline: 2px solid var(--lime); outline-offset: 1px; }
 .switch { position: relative; flex: none; width: 52px; height: 30px; padding: 0; border: 0; border-radius: 15px; background: var(--raised); transition: background .15s; }
@@ -353,6 +365,85 @@ dialog mark { background: rgba(215, 255, 66, .16); color: var(--lime); }
 .switch[aria-checked="true"]::after { transform: translateX(22px); background: #101100; }
 .settings .fine { max-width: 560px; margin-top: 18px; color: var(--muted); font-size: 14px; line-height: 1.5; }
 
+/* Flow: how the day moved between tools. Each tool wears its own face, and
+   a line between two of them is as thick as the jumps between them. */
+.walk { align-items: center; gap: 10px; }
+.walk button { display: grid; place-items: center; width: 26px; height: 26px; padding: 0 0 2px; border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--paper); font: 16px/1 var(--font); }
+.walk button:hover { border-color: var(--paper); }
+.walk button:disabled { opacity: .25; cursor: default; }
+.walk button:disabled:hover { border-color: var(--line); }
+.logo { display: inline-grid; place-items: center; flex: none; width: var(--s, 28px); height: var(--s, 28px); }
+span.logo { border-radius: 23%; background: var(--bg); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16); color: var(--fg); font: 700 calc(var(--s, 28px) * .42)/1 var(--font); letter-spacing: -.04em; transform: scale(.86); }
+.flowmap { position: relative; margin: 0 0 14px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); animation: rise .5s var(--ease) both; animation-delay: 160ms; }
+.flowmap svg { display: block; width: 100%; height: auto; }
+.flowmap .edge { fill: none; stroke: var(--paper); stroke-linecap: round; }
+.flowmap .edge.on { stroke: var(--lime); }
+.flowmap .node { cursor: pointer; outline: none; transition: opacity .2s; }
+.flowmap .node > circle { fill: transparent; }
+.flowmap .node[data-faded] { opacity: .25; }
+.flowmap .node .name { fill: var(--muted); font: 600 21px var(--font); letter-spacing: -.02em; text-anchor: middle; transition: fill .15s; }
+.flowmap .node:hover .name, .flowmap .node:focus-visible .name, .flowmap .node[aria-pressed="true"] .name { fill: var(--paper); }
+.flowmap .node:focus-visible > circle { stroke: var(--lime); stroke-width: 2; }
+.flowmap .letters { font-family: var(--font); font-weight: 700; letter-spacing: -.04em; text-anchor: middle; dominant-baseline: central; }
+/* The number of jumps sits on its line, the main loop's the largest. */
+.flowmap .count circle { fill: #12110e; }
+.flowmap .count text { fill: var(--paper); font: 700 20px var(--font); letter-spacing: -.03em; text-anchor: middle; dominant-baseline: central; font-variant-numeric: tabular-nums; }
+.flowmap .count.on text { fill: var(--lime); }
+.flowmap .count.main text { font-size: 34px; letter-spacing: -.05em; }
+.flowmap .all { position: absolute; right: 16px; bottom: 14px; height: 30px; padding: 0 13px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: 500 12px var(--mono); }
+.flowmap .all:hover, .flowmap .all[aria-pressed="true"] { border-color: var(--paper); color: var(--paper); }
+.ribbon { margin-bottom: 18px; animation: rise .5s var(--ease) both; animation-delay: 240ms; }
+.ribbon .marks { position: relative; height: 34px; }
+.ribbon .marks:empty { display: none; }
+.ribbon .marks span { position: absolute; top: 0; transform: translateX(-50%); }
+.ribbon .band { position: relative; height: 34px; overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
+.ribbon .band i { position: absolute; top: 0; bottom: 0; min-width: 2px; background: var(--tone); transition: opacity .2s; }
+.ribbon .band[data-picked] i:not([data-on]) { opacity: .13; }
+.ribbon .hours { position: relative; height: 16px; margin: 7px 0 0; color: var(--faint); font: 11px var(--mono); }
+.ribbon .hours span { position: absolute; transform: translateX(-50%); }
+.ribbon .hours span:first-child { transform: none; }
+.ribbon .hours span:last-child { transform: translateX(-100%); }
+.bars.wide li { grid-template-columns: minmax(190px, 320px) 1fr 64px; font-size: 16px; }
+.bars.wide span { display: flex; align-items: center; gap: 8px; }
+.bars.wide em { overflow: hidden; margin-left: 4px; font-style: normal; letter-spacing: -.01em; text-overflow: ellipsis; }
+.bars.wide li[data-tool] { cursor: pointer; }
+.bars.wide li[data-tool]:hover em { color: var(--lime); }
+#flow-tool header, #days-drill header { align-items: center; }
+#flow-tool { margin-top: 0; }
+
+/* Days: the long view. A month of days, each as bright as it was busy, and
+   under it every project's month as a strip. */
+.month { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-bottom: 22px; animation: rise .5s var(--ease) both; animation-delay: 160ms; }
+.month .wd { padding: 0 0 2px 11px; color: var(--faint); font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.day { display: grid; grid-template-rows: auto 1fr auto; gap: 2px; min-height: 80px; padding: 9px 11px 11px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); background: color-mix(in srgb, var(--lime) calc(var(--heat, 0) * 16%), var(--panel)); color: var(--paper); text-align: left; transition: border-color .15s; }
+button.day:hover { border-color: #5a564c; }
+.day small { color: var(--muted); font: 11px var(--mono); }
+.day b { align-self: end; font-size: 24px; font-weight: 720; letter-spacing: -.05em; line-height: 1; }
+.day .mix { display: flex; gap: 2px; height: 6px; margin-top: 7px; }
+.day .mix u { min-width: 3px; border-radius: 3px; background: var(--tone); }
+.day.rest { border-color: transparent; background: transparent; }
+.day.rest small { color: var(--faint); }
+.day[data-today] { border-color: var(--lime); }
+.day[aria-pressed="true"] { border-color: var(--paper); }
+.drill header [data-flow-day] { color: var(--lime); font: 600 13px var(--mono); }
+.lanes { display: grid; border-top: 1px solid var(--line); }
+.lane { display: grid; grid-template-columns: 12px minmax(140px, 250px) minmax(0, 1fr) 76px; align-items: center; column-gap: 16px; width: 100%; padding: 15px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--paper); text-align: left; transition: opacity .2s; }
+.lane .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--tone); }
+.lane b { overflow: hidden; font-size: 20px; font-weight: 680; letter-spacing: -.03em; text-overflow: ellipsis; white-space: nowrap; transition: color .15s; }
+.lane:hover b { color: var(--lime); }
+.lane .strip { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 3px; }
+.lane .strip u { height: 20px; border-radius: 4px; background: var(--raised); }
+.lane .strip u[data-on] { background: var(--tone); opacity: calc(.35 + var(--heat) * .65); }
+.lane .time { color: var(--muted); font: 12px var(--mono); text-align: right; }
+.lanes[data-picked] .lane:not([aria-pressed="true"]) { opacity: .35; }
+.lanes[data-picked] .lane:not([aria-pressed="true"]):hover { opacity: .7; }
+@media (max-width: 620px) {
+  .lane { grid-template-columns: 12px minmax(0, 1fr) 64px; }
+  .lane .strip { grid-column: 2 / -1; grid-row: 2; margin-top: 8px; }
+  .day { min-height: 64px; padding: 7px 8px 9px; }
+  .day b { font-size: 18px; }
+}
+
 /* Glass: in the desktop app the window is a pane of dark glass. The page lays a
    light tint over it and its surfaces become translucent instead of solid. */
 html[data-shell="desktop"] { background: transparent; --panel: rgba(255, 255, 255, .06); --raised: rgba(255, 255, 255, .11); --line: rgba(255, 255, 255, .13); }
@@ -360,6 +451,8 @@ html[data-shell="desktop"] body { background: transparent; }
 html[data-shell="desktop"] .topbar { background: rgba(11, 11, 12, .32); border-bottom-color: rgba(255, 255, 255, .1); }
 html[data-shell="desktop"] .stages { background: rgba(255, 255, 255, .05); }
 html[data-shell="desktop"] textarea { background: rgba(0, 0, 0, .28); border-color: rgba(255, 255, 255, .16); }
-html[data-shell="desktop"] :is(.projects .hear, .projects .line i, .bars i) { background: rgba(255, 255, 255, .12); }
+html[data-shell="desktop"] :is(.projects .hear, .projects .line i, .bars i, .lane .strip u:not([data-on])) { background: rgba(255, 255, 255, .12); }
+html[data-shell="desktop"] .day:not(.rest) { background: color-mix(in srgb, var(--lime) calc(var(--heat, 0) * 16%), rgba(255, 255, 255, .06)); }
+html[data-shell="desktop"] .flowmap .count circle { fill: #17150f; }
 html[data-shell="desktop"] .big:hover { background: rgba(255, 255, 255, .06); }
 html[data-shell="desktop"] :is(dialog, .toast) { background: #17171a; }

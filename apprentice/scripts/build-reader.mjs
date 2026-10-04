@@ -5,6 +5,7 @@ import { paths } from "../src/store.mjs";
 
 const targets = [
   { source: path.join(paths.root, "native", "ApprenticeReader.swift"), output: paths.reader, frameworks: [] },
+  { source: path.join(paths.root, "native", "MasonIcons.swift"), output: paths.icons, frameworks: ["-framework", "AppKit"] },
   { source: path.join(paths.root, "native", "ApprenticeApp.swift"), output: paths.status, frameworks: ["-framework", "AppKit", "-framework", "WebKit"], bundle: true },
 ];
 

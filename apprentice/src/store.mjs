@@ -16,6 +16,7 @@ export const paths = {
   wiki: process.env.APPRENTICE_DATA ? path.join(data, "wiki") : path.join(root, "wiki"),
   public: path.join(root, "public"),
   reader: path.join(root, ".runtime", "ApprenticeReader"),
+  icons: path.join(root, ".runtime", "MasonIcons"),
   app,
   status: path.join(app, "Contents", "MacOS", "Mason"),
 };
