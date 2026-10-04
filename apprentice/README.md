@@ -4,13 +4,13 @@ You install it and work. Nothing to fill in, nothing to configure, no rules to w
 
 Mason sits behind real work on this Mac and learns it from what you already do: which project you are in, and what you tell your coding agents. From that alone it can tell you where you left a project a week ago, what you keep having to repeat, and where the day went. When it wants to understand more it does not interrupt: it offers a two-minute voice call you take when you have time.
 
-The rejected invoice demo in `../demo/index.html` is neither used nor modified.
-
 ## Start
 
 Double-click **Mason.app** in this folder (drag it to the Dock to keep it there). It starts its own local server and stops it when it quits. `npm run build:reader` builds the app if it is not there yet. The first run may ask for permission under **System Settings → Privacy & Security → Accessibility** (to read the active app, window title and focused prompt field) and for the microphone (for spoken answers and the call). It takes no screenshots and logs no keystrokes.
 
 If the island says `access` although the switch in System Settings is already on: macOS ties that switch to the exact build it was given to, so after the app has been rebuilt it still reads "on" but no longer counts. Press the island and **Fix access**. Mason forgets the old grant, asks again for this build and opens the list; switch it on there.
+
+**Settings** are under the gear in the app window: what Mason calls you (it starts with the first name on this Mac's account), sound on or off, whether summaries are written through your Claude login, and the state of what it depends on: screen access, ElevenLabs, Claude, and where the memory is.
 
 Quit from the island (right-click → Quit Mason), with ⌘Q in the app window, or with **Stop Mason.command**.
 
@@ -113,7 +113,7 @@ The five questions of the Mason Test:
   "mcpServers": {
     "mason": {
       "command": "node",
-      "args": ["/Users/baltsar/Documents/Cursor/HACKNATION/apprentice/src/mcp.mjs"]
+      "args": ["/absolute/path/to/apprentice/src/mcp.mjs"]
     }
   }
 }
