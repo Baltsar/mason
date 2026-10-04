@@ -48,6 +48,8 @@ Stretch goals met: **agent-ready guardrails** (the Work Map is an MCP server) an
 
 **The moonshot** is the always-on apprentice for people who build with agents. Mason already runs all day without sessions and builds its memory from work that happens anyway. Next it notices a decision it has not seen before and asks one question at the next real pause, and the memory follows the project instead of the Mac, so a teammate's agent starts where mine left off.
 
+Every claim made in the films is tied to the code and a test in [docs/CLAIMS.md](docs/CLAIMS.md).
+
 ## How it is put together
 
 ```mermaid
@@ -89,11 +91,12 @@ macOS 13 or later, Node 18 or later, Xcode command line tools. No packages to in
 Press the island in the menu bar. The first time it asks for Accessibility, which is how it sees which app and window you are in. Name, sound and the rest are under the gear in the app window.
 
 ```bash
-npm test                           # 22 tests, no network, no data of yours needed
+npm test                           # 28 tests, no network, no data of yours needed
 ```
 
 ## Limits
 
+- The memory is stored on the Mac, but the voice is not: speech, calls and dictation go through ElevenLabs, and summaries through your Claude login.
 - macOS only. The memory is built from Claude Code logs; chats in ChatGPT or on claude.ai are not on disk and are not read.
 - "How it is put together" comes from what the agents reported and the names of the files they changed. File contents are never read, and a line can be wrong where an agent was.
 - Live questions in a session and the written check in Teach are deterministic. The calls judge by meaning.
