@@ -1,0 +1,237 @@
+{
+  "out": "02-product-demo.mp4",
+  "voices": {
+    "anchor": "onwK4e9ZLuTAKqWW03F9",
+    "reporter": "Xb7hH8MSUJpSbSDYk0k2",
+    "apprentice": "JBFqnCBsd6RMkjVDRZzb"
+  },
+  "lines": [
+    {
+      "id": "a1",
+      "voice": "anchor",
+      "text": "Tonight: man builds app in a weekend.",
+      "hl": "in a weekend"
+    },
+    {
+      "id": "a1b",
+      "voice": "anchor",
+      "text": "In a month, he won't remember how.",
+      "hl": "won't remember how"
+    },
+    {
+      "id": "r1",
+      "voice": "reporter",
+      "text": "The app will. Apprentice was there.",
+      "say": "[deadpan] The app will. Apprentice was there.",
+      "hl": "Apprentice was there."
+    },
+    {
+      "id": "a2",
+      "voice": "anchor",
+      "text": "Gustaf builds by talking to agents: a hundred and twenty sessions in three weeks.",
+      "caption": "Gustaf builds by talking to agents: 120 sessions in three weeks.",
+      "hl": "120 sessions"
+    },
+    {
+      "id": "r2",
+      "voice": "reporter",
+      "text": "The code stays. The why stays in the prompts. Apprentice reads the logs and remembers how it was built.",
+      "hl": "The why|remembers how it was built"
+    },
+    {
+      "id": "a3",
+      "voice": "anchor",
+      "text": "It picks up his rules without asking.",
+      "hl": "without asking"
+    },
+    {
+      "id": "r3",
+      "voice": "reporter",
+      "text": "Said twice: stop asking, just publish. Now a rule.",
+      "caption": "Said twice: “Ja sluta fråga publicera.” Now a rule.",
+      "hl": "“Ja sluta fråga publicera.”"
+    },
+    {
+      "id": "a4",
+      "voice": "anchor",
+      "text": "It waits for a pause. Then it calls him.",
+      "hl": "waits for a pause"
+    },
+    {
+      "id": "g1",
+      "voice": "apprentice",
+      "text": "Tell me about Hack Nation. What do you remember?",
+      "caption": "“Tell me about HACKNATION. What do you remember?”",
+      "hl": "What do you remember?"
+    },
+    {
+      "id": "r4",
+      "voice": "reporter",
+      "text": "When anyone, or any agent, is about to break a rule, it stops them. In his own words.",
+      "hl": "it stops them|In his own words."
+    },
+    {
+      "id": "a5",
+      "voice": "anchor",
+      "text": "His week arrives as a news bulletin. Like this one.",
+      "hl": "Like this one."
+    },
+    {
+      "id": "r5",
+      "voice": "reporter",
+      "text": "He did not record this video. He was tired. We were there.",
+      "say": "[deadpan] He did not record this video. He was tired. We were there.",
+      "hl": "We were there."
+    },
+    {
+      "id": "a6",
+      "voice": "anchor",
+      "text": "Apprentice. Learning by doing, without the forgetting.",
+      "caption": false
+    }
+  ],
+  "shots": [
+    {
+      "lines": [
+        "a1",
+        "a1b"
+      ],
+      "bug": true,
+      "clip": {
+        "card": {
+          "kind": "title",
+          "kicker": "Tonight",
+          "headline": "Builds an app in a weekend. Won't remember how.",
+          "hl": "Won't remember how."
+        }
+      },
+      "slot": {
+        "src": "raw/me-hook.mp4"
+      }
+    },
+    {
+      "lines": [
+        "r1"
+      ],
+      "clip": {
+        "src": "raw/built.mp4",
+        "in": 0,
+        "frame": true
+      }
+    },
+    {
+      "lines": [
+        "a2",
+        "r2"
+      ],
+      "clip": {
+        "src": "raw/built.mp4",
+        "in": 5.6,
+        "frame": true,
+        "zoom": {
+          "x": 24,
+          "y": 96,
+          "w": 1320,
+          "h": 742
+        }
+      }
+    },
+    {
+      "lines": [
+        "a3"
+      ],
+      "clip": {
+        "src": "raw/map.mp4",
+        "in": 2.6,
+        "frame": true
+      }
+    },
+    {
+      "lines": [
+        "r3"
+      ],
+      "clip": {
+        "src": "raw/map.mp4",
+        "in": 6.3,
+        "frame": true,
+        "zoom": {
+          "x": 60,
+          "y": 238,
+          "w": 1240,
+          "h": 698
+        }
+      }
+    },
+    {
+      "lines": [
+        "a4",
+        "g1"
+      ],
+      "clip": {
+        "src": "raw/built.mp4",
+        "in": 10.6,
+        "frame": true,
+        "zoom": {
+          "x": 24,
+          "y": 96,
+          "w": 1320,
+          "h": 742
+        }
+      }
+    },
+    {
+      "lines": [
+        "r4"
+      ],
+      "clip": {
+        "src": "raw/agents.mp4",
+        "in": 0.4,
+        "frame": true
+      }
+    },
+    {
+      "lines": [
+        "a5"
+      ],
+      "clip": {
+        "src": "raw/recap.mp4",
+        "in": 2.7,
+        "frame": true
+      }
+    },
+    {
+      "lines": [
+        "r5"
+      ],
+      "bug": true,
+      "clip": {
+        "card": {
+          "kind": "title",
+          "kicker": "Disclosure",
+          "headline": "He did not record this video.",
+          "sub": "He was tired. We were there.",
+          "hl": "did not record"
+        }
+      },
+      "slot": {
+        "src": "raw/me-tired.mp4"
+      }
+    },
+    {
+      "lines": [
+        "a6"
+      ],
+      "clip": {
+        "card": {
+          "kind": "end",
+          "tagline": "Learning by doing, without the forgetting.",
+          "foot": "github.com/Baltsar/apprentice"
+        }
+      }
+    }
+  ],
+  "fit": 56.8,
+  "pause": {
+    "a1": 0.45
+  }
+}

@@ -1,11 +1,10 @@
 {
-  "out": "02-product-demo.mp4",
+  "out": "02-product-demo-b.mp4",
   "motion": "motion/demo.html",
-  "fit": 52.5,
+  "fit": 50.5,
   "pause": {
-    "p1": 0.3,
-    "p2": 0.5,
-    "p3": 0.35,
+    "q1": 3.3,
+    "q2": 0.35,
     "p4": 0.6,
     "p5": 0.5,
     "p6": 0.7,
@@ -14,27 +13,22 @@
     "p10": 0.5
   },
   "voices": {
-    "apprentice": "JBFqnCBsd6RMkjVDRZzb"
+    "apprentice": "JBFqnCBsd6RMkjVDRZzb",
+    "interviewer": "onwK4e9ZLuTAKqWW03F9"
   },
   "lines": [
     {
-      "id": "p1",
-      "voice": "apprentice",
-      "text": "He built this by talking to AI.",
-      "hl": "by talking to AI"
+      "id": "q1",
+      "voice": "interviewer",
+      "text": "So, Gustaf. How did you build this?",
+      "caption": false
     },
     {
-      "id": "p2",
+      "id": "q2",
       "voice": "apprentice",
-      "text": "A month later, he can't explain how the app works.",
-      "hl": "can't explain"
-    },
-    {
-      "id": "p3",
-      "voice": "apprentice",
-      "text": "The answer is in one of a hundred and twenty chats.",
-      "caption": "The answer is in one of 120 chats.",
-      "hl": "one of 120 chats"
+      "text": "He built the app by talking to AI. The answer is in one of a hundred and twenty chats.",
+      "caption": "He built the app by talking to AI. The answer is in one of 120 chats.",
+      "hl": "by talking to AI|one of 120 chats"
     },
     {
       "id": "p4",

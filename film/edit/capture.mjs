@@ -19,7 +19,7 @@ const FFMPEG = process.env.FFMPEG_BIN || "/opt/homebrew/bin/ffmpeg";
 const PORT = 9348;
 const W = 1280;
 const H = 720;
-const SCALE = 1.3;
+const SCALE = Number(process.env.CAPTURE_SCALE || 1.3);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // A pointer and a click ring drawn into the page: a headless browser has no
@@ -114,9 +114,13 @@ async function centre(selector) {
 const shot = {
   wait: sleep,
   async goto(url) {
-    const loaded = event("Page.loadEventFired");
-    await send("Page.navigate", { url });
-    await loaded;
+    // A change of only the #hash is not a new page and fires no load event, so
+    // the window is emptied first and every wait has a ceiling.
+    for (const address of ["about:blank", url]) {
+      const loaded = event("Page.loadEventFired");
+      await send("Page.navigate", { url: address });
+      await Promise.race([loaded, sleep(5000)]);
+    }
     await evaluate(POINTER);
   },
   async point(selector) {
@@ -161,6 +165,17 @@ const shot = {
     await sleep(900);
   },
   evaluate,
+  // A still of the window as it stands, and where named parts of it are, for the animated film.
+  async png(file) {
+    await evaluate("document.querySelectorAll('body > div[style*=\"z-index:21474836\"]').forEach((node) => { node.style.visibility = 'hidden'; })");
+    const reply = await send("Page.captureScreenshot", { format: "png" });
+    await mkdir(path.dirname(path.join(film, file)), { recursive: true });
+    await writeFile(path.join(film, file), Buffer.from(reply.data, "base64"));
+  },
+  rects(selectors) {
+    return evaluate(`(() => Object.fromEntries(Object.entries(${JSON.stringify(selectors)}).map(([name, selector]) => { const node = document.querySelector(selector); if (!node) return [name, null]; const r = node.getBoundingClientRect(); return [name, { x: r.left, y: r.top, w: r.width, h: r.height }]; })))()`);
+  },
+  write: (file, value) => writeFile(path.join(film, file), JSON.stringify(value, null, 2)),
 };
 
 const play = (await import(pathToFileURL(script).href)).default;
@@ -172,7 +187,7 @@ await sleep(200);
 socket.close();
 chrome.kill();
 
-if (stamps.length < 2) throw new Error("The screencast gave no frames.");
+if (stamps.length < 2) { console.log("stills only"); process.exit(0); }
 // The screencast only sends a frame when the page repaints, so each frame is
 // held until the next one arrives.
 const list = ["ffconcat version 1.0"];

@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Apprentice · demo film</title>
+<style>
+  :root {
+    --ink: #0b0b0c; --paper: #f4f3ef; --muted: #9f9f9b; --faint: #6c6c70; --line: #2b2b2e; --panel: #151517;
+    --lime: #d7ff42; --violet: #a98bff; --red: #ff6b5f;
+    --font: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    --mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; color: var(--paper); font-family: var(--font); -webkit-font-smoothing: antialiased;
+    background: radial-gradient(900px 600px at 8% 108%, rgba(215, 255, 66, .09), transparent 70%), radial-gradient(1000px 700px at 96% -8%, rgba(169, 139, 255, .13), transparent 70%), #060607; }
+  h1, h2, p { margin: 0; }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .abs { position: absolute; }
+  /* The compositions sit a little below the top edge, so the frame is not top-heavy. */
+  .scene > * { translate: 0 56px; }
+  .eyebrow { color: var(--lime); font: 600 24px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+  .big { font-size: 150px; line-height: .95; font-weight: 700; letter-spacing: -.05em; }
+  .big em, .mid em { font-style: normal; color: var(--lime); }
+  .mid { font-size: 76px; line-height: 1; font-weight: 700; letter-spacing: -.045em; }
+  .note { color: var(--muted); font-size: 30px; line-height: 1.3; }
+
+  /* A prompt as it was said to an agent. */
+  .bubble { padding: 26px 36px; border: 1px solid var(--line); border-radius: 32px 32px 32px 10px; background: var(--panel); font-size: 46px; line-height: 1.2; letter-spacing: -.01em; white-space: nowrap; }
+  .bubble small { display: block; margin-top: 12px; color: var(--faint); font: 500 22px/1 var(--mono); letter-spacing: .04em; }
+
+  /* The real app window, as a still. */
+  .window { border-radius: 20px; overflow: hidden; background: var(--ink); box-shadow: 0 0 0 1px #2b2b2e, 0 50px 140px rgba(0, 0, 0, .7); transform-origin: 50% 50%; }
+  .window img { display: block; width: 100%; }
+
+  .pill { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border: 1.5px solid var(--violet); border-radius: 999px; color: var(--violet); font: 600 16px/1 var(--mono); letter-spacing: .1em; }
+  .chip { display: inline-flex; align-items: center; gap: 12px; height: 64px; padding: 0 26px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font-size: 30px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; }
+  .chip i { width: 12px; height: 12px; border-radius: 50%; background: var(--lime); }
+  .chip[data-tone="violet"] i { background: var(--violet); }
+  .chip b { color: var(--muted); font-weight: 500; }
+
+  .caption { position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); padding: 16px 30px 18px; border-radius: 16px; background: rgba(11, 11, 12, .9); font-size: 46px; line-height: 1.16; font-weight: 650; letter-spacing: -.012em; text-align: center; white-space: nowrap; opacity: 0; }
+  .caption b { font-weight: 650; color: var(--lime); }
+
+  svg.mark path { fill: none; stroke: var(--lime); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+  svg.mark circle { fill: var(--violet); }
+</style>
+</head>
+<body>
+
+<!-- 1b. The same problem as an interview: one question, no answer. -->
+<section class="scene" id="interview">
+  <p class="abs eyebrow" style="left:128px; top:120px">Interview</p>
+  <h1 class="abs big" id="i-q" style="left:128px; top:180px; width:1700px">“So, Gustaf.<br />How did you <em>build this?</em>”</h1>
+  <div class="abs bubble" id="i-uh" style="left:128px; top:600px; font-size:92px; padding:30px 52px; border-radius:46px 46px 46px 14px">uh…</div>
+  <div class="abs" id="i-search" style="left:1040px; top:540px; width:760px; height:380px; overflow:hidden; border:1px solid var(--line); border-radius:24px; background:var(--panel)">
+    <div style="position:relative; z-index:2; display:flex; align-items:center; gap:14px; height:84px; padding:0 28px; border-bottom:1px solid var(--line); background:var(--panel); font-size:32px"><span style="color:var(--faint)">Search chats</span><span id="i-typed" style="color:var(--paper)"></span></div>
+    <div id="i-list"></div>
+  </div>
+  <h1 class="abs" id="i-shit" style="left:0; top:210px; width:1920px; text-align:center; font-size:460px; line-height:1; font-weight:700; letter-spacing:-.06em; color:var(--red)">Shit.</h1>
+</section>
+
+<!-- 1. The problem: said to an agent, built, and a month later nobody can say how. -->
+<section class="scene" id="problem">
+  <p class="abs eyebrow" style="left:128px; top:120px" id="p-eyebrow">A month ago</p>
+  <h1 class="abs big" style="left:128px; top:164px" id="p-h1">Built by <em>talking.</em></h1>
+  <h1 class="abs big" style="left:128px; top:164px" id="p-h2">How does it <em>work?</em></h1>
+  <div id="p-bubbles">
+    <div class="abs bubble" style="left:128px; top:440px">“de ska kännas simple as fuck”</div>
+    <div class="abs bubble" style="left:210px; top:590px">“Ja sluta fråga publicera”</div>
+    <div class="abs bubble" style="left:128px; top:740px">“Pusha och deploya”</div>
+  </div>
+  <div class="abs window" id="p-app" style="left:1010px; top:360px; width:790px"><img src="../raw/ui/capture.png" alt="" /></div>
+  <div class="abs" id="p-q" style="left:128px; top:400px; font-size:470px; line-height:1; font-weight:700; letter-spacing:-.06em; color:var(--red)">?</div>
+</section>
+
+<!-- 2. The haystack, and who was there. -->
+<section class="scene" id="haystack">
+  <p class="abs eyebrow" style="left:128px; top:120px">21 days · 37 folders</p>
+  <h1 class="abs" style="left:128px; top:160px; font-size:300px; line-height:.9; font-weight:700; letter-spacing:-.06em; color:var(--lime)" id="h-count">0</h1>
+  <p class="abs mid" style="left:128px; top:440px" id="h-label">agent chats.<br />One has the answer.</p>
+  <div class="abs" id="h-grid" style="left:940px; top:250px; width:840px; height:448px"></div>
+  <div class="abs" id="h-scan" style="left:920px; top:220px; width:4px; height:510px; border-radius:2px; background:var(--lime)"></div>
+  <div class="abs" id="h-mark" style="left:128px; top:690px; display:flex; align-items:center; gap:26px">
+    <svg class="mark" viewBox="0 0 64 64" width="120" height="120"><path d="M18 16v30h30" /><circle cx="46" cy="18" r="7.5" /></svg>
+    <span class="mid">Apprentice <em>was there.</em></span>
+  </div>
+</section>
+
+<!-- 3. It remembers how the project was built: the real window, three things pointed at. -->
+<section class="scene" id="remembers">
+  <div class="abs window" id="r-win" style="left:128px; top:86px; width:1280px"><img src="../raw/ui/detail.png" alt="" /></div>
+  <div class="abs" id="r-ring" style="left:0; top:0; border:3px solid var(--lime); border-radius:14px; box-shadow:0 0 0 6px rgba(215,255,66,.14)"></div>
+  <div class="abs" style="left:1460px; top:330px; width:400px">
+    <p class="eyebrow" id="r-step">01</p>
+    <h2 class="mid" style="margin-top:18px; font-size:64px" id="r-label">What was built</h2>
+    <p class="note" style="margin-top:18px" id="r-note">read from the agent logs</p>
+  </div>
+</section>
+
+<!-- 4. A correction said twice becomes a rule. -->
+<section class="scene" id="rules">
+  <p class="abs eyebrow" style="left:128px; top:120px">Said to an agent</p>
+  <div class="abs bubble" id="u-a" style="left:128px; top:230px; font-size:72px; padding:34px 50px">“Ja sluta fråga publicera”<small>BITMAGIC HACKATHON · 22:01</small></div>
+  <div class="abs bubble" id="u-b" style="left:128px; top:500px; font-size:72px; padding:34px 50px">“Ja sluta fråga publicera”<small>AND AGAIN</small></div>
+  <div class="abs" id="u-rule" style="left:128px; top:250px">
+    <span class="pill">GUARDRAIL</span>
+    <h1 class="big" style="margin-top:26px">Publicera utan<br />att <em>fråga mig.</em></h1>
+    <p class="note" style="margin-top:28px">Picked up without asking · said twice</p>
+  </div>
+</section>
+
+<!-- 5. Then it calls and asks until it sticks. -->
+<section class="scene" id="asks">
+  <div class="abs" id="a-orb" style="left:128px; top:230px; width:230px; height:230px; border-radius:50%; border:3px solid var(--violet); display:grid; place-items:center">
+    <svg class="mark" viewBox="0 0 64 64" width="104" height="104"><path d="M18 16v30h30" /><circle cx="46" cy="18" r="7.5" /></svg>
+  </div>
+  <p class="abs eyebrow" style="left:400px; top:250px; color:var(--violet)">Recall call</p>
+  <h1 class="abs mid" style="left:400px; top:292px; width:1380px; font-size:84px; color:var(--violet)" id="a-q"></h1>
+  <div class="abs" id="a-chips" style="left:400px; top:590px; display:flex; flex-wrap:wrap; gap:18px; width:1300px">
+    <span class="chip"><i></i><b>Remembered</b> native Mac app</span>
+    <span class="chip"><i></i><b>Remembered</b> local server</span>
+    <span class="chip" data-tone="violet"><i></i><b>Reminded</b> demo video pipeline</span>
+  </div>
+  <p class="abs mid" id="a-score" style="left:400px; top:780px; font-size:64px"><em>3 of 4</em> remembered</p>
+</section>
+
+<!-- 6. Every agent gets the same memory, and is stopped where he would stop. -->
+<section class="scene" id="agents">
+  <div class="abs" id="g-core" style="left:128px; top:400px; display:flex; align-items:center; gap:22px">
+    <svg class="mark" viewBox="0 0 64 64" width="150" height="150"><path d="M18 16v30h30" /><circle cx="46" cy="18" r="7.5" /></svg>
+    <span class="mid" style="font-size:60px">One<br />memory</span>
+  </div>
+  <svg class="abs" id="g-lines" style="left:0; top:0" width="1920" height="1080" fill="none" stroke="#3a3a3f" stroke-width="3">
+    <path d="M520 475 C 760 475, 900 250, 1180 250" />
+    <path d="M520 475 C 760 475, 900 475, 1180 475" />
+    <path d="M520 475 C 760 475, 900 700, 1180 700" />
+  </svg>
+  <div id="g-nodes">
+    <span class="abs chip" style="left:1180px; top:218px"><i></i>agent</span>
+    <span class="abs chip" style="left:1180px; top:443px"><i></i>agent</span>
+    <span class="abs chip" style="left:1180px; top:668px"><i></i>agent</span>
+  </div>
+  <span class="abs chip" id="g-try" style="left:1380px; top:443px; border-color:var(--faint)">“record the whole screen”</span>
+  <div class="abs" id="g-stop" style="left:620px; top:250px; width:1180px; padding:44px 52px; border-radius:26px; background:#1d1211; border:1px solid #5a2a26">
+    <h1 class="big" style="color:var(--red); font-size:170px">Stop.</h1>
+    <p class="mid" style="margin-top:22px; font-size:56px; line-height:1.1">“It does not save a film of the whole day.”</p>
+    <p class="note" style="margin-top:20px">Gustaf's words · the rule <em style="font-style:normal; color:var(--paper)">Store events, not a film</em></p>
+  </div>
+</section>
+
+<!-- 7. Disclosure. -->
+<section class="scene" id="disclosure">
+  <p class="abs eyebrow" style="left:128px; top:270px" id="d-eyebrow">Disclosure</p>
+  <h1 class="abs big" style="left:128px; top:330px; font-size:176px" id="d-h1">He did <em>not record</em><br />this video.</h1>
+  <p class="abs mid" style="left:128px; top:730px; font-size:64px; color:var(--muted)" id="d-sub">He was tired. I was there.</p>
+</section>
+
+<!-- 8. End. -->
+<section class="scene" id="end">
+  <div class="abs" id="e-mark" style="left:0; top:370px; width:1920px; display:flex; justify-content:center; align-items:center; gap:34px">
+    <svg class="mark" viewBox="0 0 64 64" width="150" height="150"><path d="M18 16v30h30" /><circle cx="46" cy="18" r="7.5" /></svg>
+    <span style="font-size:168px; font-weight:700; letter-spacing:-.05em">Apprentice</span>
+  </div>
+  <h2 class="abs" id="e-tag" style="left:0; top:590px; width:1920px; text-align:center; font-size:64px; font-weight:650; letter-spacing:-.03em; color:var(--lime)">Learning by doing, without the forgetting.</h2>
+  <p class="abs" id="e-foot" style="left:0; top:720px; width:1920px; text-align:center; color:var(--muted); font:500 28px/1 var(--mono)">apprentice-demo.vercel.app · github.com/Baltsar/apprentice</p>
+</section>
+
+<p class="caption" id="caption"></p>
+
+<script>
+  // Every frame is drawn from a time: seek(t) puts the whole film at second t.
+  // render.mjs calls init(film) once and then seek() for each frame, so the
+  // film is identical however slow the machine is.
+  const EXPO = "cubic-bezier(0.16, 1, 0.3, 1)";
+  const QUART = "cubic-bezier(0.25, 1, 0.5, 1)";
+  const $ = (selector) => document.querySelector(selector);
+  const clamp = (value, low = 0, high = 1) => Math.min(high, Math.max(low, value));
+  const outExpo = (x) => (x >= 1 ? 1 : 1 - 2 ** (-10 * x));
+  const ramp = (now, from, length) => clamp((now - from) / length);
+  const esc = (text) => String(text).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const FROM_LEFT = (distance = 220) => [{ opacity: 0, transform: `translateX(-${distance}px)` }, { opacity: 1, transform: "none" }];
+  const RISE = (distance = 60) => [{ opacity: 0, transform: `translateY(${distance}px)` }, { opacity: 1, transform: "none" }];
+  const GONE = [{ opacity: 1 }, { opacity: 0 }];
+
+  let film = null;
+  const scenes = [];
+  const moved = new WeakSet();
+
+  // `lines` is one list of line ids, or several alternatives. A scene none of
+  // whose alternatives was spoken in this take is left out, which is how two
+  // openings share one film.
+  const defined = [];
+  function scene(id, lines, build) { defined.push({ id, el: document.getElementById(id), options: Array.isArray(lines[0]) ? lines : [lines], build, anims: [], ticks: [] }); }
+
+  function init(data) {
+    film = data;
+    for (const item of defined) {
+      item.lines = item.options.find((option) => option.every((line) => film.lines[line]));
+      if (item.lines) scenes.push(item);
+    }
+    for (const [index, item] of scenes.entries()) item.start = index === 0 ? 0 : film.lines[item.lines[0]].in - 0.18;
+    for (const [index, item] of scenes.entries()) item.end = scenes[index + 1]?.start ?? film.total;
+    for (const item of scenes) {
+      const api = {
+        dur: (item.end - item.start) * 1000,
+        // Milliseconds from the start of the scene to the start or end of a spoken line.
+        at: (line) => (film.lines[line].in - item.start) * 1000,
+        until: (line) => (film.lines[line].out - item.start) * 1000,
+        fly(target, frames, { at = 0, dur = 650, ease = EXPO } = {}) {
+          const node = typeof target === "string" ? $(target) : target;
+          // Only an element's first animation holds its opening pose before it starts.
+          // A later one that did the same would cancel the entrance before it.
+          const fill = moved.has(node) ? "forwards" : "both";
+          moved.add(node);
+          const animation = node.animate(frames, { duration: dur, delay: Math.max(0, at), easing: ease, fill });
+          animation.pause();
+          item.anims.push(animation);
+        },
+        tick: (fn) => item.ticks.push(fn),
+      };
+      item.build(api);
+    }
+    film.captions = captions();
+    seek(0);
+    return scenes.map((item) => `${item.id} ${item.start.toFixed(1)}–${item.end.toFixed(1)}`).join(" | ");
+  }
+
+  function seek(t) {
+    for (const item of scenes) {
+      const local = t - item.start;
+      const alpha = clamp(local / 0.22) * clamp((item.end + 0.2 - t) / 0.2);
+      item.el.style.opacity = local < 0 || t > item.end + 0.2 ? 0 : alpha;
+      if (local < -0.05 || t > item.end + 0.25) continue;
+      const now = Math.max(0, local * 1000);
+      for (const animation of item.anims) animation.currentTime = now;
+      for (const fn of item.ticks) fn(now);
+    }
+    const caption = film.captions.find((entry) => t >= entry.at && t < entry.to);
+    const node = $("#caption");
+    if (caption) {
+      if (node.dataset.text !== caption.text) { node.dataset.text = caption.text; node.innerHTML = caption.html; }
+      node.style.opacity = clamp((t - caption.at) / 0.12) * clamp((caption.to - t) / 0.1);
+    } else node.style.opacity = 0;
+  }
+
+  // The spoken line a few words at a time, each phrase given its share of the line.
+  function captions() {
+    const out = [];
+    for (const [index, line] of film.plan.entries()) {
+      if (line.caption === false) continue;
+      const next = film.plan[index + 1];
+      const from = Math.max(film.lines[line.id].in, out.at(-1)?.to ?? 0);
+      const to = Math.min(film.lines[line.id].out, next ? film.lines[next.id].in + 0.05 : film.total);
+      const parts = [];
+      for (const part of (line.caption || line.text).split(/(?<=[,.:;?!])\s+/)) {
+        let current = "";
+        for (const word of part.split(/\s+/)) {
+          if (current && `${current} ${word}`.length > 38) { parts.push(current); current = word; } else current = current ? `${current} ${word}` : word;
+        }
+        if (current) parts.push(current);
+      }
+      const merged = [];
+      for (const part of parts) {
+        if (merged.length && (merged.at(-1).length < 12 || part.length < 9) && `${merged.at(-1)} ${part}`.length <= 42) merged[merged.length - 1] += ` ${part}`;
+        else merged.push(part);
+      }
+      const size = merged.reduce((sum, part) => sum + part.length, 0);
+      let at = from;
+      for (const part of merged) {
+        const share = (to - from) * (part.length / size);
+        let html = esc(part);
+        for (const word of (line.hl || "").split("|").filter(Boolean)) html = html.replace(esc(word), `<b>${esc(word)}</b>`);
+        out.push({ at, to: at + share - 0.03, text: part, html });
+        at += share;
+      }
+    }
+    return out;
+  }
+
+  scene("interview", ["q1"], ({ fly, until, dur, tick }) => {
+    const asked = until("q1");
+    const PROJECTS = ["HACKNATION", "BITMAGIC HACKATHON", "OPENSVERIGE", "KIOSK", "NY SAJT", "HACKATHON-BYGGE", "HACKRUMBLE", "workspace"];
+    const list = $("#i-list");
+    for (let index = 0; index < 60; index += 1) {
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex; justify-content:space-between; align-items:center; height:62px; padding:0 28px; border-bottom:1px solid #222225; font-size:26px";
+      row.innerHTML = `<b style="font-weight:600">${PROJECTS[index % PROJECTS.length]}</b><span style="color:var(--faint); font:500 20px var(--mono)">chat ${120 - index * 2} of 120</span>`;
+      list.append(row);
+    }
+    fly("#i-q", RISE(60), { at: 40, dur: 650 });
+    // No answer: a bubble that only ever says uh.
+    fly("#i-uh", [{ opacity: 0, transform: "scale(.6)" }, { opacity: 1, transform: "none" }], { at: asked + 120, dur: 420 });
+    // He goes looking. The list runs faster and faster and finds nothing.
+    fly("#i-search", [{ opacity: 0, transform: "translateX(200px)" }, { opacity: 1, transform: "none" }], { at: asked + 520, dur: 520 });
+    fly("#i-list", [{ transform: "translateY(0)" }, { transform: "translateY(-3300px)" }], { at: asked + 900, dur: 1500, ease: "cubic-bezier(0.5, 0, 0.9, 0.4)" });
+    const slam = asked + 2450;
+    for (const id of ["#i-q", "#i-uh", "#i-search"]) fly(id, [{ opacity: 1 }, { opacity: 0 }], { at: slam - 80, dur: 160, ease: QUART });
+    fly("#i-shit", [{ opacity: 0, transform: "scale(1.5)" }, { opacity: 1, transform: "none" }], { at: slam, dur: 300 });
+    tick((now) => {
+      const beats = clamp(Math.floor((now - asked - 120) / 520) + 1, 1, 3);
+      $("#i-uh").textContent = Array(beats).fill("uh…").join(" ");
+      const QUERY = "how did I build this";
+      $("#i-typed").textContent = QUERY.slice(0, Math.round(QUERY.length * ramp(now, asked + 700, 900)));
+    });
+  });
+
+  scene("problem", ["p1", "p2"], ({ fly, at, tick }) => {
+    const later = at("p2");
+    fly("#p-eyebrow", RISE(20), { at: 0, dur: 400 });
+    fly("#p-h1", RISE(50), { at: 60, dur: 600 });
+    // Three things said to an agent fly in, and become an app.
+    [...$("#p-bubbles").children].forEach((bubble, index) => fly(bubble, FROM_LEFT(420), { at: 180 + index * 130, dur: 620 }));
+    fly("#p-app", [{ opacity: 0, transform: "scale(.72) translateX(-260px)" }, { opacity: 1, transform: "none" }], { at: 900, dur: 760 });
+    // A month passes. What was said is gone; the app is still there.
+    fly("#p-h1", [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(-40px)" }], { at: later - 80, dur: 300, ease: QUART });
+    fly("#p-h2", RISE(50), { at: later + 140, dur: 600 });
+    fly("#p-bubbles", [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(26px) scale(.96)" }], { at: later - 40, dur: 520, ease: QUART });
+    fly("#p-q", [{ opacity: 0, transform: "scale(1.5)" }, { opacity: 1, transform: "none" }], { at: later + 320, dur: 620 });
+    tick((now) => { $("#p-eyebrow").textContent = now < later ? "A month ago" : "A month later"; });
+  });
+
+  scene("haystack", [["p3", "p4"], ["q2", "p4"]], ({ fly, at, tick }) => {
+    const grid = $("#h-grid");
+    const there = at("p4");
+    const ANSWER = 71;
+    const kept = [9, 23, 38, 52, 64, 71, 88, 97, 105, 113];
+    for (let index = 0; index < 120; index += 1) {
+      const dot = document.createElement("i");
+      const column = index % 15;
+      const row = Math.floor(index / 15);
+      dot.style.cssText = `position:absolute; left:${column * 58}px; top:${row * 58}px; width:26px; height:26px; border-radius:50%; background:#3a3a3f`;
+      grid.append(dot);
+      // The chats fly in from off the right edge, a column at a time.
+      const angle = (index * 2.399) % 6.283;
+      fly(dot, [{ opacity: 0, transform: `translate(${700 + Math.cos(angle) * 240}px, ${Math.sin(angle) * 420}px) scale(.3)` }, { opacity: 1, transform: "none" }], { at: 120 + column * 34 + row * 12, dur: 700 });
+      if (index === ANSWER) fly(dot, [{ backgroundColor: "#3a3a3f", transform: "none" }, { backgroundColor: "#d7ff42", transform: "scale(1.5)", offset: 0.35 }, { backgroundColor: "#d7ff42", transform: "scale(1.5)", offset: 0.7 }, { backgroundColor: "#3a3a3f", transform: "none" }], { at: 1100, dur: Math.max(900, there - 1300), ease: "linear" });
+      // Apprentice was there: the ones that matter light up as the line passes, and are kept.
+      if (kept.includes(index)) fly(dot, [{ backgroundColor: "#3a3a3f", transform: "none" }, { backgroundColor: "#d7ff42", transform: "scale(1.35)" }], { at: there + 260 + column * 44, dur: 320, ease: QUART });
+      else fly(dot, [{ opacity: 1 }, { opacity: 0.28 }], { at: there + 260 + column * 44, dur: 320, ease: QUART });
+    }
+    fly("#h-label", RISE(40), { at: 420, dur: 600 });
+    fly("#h-scan", [{ opacity: 0, transform: "translateX(0)" }, { opacity: 1, transform: "translateX(40px)", offset: 0.08 }, { opacity: 1, transform: "translateX(840px)", offset: 0.92 }, { opacity: 0, transform: "translateX(880px)" }], { at: there + 160, dur: 900, ease: "linear" });
+    fly("#h-mark", FROM_LEFT(260), { at: there, dur: 700 });
+    tick((now) => { $("#h-count").textContent = Math.round(120 * outExpo(ramp(now, 80, 900))); });
+  });
+
+  scene("remembers", ["p5"], ({ fly, dur, tick }) => {
+    // The real window flies in tilted and settles; one ring moves between three places.
+    fly("#r-win", [{ opacity: 0, transform: "perspective(1800px) rotateX(14deg) translateY(160px) scale(.9)" }, { opacity: 1, transform: "perspective(1800px) rotateX(0) translateY(0) scale(1)" }], { at: 0, dur: 900 });
+    const stops = [
+      { rect: film.rects.detail.how, label: "What was built", note: "named from the files the agents changed" },
+      { rect: film.rects.detail.left, label: "Where he left off", note: "in one line" },
+      { rect: film.rects.detail.says, label: "What he keeps saying", note: "counted, in his own words" },
+    ];
+    const first = 900;
+    const each = (dur - first - 300) / stops.length;
+    const box = (rect) => ({ x: 128 + rect.x - 12, y: 86 + rect.y - 8, w: rect.w + 24, h: rect.h + 16 });
+    tick((now) => {
+      const ring = $("#r-ring");
+      const index = clamp(Math.floor((now - first) / each), 0, stops.length - 1);
+      const from = box(stops[Math.max(0, index - 1)].rect);
+      const to = box(stops[index].rect);
+      const k = index === 0 ? 1 : outExpo(ramp(now, first + index * each, 520));
+      const mix = (a, b) => a + (b - a) * k;
+      ring.style.transform = `translate(${mix(from.x, to.x)}px, ${mix(from.y, to.y)}px)`;
+      ring.style.width = `${mix(from.w, to.w)}px`;
+      ring.style.height = `${mix(from.h, to.h)}px`;
+      ring.style.opacity = ramp(now, first - 150, 260);
+      $("#r-step").textContent = `0${index + 1}`;
+      $("#r-label").textContent = stops[index].label;
+      $("#r-note").textContent = stops[index].note;
+      const fade = Math.min(ramp(now, first + index * each, 280), 1);
+      for (const id of ["#r-step", "#r-label", "#r-note"]) { $(id).style.opacity = now < first ? 0 : fade; $(id).style.transform = `translateY(${(1 - fade) * 18}px)`; }
+    });
+  });
+
+  scene("rules", ["p6"], ({ fly, at, until, dur }) => {
+    // Said once. Said again. The two become one rule.
+    const becomes = at("p6") + (until("p6") - at("p6")) * 0.5;
+    fly("#u-a", FROM_LEFT(520), { at: 60, dur: 680 });
+    fly("#u-b", FROM_LEFT(520), { at: 1000, dur: 680 });
+    fly("#u-a", [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(90px) scale(.9)" }], { at: becomes, dur: 420, ease: QUART });
+    fly("#u-b", [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(-110px) scale(.9)" }], { at: becomes, dur: 420, ease: QUART });
+    fly("#u-rule", [{ opacity: 0, transform: "scale(.86)" }, { opacity: 1, transform: "none" }], { at: becomes + 260, dur: 700 });
+  });
+
+  scene("asks", ["p7", "g1", "p8"], ({ fly, at, until, tick }) => {
+    const QUESTION = "“Tell me about HACKNATION. What do you remember?”";
+    fly("#a-orb", [{ opacity: 0, transform: "scale(.5)" }, { opacity: 1, transform: "none" }], { at: 80, dur: 700 });
+    [...$("#a-chips").children].forEach((chip, index) => fly(chip, [{ opacity: 0, transform: "translateX(160px)" }, { opacity: 1, transform: "none" }], { at: until("g1") + 60 + index * 170, dur: 560 }));
+    fly("#a-score", RISE(40), { at: until("g1") + 760, dur: 600 });
+    tick((now) => {
+      // The question is written as it is asked; the ring breathes while the voice speaks.
+      const said = ramp(now, at("g1"), (until("g1") - at("g1")) * 0.82);
+      $("#a-q").textContent = QUESTION.slice(0, Math.round(QUESTION.length * said));
+      const speaking = now > at("g1") && now < until("g1");
+      $("#a-orb").style.boxShadow = `0 0 0 ${speaking ? 10 + 9 * Math.sin(now / 95) : 0}px rgba(169, 139, 255, .22)`;
+    });
+  });
+
+  scene("agents", ["p9"], ({ fly, at, until, tick }) => {
+    const span = until("p9") - at("p9");
+    const tries = at("p9") + span * 0.36;
+    const stops = at("p9") + span * 0.6;
+    fly("#g-core", FROM_LEFT(240), { at: 40, dur: 680 });
+    const paths = [...$("#g-lines").children];
+    paths.forEach((path, index) => {
+      const length = path.getTotalLength();
+      path.style.strokeDasharray = length;
+      fly(path, [{ strokeDashoffset: length }, { strokeDashoffset: 0 }], { at: 420 + index * 110, dur: 700, ease: QUART });
+    });
+    [...$("#g-nodes").children].forEach((node, index) => fly(node, [{ opacity: 0, transform: "scale(.7)" }, { opacity: 1, transform: "none" }], { at: 900 + index * 110, dur: 520 }));
+    // One agent is about to do something he would not.
+    fly("#g-try", [{ opacity: 0, transform: "translateX(-40px)" }, { opacity: 1, transform: "none" }], { at: tries, dur: 520 });
+    for (const id of ["#g-core", "#g-lines", "#g-nodes", "#g-try"]) fly(id, [{ opacity: 1 }, { opacity: 0.12 }], { at: stops - 60, dur: 300, ease: QUART });
+    fly("#g-stop", [{ opacity: 0, transform: "scale(.9) translateY(30px)" }, { opacity: 1, transform: "none" }], { at: stops, dur: 620 });
+    tick(() => {});
+  });
+
+  scene("disclosure", ["p10"], ({ fly }) => {
+    fly("#d-eyebrow", RISE(20), { at: 40, dur: 400 });
+    fly("#d-h1", RISE(70), { at: 120, dur: 700 });
+    fly("#d-sub", RISE(40), { at: 1500, dur: 600 });
+  });
+
+  scene("end", ["p11"], ({ fly }) => {
+    fly("#e-mark", [{ opacity: 0, transform: "scale(.82)" }, { opacity: 1, transform: "none" }], { at: 60, dur: 800 });
+    fly("#e-tag", RISE(40), { at: 520, dur: 700 });
+    fly("#e-foot", GONE.slice().reverse(), { at: 1200, dur: 600, ease: QUART });
+  });
+</script>
+</body>
+</html>

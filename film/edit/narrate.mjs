@@ -60,7 +60,7 @@ const { stdout } = await run(process.execPath, [path.join(here, "lines.mjs"), ta
 let report = stdout;
 if (plan.pause && Object.keys(plan.pause).length) {
   const found = JSON.parse(await readFile(linesFile, "utf8"));
-  const cuts = Object.entries(plan.pause).filter(([id]) => found[id]).map(([id, seconds]) => ({ at: found[id].out - 0.1, seconds })).sort((x, y) => x.at - y.at);
+  const cuts = Object.entries(plan.pause).filter(([id]) => found[id]).map(([id, seconds]) => ({ id, at: found[id].out - 0.1, seconds })).sort((x, y) => x.at - y.at);
   const parts = [];
   let from = 0;
   for (const [index, cut] of cuts.entries()) {
@@ -71,7 +71,19 @@ if (plan.pause && Object.keys(plan.pause).length) {
   const paused = take.replace(/\.mp3$/, `-p${createHash("sha256").update(JSON.stringify(plan.pause)).digest("hex").slice(0, 6)}.mp3`);
   await run("/opt/homebrew/bin/ffmpeg", ["-y", "-v", "error", "-i", take, "-filter_complex", `${parts.join(";")};${cuts.map((_, index) => `[p${index}]`).join("")}[p${cuts.length}]concat=n=${cuts.length + 1}:v=0:a=1[out]`, "-map", "[out]", "-b:a", "160k", paused]);
   take = paused;
-  report = (await run(process.execPath, [path.join(here, "lines.mjs"), take, script, linesFile], { env: { ...process.env, LINES_ORDERED: "1" }, maxBuffer: 16_000_000, timeout: 10 * 60_000 })).stdout;
+  // The lines are not listened for again: a recogniser stretches the first word
+  // after a silence back across it. Every line after a pause simply moves by it.
+  const order = plan.lines.map((line) => line.id).filter((id) => found[id]);
+  let shift = 0;
+  report = "";
+  for (const id of order) {
+    found[id].in += shift;
+    found[id].out += shift;
+    report += `${id.padEnd(4)} ${found[id].in.toFixed(1).padStart(6)}–${found[id].out.toFixed(1).padEnd(6)} ${found[id].heard.slice(0, 60)}\n`;
+    const cut = cuts.find((item) => item.id === id);
+    if (cut) shift += cut.seconds;
+  }
+  await writeFile(linesFile, JSON.stringify(found, null, 2));
 }
 await writeFile(path.join(dir, `${name}.json`), JSON.stringify({ audio: path.relative(film, take), lines: path.relative(film, linesFile) }, null, 2));
 const chars = inputs.reduce((sum, item) => sum + item.text.length, 0);
