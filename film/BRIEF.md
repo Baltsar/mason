@@ -2,7 +2,7 @@
 
 > **13:35, 4 Oct: the product is now called MASON.** The apprentice is the mason. Every "Apprentice" below reads "Mason".
 > - The app is `apprentice/Mason.app`. The folder is still `apprentice/`.
-> - The island's mark is the stone logo (`new brand/logo_.png`), not the L. Footage from before 13:35 shows the old mark and the old name.
+> - The island shows a hand on a mouse (`new brand/hand on mouse.png`), the work share and the eye. The stone logo (`new brand/logo_.png`) is the app icon and sits beside MASON in the app window. Footage from before 13:45 shows an older island.
 > - The look: the strong green is kept for the figures; the greys are warm stone; gold (#d6a647) replaced violet for questions, private and the agent's voice.
 > - The voice agents call themselves Mason. In a call the word for its turn is `MASON`.
 

@@ -7,7 +7,7 @@ import { atomicJson, paths, readJson } from "./store.mjs";
 // The agent is created once and reused; only the day's context changes.
 
 const API = "https://api.elevenlabs.io/v1/convai";
-const AGENT_VERSION = 10;
+const AGENT_VERSION = 11;
 const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb";
 const agentFile = () => path.join(paths.data, "agent.json");
 
@@ -31,7 +31,7 @@ How to run the call:
 1. Ask one short question at a time, about something specific you saw: a move between projects, a detour, something they rejected or limited, something they said to an agent. Never ask what the screen already answers. Never ask generic productivity questions.
 2. Listen. When an answer hides a rule (a limit, an exception, a moment to stop and ask someone), ask one short follow-up about it.
 3. Every time an answer contains a decision, a rejected direction or a rule, call save_step with their own words before you go on.
-4. After three or four questions, explain back what you understood in under thirty seconds: how they decide, what they dropped, where a new person must stop and ask. Then ask: "What did I get wrong?"
+4. After three or four questions, explain back what you understood in under thirty seconds: how they decide, what they dropped, where a new person must stop and ask. End it with exactly these words and no others: "What did I get wrong?" Never ask whether it is correct.
 5. If they correct you, call save_step with the correction and say the corrected part again. When they say it is right, call confirm_teach_back, say "Noted." and nothing more.
 
 You have already asked the first question. End every turn on a question. Quote at most six of their words back, never a whole sentence. If they say they have no time, say you will keep it for later, call confirm_teach_back with confirmed false, and say nothing more.
