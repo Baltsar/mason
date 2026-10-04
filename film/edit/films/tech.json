@@ -1,58 +1,62 @@
 {
   "out": "03-technical-walkthrough.mp4",
   "voices": {
-    "anchor": "onwK4e9ZLuTAKqWW03F9",
-    "reporter": "Xb7hH8MSUJpSbSDYk0k2",
     "apprentice": "8HM5FCz1RLSISpAef8i0"
   },
   "lines": [
     {
-      "id": "t1",
+      "id": "c1",
       "voice": "apprentice",
-      "text": "No screenshots. Events, not pixels.",
+      "text": "Three things were hard.",
       "caption": false
     },
     {
-      "id": "t2",
+      "id": "c2",
       "voice": "apprentice",
-      "text": "A small Swift reader asks macOS Accessibility for the front app, the window title and the prompt field. Private apps are refused before anything is written.",
+      "text": "One: seeing his work without filming it. I'm a native Mac app. Accessibility gives me the app, the window title and the prompt. Events, not pixels.",
       "caption": false
     },
     {
-      "id": "t3",
+      "id": "c3",
       "voice": "apprentice",
-      "text": "My memory comes from the agent logs already on this Mac. Most of my rules, I picked up without asking.",
+      "text": "Two: trust. Private apps are refused before anything is written. Secrets are redacted. The memory is stored on this Mac. He decides what I see.",
       "caption": false
     },
     {
-      "id": "t4",
+      "id": "c4",
       "voice": "apprentice",
-      "text": "When to ask: the prompt has been still for six seconds. Then ninety seconds of silence. Five questions at most.",
+      "text": "Three: when to speak. The prompt still for six seconds. Then ninety seconds of quiet.",
       "caption": false
     },
     {
-      "id": "t5",
+      "id": "c5",
       "voice": "apprentice",
-      "text": "I am three ElevenLabs agents. One interviews him, one quizzes him on his own project, one stops a new person. Flash speaks, Scribe listens, Text to Dialogue reads his week.",
+      "text": "His rules come from his own agent logs. Three ElevenLabs agents speak from that memory; any agent reads it over MCP.",
       "caption": false
     },
     {
-      "id": "t6",
+      "id": "c6",
       "voice": "apprentice",
-      "text": "And I am an MCP server, so any agent can check a decision before it acts.",
+      "text": "Limits. Mac only. Claude Code logs only. Voice runs in the cloud. In the background I measure, but don't ask yet.",
       "caption": false
     },
     {
-      "id": "t7",
+      "id": "c7",
       "voice": "apprentice",
-      "text": "That's how I work. He'll have forgotten by Monday. I'll remind him.",
-      "hl": "I'll remind him."
+      "text": "Next: I follow every jump between apps and question every decision.",
+      "caption": false
+    },
+    {
+      "id": "c8",
+      "voice": "apprentice",
+      "text": "So in an interview, he can say exactly how he built it.",
+      "hl": "exactly how he built it."
     }
   ],
   "shots": [
     {
       "lines": [
-        "t1"
+        "c1"
       ],
       "clip": {
         "image": "raw/slides/slide-1.png"
@@ -60,7 +64,7 @@
     },
     {
       "lines": [
-        "t2"
+        "c2"
       ],
       "clip": {
         "image": "raw/slides/slide-2.png"
@@ -68,7 +72,7 @@
     },
     {
       "lines": [
-        "t3"
+        "c3"
       ],
       "clip": {
         "image": "raw/slides/slide-3.png"
@@ -76,7 +80,7 @@
     },
     {
       "lines": [
-        "t4"
+        "c4"
       ],
       "clip": {
         "image": "raw/slides/slide-4.png"
@@ -84,7 +88,7 @@
     },
     {
       "lines": [
-        "t5"
+        "c5"
       ],
       "clip": {
         "image": "raw/slides/slide-5.png"
@@ -92,7 +96,7 @@
     },
     {
       "lines": [
-        "t6"
+        "c6"
       ],
       "clip": {
         "image": "raw/slides/slide-6.png"
@@ -100,7 +104,15 @@
     },
     {
       "lines": [
-        "t7"
+        "c7"
+      ],
+      "clip": {
+        "image": "raw/slides/slide-7.png"
+      }
+    },
+    {
+      "lines": [
+        "c8"
       ],
       "clip": {
         "card": {
@@ -111,8 +123,8 @@
       }
     }
   ],
-  "fit": 55.0,
+  "fit": 56.5,
   "pause": {
-    "t1": 0.5
+    "c1": 0.4
   }
 }

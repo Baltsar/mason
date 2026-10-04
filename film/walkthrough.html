@@ -44,6 +44,7 @@
   .code header { display: flex; justify-content: space-between; padding: 1.1vw 1.5vw; border-bottom: 1px solid var(--line); color: var(--faint); font: 500 .95vw var(--mono); }
   .code header b { color: var(--muted); font-weight: 500; }
   .code pre { padding: 1.5vw; font: 400 1.12vw/1.62 var(--mono); color: #e0d4bb; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .code.big pre { font-size: 1.4vw; }
   .code mark { background: none; color: var(--lime); }
   .code u { text-decoration: none; color: var(--violet); }
   .code s { text-decoration: none; color: #a08f77; }
@@ -61,14 +62,29 @@
 </head>
 <body>
 
-<section class="slide" data-say="No screenshots. Events, not pixels.">
-  <p class="label"><b>01</b> What it sees</p>
+<section class="slide" data-say="Three things were hard.">
+  <p class="label"><b>00</b> What was hard to build</p>
+  <div>
+    <h1>Three things were <em>hard.</em></h1>
+  </div>
+  <div class="code big">
+    <header><b>this film</b><span>hard · solved · limits</span></header>
+<pre><mark>1  Seeing</mark>   the work without filming it
+<mark>2  Trust</mark>    being allowed to watch at all
+<mark>3  Timing</mark>   knowing when to speak
+
+<s>then: how it remembers, what it cannot do yet</s></pre>
+  </div>
+</section>
+
+<section class="slide" data-say="One: seeing his work without filming it. I'm a native Mac app. Accessibility gives me the app, the window title and the prompt. Events, not pixels.">
+  <p class="label"><b>01</b> Hard: seeing the work · solved with macOS Accessibility</p>
   <div>
     <h1>Events,<br />not <em>pixels.</em></h1>
     <div class="bigs">
       <div><b>0</b><span>screenshots</span></div>
       <div><b>0</b><span>keystrokes logged</span></div>
-      <div><b>1</b><span>line per event</span></div>
+      <div><b>87<i>%</i></b><span>work today, from events</span></div>
     </div>
   </div>
   <div class="code">
@@ -85,57 +101,34 @@
   </div>
 </section>
 
-<section class="slide" data-say="A small Swift reader asks macOS Accessibility for the front app, the window title and the prompt field. Private apps are refused before anything is written.">
-  <p class="label"><b>02</b> Trust</p>
+<section class="slide" data-say="Two: trust. Private apps are refused before anything is written. Secrets are redacted. The memory is stored on this Mac. He decides what I see.">
+  <p class="label"><b>02</b> Hard: trust · solved by refusing first</p>
   <div>
     <h1>Refused <em>before</em> it is written.</h1>
     <div class="bigs">
-      <div class="word"><b>app</b><span>in front</span></div>
-      <div class="word"><b>window</b><span>title</span></div>
-      <div class="word"><b>prompt</b><span>field, never a password field</span></div>
+      <div><b>50</b><span>refused today</span></div>
+      <div class="word"><b>redacted</b><span>keys, cards, e-mail</span></div>
+      <div class="word"><b>on this Mac</b><span>the memory</span></div>
     </div>
   </div>
   <div class="code">
-    <header><b>native/ · the Swift reader</b><span>106 lines</span></header>
+    <header><b>native/ApprenticeReader.swift · src/redact.mjs</b><span>abridged</span></header>
 <pre><mark>if excluded.contains(bundle) {</mark>
     emit(["status": "excluded", "app": appName,
           "bundle": bundle])
     <mark>exit(0)</mark>
 }
-
 let secure = role == "AXSecureTextField"
-          || subrole == "AXSecureTextField"
-if allowedRoles.contains(role) <u>&amp;&amp; !secure &amp;&amp; promptSurface</u> {
-    let value = attribute(focused, "AXValue") as? String ?? ""</pre>
+
+<s>// before anything is stored</s>
+[/…@…\.[A-Z]{2,}/gi,          <u>"[email]"</u>],
+[/(sk_live|api[_-]?key)…/gi,  <u>"[secret]"</u>],
+[/(?:\d[ -]?){12,16}/g,       <u>"[card number]"</u>],</pre>
   </div>
 </section>
 
-<section class="slide" data-say="My memory comes from the agent logs already on this Mac. Most of my rules, I picked up without asking.">
-  <p class="label"><b>03</b> Where the memory comes from</p>
-  <div>
-    <h1>It was <em>already there.</em></h1>
-    <div class="bigs">
-      <div><b>120</b><span>agent sessions</span></div>
-      <div><b>37</b><span>project folders</span></div>
-      <div><b>21</b><span>days</span></div>
-    </div>
-  </div>
-  <div class="code">
-    <header><b>src/projects.mjs · src/memory.mjs</b><span>real lines</span></header>
-<pre>const CLAUDE_DIR =
-  path.join(os.homedir(), <mark>".claude", "projects"</mark>);
-
-<s>// A rule only counts when its example really is
-// something they said.</s>
-keeps_saying: reply.keeps_saying
-  .filter((item) =&gt; <u>Number(item.times) &gt;= 2</u>)
-  .filter((item) =&gt; said.some((text) =&gt;
-    text.includes(item.example.toLowerCase() …)))</pre>
-  </div>
-</section>
-
-<section class="slide" data-say="When to ask: the prompt has been still for six seconds. Then ninety seconds of silence. Five questions at most.">
-  <p class="label"><b>04</b> When to ask</p>
+<section class="slide" data-say="Three: when to speak. The prompt still for six seconds. Then ninety seconds of quiet.">
+  <p class="label"><b>03</b> Hard: when to speak · solved by waiting</p>
   <div>
     <h1>It waits for the <em>pause.</em></h1>
     <div class="bigs">
@@ -160,51 +153,67 @@ if (kind !== "guardrail" &amp;&amp; <u>limit.asked &gt;= 2</u>
   </div>
 </section>
 
-<section class="slide" data-say="I am three ElevenLabs agents. One interviews him, one quizzes him on his own project, one stops a new person. Flash speaks, Scribe listens, Text to Dialogue reads his week.">
-  <p class="label"><b>05</b> The voice</p>
-  <div>
-    <h1>Three agents, <em>one memory.</em></h1>
-    <div class="bigs">
-      <div><b>3</b><span>ElevenLabs agents</span></div>
-      <div class="word"><b>Flash · Scribe</b><span>speaks · listens</span></div>
-      <div class="word"><b>Dialogue v3</b><span>the week, two voices</span></div>
-    </div>
-  </div>
-  <div class="code">
-    <header><b>src/agent.mjs</b><span>real lines</span></header>
-<pre>const ROLES = {
-  <mark>debrief</mark>: { name: "Mason · debrief",
-             prompt: PROMPT, tools: TOOLS },
-  <mark>tutor</mark>:   { name: "Mason · tutor",
-             prompt: TUTOR_PROMPT, tools: TUTOR_TOOLS },
-  <mark>recall</mark>:  { name: "Mason · recall",
-             prompt: RECALL_PROMPT, tools: RECALL_TOOLS },
-};
-
-<s>// the recall agent opens with</s>
-<u>`Tell me about ${memory.project}. What do you remember?`</u></pre>
-  </div>
-</section>
-
-<section class="slide" data-say="And I am an MCP server, so any agent can check a decision before it acts.">
-  <p class="label"><b>06</b> Agent-ready guardrails</p>
+<section class="slide" data-say="His rules come from his own agent logs. Three ElevenLabs agents speak from that memory; any agent reads it over MCP.">
+  <p class="label"><b>04</b> How it remembers and speaks</p>
   <div>
     <h1>One memory, <em>every agent.</em></h1>
     <div class="bigs">
+      <div><b>120</b><span>agent sessions</span></div>
+      <div><b>3</b><span>ElevenLabs agents</span></div>
       <div><b>8</b><span>MCP tools</span></div>
-      <div class="word"><b>local</b><span>stdio and 127.0.0.1</span></div>
     </div>
   </div>
   <div class="code">
-    <header><b>src/mcp-handler.mjs</b><span>tools</span></header>
-<pre>what_happened_last
-what_did_you_learn
-what_are_you_unsure_about
-how_was_the_day
-how_was_it_built
-search_work_map
-<mark>check_decision</mark>         <s>→ STOP with the expert's words, or CLEAR</s>
+    <header><b>src/memory.mjs · agent.mjs · mcp-handler.mjs</b><span>abridged</span></header>
+<pre><s>// A rule only counts when its example really is
+// something they said.</s>
+keeps_saying: reply.keeps_saying
+  .filter((item) =&gt; <u>Number(item.times) &gt;= 2</u>)
+
+const ROLES = { <mark>debrief</mark>, <mark>tutor</mark>, <mark>recall</mark> };
+
+<mark>check_decision</mark>         <s>→ STOP with his words, or CLEAR</s>
 <mark>guardrails_for_agents</mark>  <s>→ the map as instructions</s></pre>
+  </div>
+</section>
+
+<section class="slide" data-say="Limits. Mac only. Claude Code logs only. Voice runs in the cloud. In the background I measure, but don't ask yet.">
+  <p class="label"><b>05</b> Remaining limits</p>
+  <div>
+    <h1>What it <em>cannot</em> do yet.</h1>
+  </div>
+  <div class="code big">
+    <header><b>limits</b><span>4 Oct</span></header>
+<pre><mark>macOS only</mark>
+  <s>the Accessibility API, a native Swift app</s>
+<mark>Memory from Claude Code logs only</mark>
+  <s>not ChatGPT or claude.ai; Cursor: time only</s>
+<mark>Voice and summaries run in the cloud</mark>
+  <s>ElevenLabs and Claude; stored memory is local</s>
+<mark>In the background it measures, never asks</mark>
+  <s>questions only inside a capture session</s>
+<mark>File contents are never read</mark>
+  <s>a "how it was built" line can be wrong</s></pre>
+  </div>
+</section>
+
+<section class="slide" data-say="Next: I follow every jump between apps and question every decision.">
+  <p class="label"><b>06</b> Next · not finished</p>
+  <div>
+    <h1>Every jump, <em>every decision.</em></h1>
+  </div>
+  <div class="code big">
+    <header><b>the always-on Mason</b><span>today → next</span></header>
+<pre>1  logs every move between apps
+   <s>today: measured as events</s>
+2  notices a decision it has not seen
+   <u>next</u>
+3  asks one question at the next real pause
+   <u>next: today only inside a session</u>
+4  points out where it went wrong
+   <u>next</u>
+5  quizzes him until he can explain it
+   <s>today: the recall call, by voice</s></pre>
   </div>
 </section>
 
