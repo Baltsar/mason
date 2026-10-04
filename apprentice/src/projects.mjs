@@ -27,20 +27,28 @@ function tokensOf(name) {
 // Each log is read once and then only its new lines, so a scan stays cheap
 // even when a session file has grown to many megabytes.
 const logs = new Map();
+// A log is read a piece at a time: months of sessions are more than a
+// gigabyte, and the whole of a file never has to be in memory at once.
+const PIECE_BYTES = 4 * 1024 * 1024;
+const NEWLINE = 10;
 
 async function readNewLines(file, size) {
-  const known = logs.get(file) || { offset: 0, rest: "", cwd: null, root: null, prompts: [], minutes: new Set(), files: new Map(), reports: [] };
-  if (size < known.offset) Object.assign(known, { offset: 0, rest: "", prompts: [], minutes: new Set(), files: new Map(), reports: [] });
+  const known = logs.get(file) || { offset: 0, rest: Buffer.alloc(0), cwd: null, root: null, prompts: [], minutes: new Set(), files: new Map(), reports: [] };
+  if (size < known.offset) Object.assign(known, { offset: 0, rest: Buffer.alloc(0), prompts: [], minutes: new Set(), files: new Map(), reports: [] });
   if (size > known.offset) {
     const handle = await open(file, "r");
     try {
-      const buffer = Buffer.alloc(size - known.offset);
-      await handle.read(buffer, 0, buffer.length, known.offset);
-      const text = known.rest + buffer.toString("utf8");
-      const lines = text.split("\n");
-      known.rest = lines.pop();
-      known.offset = size;
-      for (const line of lines) absorb(known, line);
+      const buffer = Buffer.alloc(Math.min(PIECE_BYTES, size - known.offset));
+      while (known.offset < size) {
+        const { bytesRead } = await handle.read(buffer, 0, Math.min(buffer.length, size - known.offset), known.offset);
+        if (!bytesRead) break;
+        known.offset += bytesRead;
+        const piece = known.rest.length ? Buffer.concat([known.rest, buffer.subarray(0, bytesRead)]) : buffer.subarray(0, bytesRead);
+        // Cut at the last line end: a line, and a character in it, is never split.
+        const end = piece.lastIndexOf(NEWLINE);
+        if (end >= 0) for (const line of piece.toString("utf8", 0, end).split("\n")) absorb(known, line);
+        known.rest = Buffer.from(piece.subarray(end + 1));
+      }
     } finally {
       await handle.close();
     }
