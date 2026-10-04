@@ -485,7 +485,8 @@
         const who = $("#who");
         who.dataset.state = state.presence;
         who.querySelector("b").textContent = locked ? statusWord(state) : project || statusWord(state);
-        $("#headline").textContent = memory?.headline || "";
+        // The very first time there is nothing to show yet: say what happens next.
+        $("#headline").textContent = memory?.headline || (!activity.totalSeconds && !locked ? "Work as usual. I am watching." : "");
         const ready = runtime.debriefReady && state.voice.elevenLabs;
         $("#tools").innerHTML = `
           ${memory?.spoken ? `<button class="round play" type="button" id="memory-play" data-project="${esc(project)}" data-state="${playing === project ? "playing" : "idle"}" title="${playing === project ? "Stop" : "Hear where you left off"}" aria-label="${playing === project ? "Stop" : "Hear where you left off"}">${playing === project ? ICON.halt : ICON.play}</button>` : ""}

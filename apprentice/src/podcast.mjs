@@ -231,7 +231,7 @@ async function newestOnDisk() {
 
 // Writes and records this week's episode. `changed` is called at every step,
 // so a page can say what is happening without asking.
-export function makeEpisode({ listener = "Gustaf", changed = () => {} } = {}) {
+export function makeEpisode({ listener = "you", changed = () => {} } = {}) {
   if (job) return job;
   const step = (status, error = null) => { progress = { status, error }; changed(); };
   job = (async () => {

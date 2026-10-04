@@ -254,7 +254,7 @@ const short = (text, max) => {
 
 // What the tutor is told: every guardrail and rejected direction, with a short
 // id it can refer to and the expert's own words.
-export function tutorContext({ map, expert = "Gustaf" }) {
+export function tutorContext({ map, expert = "the expert" }) {
   const rules = map.decisions.filter((item) => item.kind === "guardrail" || item.kind === "discarded").slice(0, 14);
   const ids = Object.fromEntries(rules.map((item, index) => [`R${index + 1}`, item.id]));
   return {
@@ -268,7 +268,7 @@ export function tutorContext({ map, expert = "Gustaf" }) {
 }
 
 // What the recall agent is told: everything remembered about one project.
-export function recallContext({ memory, expert = "Gustaf" }) {
+export function recallContext({ memory, expert = "the expert" }) {
   const block = (title, lines) => lines?.length ? `${title}:\n${lines.map((line) => `- ${line}`).join("\n")}` : "";
   const notes = [
     memory.one_line ? `What it is: ${memory.one_line}` : "",
@@ -288,7 +288,7 @@ export function recallContext({ memory, expert = "Gustaf" }) {
 }
 
 // What the agent is told before the call: the day in a few plain lines.
-export function callContext({ map, projects, said, gaps, inferred = [], expert = "Gustaf" }) {
+export function callContext({ map, projects, said, gaps, inferred = [], expert = "the expert" }) {
   const lines = [];
   const worked = projects.projects.filter((item) => item.seconds >= 30 || item.prompts);
   if (worked.length) {

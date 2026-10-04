@@ -25,6 +25,7 @@
       <div class="top-actions">
         <button class="link" type="button" data-view="recap">Recap</button>
         <button class="link" type="button" data-view="agents">Agents</button>
+        <button class="link gear" type="button" data-view="settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z" /></svg></button>
         <button class="pill presence" id="presence" type="button"><i></i><span>Starting</span></button>
       </div>
     </header>
@@ -93,6 +94,11 @@
           <div class="tools" id="tools"></div>
         </div>
         <pre class="card answer" id="mcp-answer"></pre>
+      </section>
+
+      <section class="view" data-page="settings" hidden>
+        <h1 class="statement">Settings.</h1>
+        <div class="settings" id="settings"></div>
       </section>
     </main>
 

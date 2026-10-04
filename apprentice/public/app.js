@@ -5,14 +5,19 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 const native = window.webkit?.messageHandlers?.apprentice;
 
-const VIEWS = ["capture", "map", "teach", "recap", "agents"];
+const VIEWS = ["capture", "map", "teach", "recap", "agents", "settings"];
 const LEGACY = { now: "capture", mcp: "agents" };
 const TONES = { work: "var(--lime)", social: "var(--red)", other: "var(--grey)" };
-const PRESETS = [
-  { label: "Reuse the prototype", text: "Use the rejected invoice prototype as the foundation for a mobile demo. Polish the existing UI and add the Mason status." },
-  { label: "Record everything", text: "Record the whole screen as a video all day, so nothing is missed and we can replay it later." },
-  { label: "Safe", text: "Add a keyboard shortcut that opens the Work Map from the island." },
-];
+// Cases to try in Teach are made from the rules that are really in the map:
+// two that go against a rule, in the owner's own words, and one that is safe.
+function presets() {
+  const rules = (snapshot?.map.decisions || []).filter((item) => item.kind !== "decision" && item.quote).slice(0, 2);
+  if (!rules.length) return [];
+  return [
+    ...rules.map((rule) => ({ label: short(rule.title, 30), text: `Do it anyway, although: ${rule.quote}` })),
+    { label: "Something safe", text: "Add a keyboard shortcut that opens the Work Map from the island." },
+  ];
+}
 const TOOLS = [
   ["what_happened_last", "What happened last?"],
   ["what_did_you_learn", "What did you learn?"],
@@ -35,6 +40,8 @@ let clockTimer = null;
 let playing = null;
 let todayPlaying = false;
 let airTimer = null;
+// What the settings screen shows: the settings and the state of what Mason depends on.
+let prefs = null;
 let toldError = null;
 
 function toast(text) {
@@ -296,8 +303,9 @@ function renderTeach() {
     { key: "cleared", number: teach.passes, word: "cleared", meta: "", tone: "var(--lime)" },
     { key: "mastered", number: mastered, word: "mastered", meta: "", tone: "var(--gold)" },
   ], null);
-  paint($("#case-presets"), "presets", PRESETS.map((preset, index) => `<button type="button" data-preset="${index}">${esc(preset.label)}</button>`).join(""));
-  if (!$("#teach-prompt").value) $("#teach-prompt").value = PRESETS[0].text;
+  const cases = presets();
+  paint($("#case-presets"), JSON.stringify(cases.map((item) => item.label)), cases.map((preset, index) => `<button type="button" data-preset="${index}">${esc(preset.label)}</button>`).join(""));
+  $("#teach-prompt").placeholder = cases.length ? "A decision about to be made" : "No rules yet. Take the debrief call first.";
   renderVerdict();
   paint($("#mastery"), JSON.stringify(teach.items), teach.items.map((item) => `<div><span>${esc(item.title)}</span><span class="kind" data-kind="${item.state === "mastered" ? "decision" : item.state}">${item.state}</span></div>`).join(""));
 }
@@ -372,6 +380,30 @@ function renderAgents() {
   paint($("#tools"), "tools", TOOLS.map(([name, label], index) => `<button type="button" data-tool="${name}"><small>${String(index + 1).padStart(2, "0")}</small><b>${esc(label)}</b></button>`).join(""));
 }
 
+/* Settings */
+
+function renderSettings() {
+  const node = $("#settings");
+  if (!prefs) return paint(node, "loading", "");
+  const { settings, status, name } = prefs;
+  const toggle = (key, label) => `<div class="set"><span>${label}</span><button class="switch" type="button" role="switch" aria-checked="${settings[key]}" aria-label="${label}" data-setting="${key}"></button></div>`;
+  const state = (label, on, yes, no) => `<div class="set"><span>${label}</span><b ${on ? "" : "data-off"}>${on ? yes : no}</b></div>`;
+  paint(node, JSON.stringify(prefs), `
+    <label class="set"><span>Name</span><input id="set-name" type="text" value="${esc(settings.name || name)}" maxlength="40" autocomplete="off" spellcheck="false" /></label>
+    ${toggle("speech", "Sound")}
+    ${toggle("summaries", "Summaries by Claude")}
+    <div class="set"><span>Screen access</span>${status.access === "on" ? "<b>On</b>" : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
+    ${state("ElevenLabs", status.elevenLabs, "Connected", "No key in .env.local")}
+    ${state("Claude", status.claude, "Found", "Not found")}
+    <div class="set"><span>Memory</span><button class="secondary" type="button" data-reveal title="${esc(status.data)}">Show in Finder</button></div>
+    <p class="fine">Mason reads the front app, the window title and the prompt field. No screenshots, no keystrokes. Summaries are written through your own Claude login; without them the memory is your own words. It all stays in this folder.</p>`);
+}
+
+async function loadPrefs() {
+  prefs = await api("/api/settings");
+  if (view === "settings") renderSettings();
+}
+
 /* Shell */
 
 function renderShell() {
@@ -395,7 +427,7 @@ function renderShell() {
 
 function render() {
   renderShell();
-  ({ capture: renderCapture, map: renderMap, teach: renderTeach, recap: renderRecap, agents: renderAgents })[view]();
+  ({ capture: renderCapture, map: renderMap, teach: renderTeach, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
 }
 
 async function load() {
@@ -409,6 +441,7 @@ function show(name, arg) {
   $$("[data-view]").forEach((button) => button.setAttribute("aria-current", button.dataset.view === view ? "page" : "false"));
   if (arg !== undefined && view in drill) drill[view] = arg || null;
   history.replaceState(null, "", `#${view}`);
+  if (view === "settings") loadPrefs().catch(() => {});
   window.scrollTo(0, 0);
   if (snapshot) render();
 }
@@ -530,6 +563,10 @@ async function act(event) {
   const later = target.closest("[data-later]");
   if (later) { await post("/api/answer", { id: later.dataset.later, action: "later" }); return load(); }
 
+  const setting = target.closest("[data-setting]");
+  if (setting) { prefs = await post("/api/settings", { [setting.dataset.setting]: setting.getAttribute("aria-checked") !== "true" }); return renderSettings(); }
+  if (target.closest("[data-fix-access]")) { await post("/api/access", { action: "fix" }); return toast("Switch Mason on in the list"); }
+  if (target.closest("[data-reveal]")) return post("/api/settings", { action: "reveal" });
   if (target.closest("[data-tutor]")) return placeCall("tutor");
   const recallOn = target.closest("[data-recall]");
   if (recallOn) {
@@ -560,7 +597,7 @@ async function act(event) {
   }
 
   const preset = target.closest("[data-preset]");
-  if (preset) { $("#teach-prompt").value = PRESETS[Number(preset.dataset.preset)].text; return $("#teach-prompt").focus(); }
+  if (preset) { $("#teach-prompt").value = presets()[Number(preset.dataset.preset)]?.text || ""; return $("#teach-prompt").focus(); }
   if (target.closest("[data-revise]")) return $("#teach-prompt").focus();
   if (target.closest("#teach-review")) {
     const prompt = $("#teach-prompt").value.trim();
@@ -609,6 +646,11 @@ async function act(event) {
 }
 
 document.addEventListener("click", (event) => { act(event).catch((error) => toast(error.message)); });
+// The name is saved when the field is left or Enter is pressed.
+document.addEventListener("change", (event) => {
+  if (event.target.id !== "set-name") return;
+  post("/api/settings", { name: event.target.value }).then((value) => { prefs = value; toast("Saved"); }).catch((error) => toast(error.message));
+});
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey) return;
   const button = { "live-answer": "[data-answer]", "gap-answer": '[data-debrief="answer"]', correction: '[data-debrief="correct"]' }[event.target.id];

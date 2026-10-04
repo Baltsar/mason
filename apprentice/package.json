@@ -8,7 +8,6 @@
   "scripts": {
     "build:reader": "node scripts/build-reader.mjs",
     "start": "node scripts/build-reader.mjs && node src/server.mjs",
-    "demo": "node scripts/simulate-session.mjs",
     "test": "node --test",
     "mcp": "node src/mcp.mjs"
   },

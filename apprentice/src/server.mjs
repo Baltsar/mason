@@ -16,10 +16,13 @@ import { projectIndex, summarizeProjects } from "./projects.mjs";
 import { callContext, ensureAgent, recallContext, signedUrl, tutorContext } from "./agent.mjs";
 import { mergeInferred, projectMemory } from "./memory.mjs";
 import { makeEpisode, playEpisode, podcastBusy, podcastState } from "./podcast.mjs";
+import { loadSettings, ownerName, saveSettings, settings } from "./settings.mjs";
+import { modelFound } from "./llm.mjs";
 
 useMemoryStore();
 await loadLocalEnv();
 await ensureStore();
+await loadSettings();
 let clients = new Set();
 // Changes the island should show at once, rather than at its next poll.
 const NUDGES = new Set(["question", "answer", "control", "session", "intervention", "call", "window", "prompt", "presence", "podcast", "memory"]);
@@ -412,7 +415,7 @@ const server = http.createServer(async (request, response) => {
         await saveMap(map);
         await appendEvent({ type: "recall", action: "call", project: memory.project });
         broadcast("call");
-        return json(response, 200, { signedUrl: await signedUrl(agentId), variables: recallContext({ memory }) });
+        return json(response, 200, { signedUrl: await signedUrl(agentId), variables: recallContext({ memory, expert: ownerName() }) });
       }
       if (input.kind === "recall") {
         const recall = map.recall;
@@ -445,7 +448,7 @@ const server = http.createServer(async (request, response) => {
       }
       // The tutor: the same line, the other role. It gets the rules, not the day.
       if (input.action === "start" && input.kind === "tutor") {
-        const { ids, variables } = tutorContext({ map });
+        const { ids, variables } = tutorContext({ map, expert: ownerName() });
         const agentId = await ensureAgent("tutor");
         stopSpeaking();
         map.tutor = { status: "live", startedAt: new Date().toISOString(), ids, results: [], turns: [] };
@@ -509,7 +512,7 @@ const server = http.createServer(async (request, response) => {
         await Promise.all([saveMap(map), saveRuntime(runtime)]);
         await appendEvent({ type: "debrief", action: "call", gaps: gaps.length });
         broadcast("call");
-        return json(response, 200, { signedUrl: await signedUrl(agentId), variables: callContext({ map, projects, said, gaps, inferred }) });
+        return json(response, 200, { signedUrl: await signedUrl(agentId), variables: callContext({ map, projects, said, gaps, inferred, expert: ownerName() }) });
       }
       const call = map.debrief?.call;
       if (!call) return json(response, 409, { error: "No call is in progress" });
@@ -586,6 +589,29 @@ const server = http.createServer(async (request, response) => {
       if (!upstream.ok) return json(response, upstream.status, { error: value.detail?.message || value.detail || "Could not create Scribe token" });
       return json(response, 200, { token: value.token });
     }
+    if (url.pathname === "/api/settings") {
+      if (post) {
+        const input = await body(request);
+        // Showing the folder is the one thing here that is not a setting.
+        if (input.action === "reveal") {
+          if (process.env.APPRENTICE_COLLECT !== "0") spawn("open", [paths.data], { stdio: "ignore", detached: true }).once("error", () => {}).unref();
+          return json(response, 200, { ok: true });
+        }
+        await saveSettings(input);
+        broadcast("settings");
+      }
+      const runtime = await loadRuntime();
+      return json(response, 200, {
+        settings: settings(),
+        name: ownerName(),
+        status: {
+          access: runtime.permission === "granted" ? "on" : runtime.permission === "needed" ? "needed" : "unknown",
+          elevenLabs: Boolean(process.env.ELEVENLABS_API_KEY),
+          claude: modelFound(),
+          data: paths.data.replace(process.env.HOME || "\u0000", "~"),
+        },
+      });
+    }
     if (url.pathname === "/api/access" && post) {
       const input = await body(request);
       const pane = {
@@ -611,7 +637,7 @@ const server = http.createServer(async (request, response) => {
       const changed = () => broadcast("podcast");
       if (input.action === "make") {
         stopSpeaking();
-        makeEpisode({ changed });
+        makeEpisode({ changed, listener: ownerName() });
       } else if (input.action === "play") {
         if (!(await playEpisode({ ended: changed }))) return json(response, 404, { error: "There is no episode yet" });
         changed();

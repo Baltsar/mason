@@ -12,6 +12,8 @@ const local = path.join(os.homedir(), ".local", "bin", "claude");
 const bin = process.env.APPRENTICE_LLM_BIN || (existsSync(local) ? local : "claude");
 
 export const modelAvailable = () => process.env.APPRENTICE_LLM !== "0";
+// Whether the Claude Code CLI is on this Mac at all, for the settings screen.
+export const modelFound = () => existsSync(bin) || bin === "claude" && (process.env.PATH || "").split(":").some((folder) => existsSync(path.join(folder, "claude")));
 
 // Returns the parsed JSON the model replied with, or null when there is no
 // model, it timed out, or the reply was not the JSON that was asked for.
