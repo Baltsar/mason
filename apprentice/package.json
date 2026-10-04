@@ -2,6 +2,7 @@
   "name": "mason-local-harness",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "Mason: a local workflow assistant that was there. It turns real work into a memory of how it was built, sourced decisions and an MCP.",
   "scripts": {

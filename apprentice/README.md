@@ -155,3 +155,7 @@ PORT=4318 APPRENTICE_DATA=/tmp/apprentice-rehearsal APPRENTICE_MUTE=1 APPRENTICE
 - Live questions in a session and the written **Check** are deterministic: a new decision is matched to a guardrail by shared terms and a short list of synonyms, so a paraphrase with no word in common is not caught. The tutor call judges by meaning.
 - The week's episode covers work that left a Claude Code log. Its hours are the minutes in which those logs were active, not time at the screen.
 - The island is glass but small and still: a blurred strip the height of the menu bar, no continuous animation, one small request every 2.5 seconds. Full accessibility is requested once per app, and only where a prompt can be read.
+
+## License
+
+MIT. See `LICENSE` in the repository root.
