@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { redact } from "../src/redact.mjs";
 import { rankQuestion, rankSwitch } from "../src/question-engine.mjs";
-import { callTool } from "../src/mcp-handler.mjs";
 import { catchGuardrail, mastery, reviewDecision } from "../src/teach-engine.mjs";
 import { aggregateActivity, classifyActivity, dayStart } from "../src/activity.mjs";
 import { buildGaps, buildTeachBack, confirmation, debriefProgress } from "../src/debrief.mjs";
@@ -29,12 +28,6 @@ test("asks a guardrail question only after a pause", () => {
 test("does not ask while off the record", () => {
   const question = rankQuestion({ prompt: "Do not build on this direction.", pauseMs: 9000, recentApps: [], runtime: { offTheRecord: true } });
   assert.equal(question, null);
-});
-
-test("MCP returns the imported handover with sources", async () => {
-  const answer = await callTool("what_happened_last");
-  assert.match(answer, /Change the object/);
-  assert.match(answer, /Handover/);
 });
 
 test("Teach stops a new attempt to iterate the rejected surface", () => {

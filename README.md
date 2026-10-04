@@ -67,7 +67,7 @@ macOS 13 or later, Node 18 or later, Xcode command line tools. No packages to in
 Press the island in the menu bar. The first time it asks for Accessibility, which is how it sees which app and window you are in. Name, sound and the rest are under the gear in the app window.
 
 ```bash
-npm test                           # 20 tests, no network
+npm test                           # 22 tests, no network, no data of yours needed
 ```
 
 ## What is not in this repository
