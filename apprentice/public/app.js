@@ -396,7 +396,8 @@ function renderSettings() {
     <div class="set"><span>Screen access</span>${status.access === "on" ? "<b>On</b>" : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
     ${state("ElevenLabs", status.elevenLabs, "Connected", "No key in .env.local")}
     ${state("Claude", status.claude, "Found", "Not found")}
-    <div class="set"><span>Memory</span><button class="secondary" type="button" data-reveal title="${esc(status.data)}">Show in Finder</button></div>
+    <div class="set"><span>Memory</span><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Show in Finder</button></div>
+    <div class="set"><span>Notes for Obsidian</span><button class="secondary" type="button" data-reveal="notes">Show in Finder</button></div>
     <p class="fine">Mason reads the front app, the window title and the prompt field. No screenshots, no keystrokes. Summaries are written through your own Claude login; without them the memory is your own words. It all stays in this folder.</p>`);
 }
 
@@ -567,7 +568,8 @@ async function act(event) {
   const setting = target.closest("[data-setting]");
   if (setting) { prefs = await post("/api/settings", { [setting.dataset.setting]: setting.getAttribute("aria-checked") !== "true" }); return renderSettings(); }
   if (target.closest("[data-fix-access]")) { await post("/api/access", { action: "fix" }); return toast("Switch Mason on in the list"); }
-  if (target.closest("[data-reveal]")) return post("/api/settings", { action: "reveal" });
+  const reveal = target.closest("[data-reveal]");
+  if (reveal) return post("/api/settings", { action: reveal.dataset.reveal });
   if (target.closest("[data-tutor]")) return placeCall("tutor");
   const recallOn = target.closest("[data-recall]");
   if (recallOn) {

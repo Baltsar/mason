@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { Collector } from "./collector.mjs";
 import { appendEvent, ensureStore, eventsVersion, loadMap, loadRuntime, paths, readEvents, readEventsSince, saveMap, saveRuntime, useMemoryStore } from "./store.mjs";
-import { buildRecap, writeWiki } from "./wiki.mjs";
+import { buildRecap, writeVault, writeWiki } from "./wiki.mjs";
 import { speak, stopSpeaking, voiceStatus } from "./voice.mjs";
 import { handleMcp } from "./mcp-handler.mjs";
 import { loadLocalEnv } from "./config.mjs";
@@ -100,6 +100,8 @@ async function refreshMemories() {
       if (memory.generatedAt !== before) broadcast("memory");
     }
     if (learned) { await saveMap(map); await writeWiki(map); broadcast("memory"); }
+    // The notes for Obsidian follow the memory.
+    await writeVault(map, [...memories.values()]).catch(() => {});
   } catch {} finally { refreshing = false; summarising = false; }
 }
 
@@ -596,8 +598,8 @@ const server = http.createServer(async (request, response) => {
       if (post) {
         const input = await body(request);
         // Showing the folder is the one thing here that is not a setting.
-        if (input.action === "reveal") {
-          if (process.env.APPRENTICE_COLLECT !== "0") spawn("open", [paths.data], { stdio: "ignore", detached: true }).once("error", () => {}).unref();
+        if (input.action === "reveal" || input.action === "notes") {
+          if (process.env.APPRENTICE_COLLECT !== "0") spawn("open", [input.action === "notes" ? paths.wiki : paths.data], { stdio: "ignore", detached: true }).once("error", () => {}).unref();
           return json(response, 200, { ok: true });
         }
         await saveSettings(input);

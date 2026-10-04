@@ -22,6 +22,7 @@ Live page with the pitch film: https://mason-demo-eight.vercel.app
 | **Remembers how it was built** | Every Claude Code session of a project folder is folded into one memory: what it is, how it is put together, where it was left, what is still open. |
 | **Picks up your rules without asking** | A correction you gave an agent twice is a rule you never wrote down. It lands in the Work Map with your own words as evidence. |
 | **Talks, when you take the call** | Three ElevenLabs agents: a debrief about today, a recall call that asks what you still know about your own project, and a tutor that stops a new person before they break a rule. |
+| **Keeps it as files you own** | The memory is also a folder of plain Markdown notes with links between them: projects, rules and the Work Map. Open `apprentice/wiki/` in Obsidian or any editor. |
 | **Hands it to every agent** | The same memory is an MCP server: `how_was_it_built`, `guardrails_for_agents`, `check_decision`. |
 
 ElevenLabs in the build: Agents (three), Scribe v2 Realtime, Text to Speech (Flash v2.5) and Text to Dialogue (v3) for a weekly two-voice recap.
@@ -91,12 +92,12 @@ macOS 13 or later, Node 18 or later, Xcode command line tools. No packages to in
 Press the island in the menu bar. The first time it asks for Accessibility, which is how it sees which app and window you are in. Name, sound and the rest are under the gear in the app window.
 
 ```bash
-npm test                           # 28 tests, no network, no data of yours needed
+npm test                           # 29 tests, no network, no data of yours needed
 ```
 
 ## Limits
 
-- The memory is stored on the Mac, but the voice is not: speech, calls and dictation go through ElevenLabs, and summaries through your Claude login.
+- The memory is stored on the Mac, but the voice is not: speech, calls and dictation go through ElevenLabs, and summaries through your Claude login. Without an ElevenLabs key and with summaries switched off in Settings, nothing leaves the Mac: Mason then speaks with the Mac's own voice and the memory is your own words.
 - macOS only. The memory is built from Claude Code logs; chats in ChatGPT or on claude.ai are not on disk and are not read.
 - "How it is put together" comes from what the agents reported and the names of the files they changed. File contents are never read, and a line can be wrong where an agent was.
 - Live questions in a session and the written check in Teach are deterministic. The calls judge by meaning.

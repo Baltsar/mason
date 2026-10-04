@@ -45,6 +45,8 @@ One loud colour, the green, for the figures and for the thing to press. Sandston
 
 The summaries are written by the Claude login already on this Mac, through the Claude Code CLI in its leanest form (no tools, no plugins, no thinking): a few seconds and a fraction of a cent per project, at most once every ten minutes. Without it the memory is your own last prompts, verbatim.
 
+**As files you own.** The memory is also written to `wiki/` as plain Markdown with links between the notes: `Home`, one note per project, `Rules`, and the Work Map. Open the folder in Obsidian, or in any editor. Settings has a button that shows it in Finder.
+
 **Everything else** is counted by app and window title: work, social, other, always summing to 100. Idle time over 60 seconds is excluded. Password managers, mail, chat, banking, health and private-browsing windows are refused before an event is written. **Go private** pauses all capture at once. The day turns over at 04:00.
 
 ## Voice, and where it sits
