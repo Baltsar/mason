@@ -383,6 +383,8 @@ function renderAgents() {
 
 /* Settings */
 
+const thousands = (count) => count >= 10_000 ? `${Math.round(count / 1000)}k` : String(count);
+
 function renderSettings() {
   const node = $("#settings");
   if (!prefs) return paint(node, "loading", "");
@@ -394,11 +396,13 @@ function renderSettings() {
     ${toggle("speech", "Sound")}
     ${toggle("summaries", "Summaries by Claude")}
     <div class="set"><span>Screen access</span>${status.access === "on" ? "<b>On</b>" : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
-    ${state("ElevenLabs", status.elevenLabs, "Connected", "No key in .env.local")}
+    ${status.elevenLabsKey
+      ? `<div class="set"><span>ElevenLabs voice</span><span class="with">${settings.elevenlabs ? (status.credits ? `<b>${thousands(status.credits.left)} credits left</b>` : "") : "<b data-off>Mac voice, no calls</b>"}<button class="switch" type="button" role="switch" aria-checked="${settings.elevenlabs}" aria-label="ElevenLabs voice" data-setting="elevenlabs"></button></span></div>`
+      : state("ElevenLabs", false, "", "No key in .env.local")}
     ${state("Claude", status.claude, "Found", "Not found")}
     <div class="set"><span>Memory</span><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Show in Finder</button></div>
     <div class="set"><span>Notes for Obsidian</span><button class="secondary" type="button" data-reveal="notes">Show in Finder</button></div>
-    <p class="fine">Mason reads the front app, the window title and the prompt field. No screenshots, no keystrokes. Summaries are written through your own Claude login; without them the memory is your own words. It all stays in this folder.</p>`);
+    <p class="fine">Mason reads the front app, the window title and the prompt field. No screenshots, no keystrokes. Summaries are written through your own Claude login; without them the memory is your own words. With ElevenLabs and summaries switched off, nothing leaves this Mac.</p>`);
 }
 
 async function loadPrefs() {
@@ -566,7 +570,12 @@ async function act(event) {
   if (later) { await post("/api/answer", { id: later.dataset.later, action: "later" }); return load(); }
 
   const setting = target.closest("[data-setting]");
-  if (setting) { prefs = await post("/api/settings", { [setting.dataset.setting]: setting.getAttribute("aria-checked") !== "true" }); return renderSettings(); }
+  if (setting) {
+    prefs = await post("/api/settings", { [setting.dataset.setting]: setting.getAttribute("aria-checked") !== "true" });
+    renderSettings();
+    // The rest of the window follows: with the voice off there is no call to place.
+    return load();
+  }
   if (target.closest("[data-fix-access]")) { await post("/api/access", { action: "fix" }); return toast("Switch Mason on in the list"); }
   const reveal = target.closest("[data-reveal]");
   if (reveal) return post("/api/settings", { action: reveal.dataset.reveal });

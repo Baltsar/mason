@@ -117,3 +117,21 @@ export async function elevenLabsPcm(text, voice) {
   if (!response.ok) throw new Error(`ElevenLabs returned ${response.status}`);
   return Buffer.from(await response.arrayBuffer());
 }
+
+// What is left of the month's credits, so the cost of the voice can be seen
+// where it is switched on and off. Asked at most once a minute, and never
+// while ElevenLabs is switched off.
+let credits = { at: 0, value: null };
+export async function elevenLabsCredits() {
+  const key = process.env.ELEVENLABS_API_KEY;
+  if (!key) return null;
+  if (Date.now() - credits.at < 60_000) return credits.value;
+  let value = null;
+  try {
+    const response = await fetch("https://api.elevenlabs.io/v1/user/subscription", { headers: { "xi-api-key": key }, signal: AbortSignal.timeout(4000) });
+    const plan = await response.json();
+    if (response.ok && Number.isFinite(plan.character_limit)) value = { used: plan.character_count, limit: plan.character_limit, left: Math.max(0, plan.character_limit - plan.character_count) };
+  } catch {}
+  credits = { at: Date.now(), value };
+  return value;
+}

@@ -8,6 +8,7 @@ import path from "node:path";
 // folder is set before anything imports it. This file runs in its own process.
 process.env.APPRENTICE_DATA = await mkdtemp(path.join(os.tmpdir(), "mason-settings-"));
 delete process.env.APPRENTICE_MUTE;
+process.env.ELEVENLABS_API_KEY = "a-key-for-the-test";
 const { loadSettings, ownerName, saveSettings } = await import("../src/settings.mjs");
 const { paths } = await import("../src/store.mjs");
 
@@ -22,4 +23,20 @@ test("a setting is kept, and switching the sound off silences Mason", async () =
   assert.equal((await saveSettings({ speech: true })).speech, true);
   assert.equal(process.env.APPRENTICE_MUTE, undefined);
   assert.equal((await loadSettings()).name, "Ada Lovelace");
+});
+
+test("switching ElevenLabs off takes the key away from everything that would call it, and on gives it back", async () => {
+  const { hasElevenLabsKey } = await import("../src/settings.mjs");
+  const { voiceStatus } = await import("../src/voice.mjs");
+  await loadSettings();
+  assert.equal(voiceStatus().elevenLabs, true);
+  await saveSettings({ elevenlabs: false });
+  assert.equal(process.env.ELEVENLABS_API_KEY, undefined);
+  assert.equal(voiceStatus().elevenLabs, false);
+  assert.equal(voiceStatus().engine, "Mac voice");
+  assert.equal(hasElevenLabsKey(), true);
+  assert.equal((await loadSettings()).elevenlabs, false);
+  await saveSettings({ elevenlabs: true });
+  assert.equal(process.env.ELEVENLABS_API_KEY, "a-key-for-the-test");
+  assert.equal(voiceStatus().elevenLabs, true);
 });

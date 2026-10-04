@@ -5,12 +5,13 @@ import { atomicJson, paths, readJson } from "./store.mjs";
 
 // The few things a person may want to change. Each has a default that works,
 // so the settings screen is never needed to get started.
-const DEFAULTS = { name: "", speech: true, summaries: true };
+const DEFAULTS = { name: "", speech: true, summaries: true, elevenlabs: true };
 const file = () => path.join(paths.data, "settings.json");
 
 // What was set from outside (a rehearsal runs muted, for one) is kept and
-// never overruled by a switch that is merely at its default.
-const outside = { mute: process.env.APPRENTICE_MUTE, llm: process.env.APPRENTICE_LLM };
+// never overruled by a switch that is merely at its default. It is read the
+// first time the settings are loaded, once .env.local has been read.
+let outside = null;
 let current = { ...DEFAULTS };
 let account = null;
 
@@ -30,6 +31,11 @@ function apply() {
   if (!current.summaries) process.env.APPRENTICE_LLM = "0";
   else if (outside.llm) process.env.APPRENTICE_LLM = outside.llm;
   else delete process.env.APPRENTICE_LLM;
+  // Switched off, the key is taken out of this process. Every place that
+  // would call ElevenLabs then finds no key: Mason speaks with the Mac's own
+  // voice, answers are typed, there are no calls, and no credit is spent.
+  if (!current.elevenlabs) delete process.env.ELEVENLABS_API_KEY;
+  else if (outside.key) process.env.ELEVENLABS_API_KEY = outside.key;
 }
 
 function clean(value) {
@@ -37,10 +43,12 @@ function clean(value) {
     name: String(value?.name ?? "").replace(/\s+/g, " ").trim().slice(0, 40),
     speech: value?.speech !== false,
     summaries: value?.summaries !== false,
+    elevenlabs: value?.elevenlabs !== false,
   };
 }
 
 export async function loadSettings() {
+  outside ??= { mute: process.env.APPRENTICE_MUTE, llm: process.env.APPRENTICE_LLM, key: process.env.ELEVENLABS_API_KEY };
   current = clean({ ...DEFAULTS, ...(await readJson(file(), {})) });
   apply();
   return current;
@@ -54,6 +62,9 @@ export async function saveSettings(patch) {
 }
 
 export const settings = () => current;
+
+// Whether there is a key at all, also while ElevenLabs is switched off.
+export const hasElevenLabsKey = () => Boolean(outside?.key);
 
 // Who the agents are talking to and about.
 export const ownerName = () => current.name || accountName() || os.userInfo().username;

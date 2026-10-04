@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { Collector } from "./collector.mjs";
 import { appendEvent, ensureStore, eventsVersion, loadMap, loadRuntime, paths, readEvents, readEventsSince, saveMap, saveRuntime, useMemoryStore } from "./store.mjs";
 import { buildRecap, writeVault, writeWiki } from "./wiki.mjs";
-import { speak, stopSpeaking, voiceStatus } from "./voice.mjs";
+import { elevenLabsCredits, speak, stopSpeaking, voiceStatus } from "./voice.mjs";
 import { handleMcp } from "./mcp-handler.mjs";
 import { loadLocalEnv } from "./config.mjs";
 import { aggregateActivity, dayStart } from "./activity.mjs";
@@ -16,7 +16,7 @@ import { projectIndex, summarizeProjects } from "./projects.mjs";
 import { callContext, ensureAgent, recallContext, signedUrl, tutorContext } from "./agent.mjs";
 import { mergeInferred, projectMemory } from "./memory.mjs";
 import { makeEpisode, playEpisode, podcastBusy, podcastState } from "./podcast.mjs";
-import { loadSettings, ownerName, saveSettings, settings } from "./settings.mjs";
+import { hasElevenLabsKey, loadSettings, ownerName, saveSettings, settings } from "./settings.mjs";
 import { modelFound } from "./llm.mjs";
 
 useMemoryStore();
@@ -612,6 +612,8 @@ const server = http.createServer(async (request, response) => {
         status: {
           access: runtime.permission === "granted" ? "on" : runtime.permission === "needed" ? "needed" : "unknown",
           elevenLabs: Boolean(process.env.ELEVENLABS_API_KEY),
+          elevenLabsKey: hasElevenLabsKey(),
+          credits: await elevenLabsCredits(),
           claude: modelFound(),
           data: paths.data.replace(process.env.HOME || "\u0000", "~"),
         },

@@ -96,7 +96,9 @@ ELEVENLABS_API_KEY=...
 
 Project summaries send redacted excerpts of your prompts to Claude through your own login, the same place those prompts already went. `APPRENTICE_LLM=0` turns that off.
 
-What leaves the Mac for ElevenLabs, and only when a key is set: the text to be spoken, the audio of an answer while the microphone is open, and for a call the day's summary (project names, minutes, the sites outside the projects without their titles, and redacted excerpts of your prompts).
+ElevenLabs has a switch in Settings, next to what is left of the month's credits. Switched off, Mason speaks with the Mac's own voice, answers are typed, there are no calls, and nothing is sent or spent.
+
+What leaves the Mac for ElevenLabs, and only when a key is set and the switch is on: the text to be spoken, the audio of an answer while the microphone is open, and for a call the day's summary (project names, minutes, the sites outside the projects without their titles, and redacted excerpts of your prompts).
 
 ## The challenge, module by module
 

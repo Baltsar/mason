@@ -92,12 +92,12 @@ macOS 13 or later, Node 18 or later, Xcode command line tools. No packages to in
 Press the island in the menu bar. The first time it asks for Accessibility, which is how it sees which app and window you are in. Name, sound and the rest are under the gear in the app window.
 
 ```bash
-npm test                           # 29 tests, no network, no data of yours needed
+npm test                           # 30 tests, no network, no data of yours needed
 ```
 
 ## Limits
 
-- The memory is stored on the Mac, but the voice is not: speech, calls and dictation go through ElevenLabs, and summaries through your Claude login. Without an ElevenLabs key and with summaries switched off in Settings, nothing leaves the Mac: Mason then speaks with the Mac's own voice and the memory is your own words.
+- The memory is stored on the Mac, but the voice is not: speech, calls and dictation go through ElevenLabs, and summaries through your Claude login. Both have a switch in Settings. With ElevenLabs and summaries switched off, nothing leaves the Mac: Mason then speaks with the Mac's own voice, there are no calls, and the memory is your own words.
 - macOS only. The memory is built from Claude Code logs; chats in ChatGPT or on claude.ai are not on disk and are not read.
 - "How it is put together" comes from what the agents reported and the names of the files they changed. File contents are never read, and a line can be wrong where an agent was.
 - Live questions in a session and the written check in Teach are deterministic. The calls judge by meaning.
