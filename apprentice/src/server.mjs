@@ -468,7 +468,10 @@ const server = http.createServer(async (request, response) => {
           await saveMap(map);
           await appendEvent({ type: "teach-stop", guardrailId: rule.id, guardrailTitle: rule.title, quote: rule.quote, evidence: short(args.decision, 220), source: "Tutor call · unseen case" });
           broadcast("teach");
-          return json(response, 200, { result: "Recorded. Ask what they would do instead.", shown: { kind: "stopped", title: `Stopped · ${rule.title}` } });
+          // The stop is shown with the moment the owner said it: a rule is not
+          // just a rule, it is something they said on a certain day, somewhere.
+          const said = rule.moment?.at ? ` · said ${new Date(rule.moment.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}${rule.moment.app ? ` in ${rule.moment.app}` : ""}` : "";
+          return json(response, 200, { result: "Recorded. Ask what they would do instead.", shown: { kind: "stopped", title: `Stopped · ${rule.title}${said}` } });
         }
         if (input.action === "tool" && input.tool === "clear_decision") {
           const recovered = tutor.ids[String(args.recovered_rule || "").trim().toUpperCase()] || null;
