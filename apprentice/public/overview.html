@@ -485,13 +485,14 @@
         const who = $("#who");
         who.dataset.state = state.presence;
         who.querySelector("b").textContent = locked ? statusWord(state) : project || statusWord(state);
+        naming.label = null;
         // The very first time there is nothing to show yet: say what happens next.
         $("#headline").textContent = memory?.headline || (!activity.totalSeconds && !locked ? "Work as usual. I am watching." : "");
         const ready = runtime.debriefReady && state.voice.elevenLabs;
         $("#tools").innerHTML = `
-          ${memory?.spoken ? `<button class="round play" type="button" id="memory-play" data-project="${esc(project)}" data-state="${playing === project ? "playing" : "idle"}" title="${playing === project ? "Stop" : "Hear where you left off"}" aria-label="${playing === project ? "Stop" : "Hear where you left off"}">${playing === project ? ICON.halt : ICON.play}</button>` : ""}
-          ${state.voice.elevenLabs && memory?.left_off ? `<button class="round" type="button" id="recall" data-project="${esc(project)}" title="Quiz me on how I built this" aria-label="Quiz me on how I built this">${ICON.quiz}</button>` : ""}
-          ${state.voice.elevenLabs ? `<button class="round ring" type="button" id="debrief" ${ready ? "data-ready" : ""} title="${ready ? "The debrief is ready: take the call" : "Debrief call"}" aria-label="Debrief call">${ICON.phone}</button>` : ""}`;
+          ${memory?.spoken ? `<button class="round play" type="button" id="memory-play" data-project="${esc(project)}" data-state="${playing === project ? "playing" : "idle"}" aria-label="${playing === project ? "Stop" : "Hear where you left off"}">${playing === project ? ICON.halt : ICON.play}</button>` : ""}
+          ${state.voice.elevenLabs && memory?.left_off ? `<button class="round" type="button" id="recall" data-project="${esc(project)}" aria-label="Quiz me on this">${ICON.quiz}</button>` : ""}
+          ${state.voice.elevenLabs ? `<button class="round ring" type="button" id="debrief" ${ready ? "data-ready" : ""} aria-label="${ready ? "Debrief is ready" : "Debrief call"}">${ICON.phone}</button>` : ""}`;
 
         $("#bigs").innerHTML = activity.totalSeconds
           ? ["work", "social", "other"].map((name, index) => `<button class="big" type="button" data-group="${name}" style="--i:${index}"><b>${activity.groups[name].percent}<i>%</i></b><span>${name}</span></button>`).join("")
@@ -594,6 +595,21 @@
       // Typing needs the keyboard, so only then does the panel take it from the work.
       document.addEventListener("pointerdown", (event) => { if (event.target.id === "answer") { cancelTimer(); tell({ type: "key" }); } });
       document.addEventListener("pointerover", (event) => { if (event.target.closest(".ask")) holdTimer(); });
+      // The round buttons are icons only. Pointing at one says what it does, in
+      // the place where the project's name stands; nothing is added to the panel.
+      const naming = { label: null };
+      document.addEventListener("pointerover", (event) => {
+        const button = event.target.closest(".tools .round");
+        if (!button || naming.label !== null) return;
+        naming.label = $("#who b").textContent;
+        $("#who b").textContent = button.getAttribute("aria-label");
+      });
+      document.addEventListener("pointerout", (event) => {
+        const button = event.target.closest(".tools .round");
+        if (!button || naming.label === null || button.contains(event.relatedTarget)) return;
+        $("#who b").textContent = naming.label;
+        naming.label = null;
+      });
       document.addEventListener("pointerout", (event) => { if (event.target.closest(".ask") && !event.relatedTarget?.closest?.(".ask")) runTimer(); });
       document.addEventListener("keydown", (event) => {
         if (event.key === "Enter" && !event.shiftKey && event.target.id === "answer") { event.preventDefault(); $("#ask-form").requestSubmit(); }

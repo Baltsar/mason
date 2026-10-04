@@ -26,6 +26,25 @@ Live page with the pitch film: https://mason-demo-eight.vercel.app
 
 ElevenLabs in the build: Agents (three), Scribe v2 Realtime, Text to Speech (Flash v2.5) and Text to Dialogue (v3) for a weekly two-voice recap.
 
+## How it is put together
+
+```mermaid
+flowchart LR
+  subgraph mac["On your Mac"]
+    reader["Reader, Swift<br/>front app, window, prompt"] --> collector["Collector<br/>events, never pixels"]
+    logs["Claude Code logs<br/>prompts, files changed, reports"] --> memory["Project memory<br/>how it was built"]
+    collector --> server["Local server<br/>Node, no dependencies"]
+    memory --> server
+    server --> map["Work Map<br/>decisions and rules, your words"]
+    server --> island["Island, panel, window<br/>Swift and WebKit"]
+  end
+  server <--> eleven["ElevenLabs<br/>Agents, Scribe, TTS, Dialogue"]
+  memory <--> claude["Claude CLI<br/>summaries, your own login"]
+  map --> mcp["MCP server<br/>any agent"]
+```
+
+Nothing leaves the Mac until a voice is used: then the words to be spoken, the audio of an answer, and for a call a summary of the day. Summaries go through your own Claude login, the same place the prompts already went.
+
 ## Where things are
 
 | Folder | What |
@@ -48,7 +67,7 @@ macOS 13 or later, Node 18 or later, Xcode command line tools. No packages to in
 Press the island in the menu bar. The first time it asks for Accessibility, which is how it sees which app and window you are in. Name, sound and the rest are under the gear in the app window.
 
 ```bash
-npm test                           # 19 tests, no network
+npm test                           # 20 tests, no network
 ```
 
 ## What is not in this repository
