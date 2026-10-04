@@ -4,7 +4,7 @@
 // only its Node import swapped for the browser's. The Work Map it runs on is a
 // public subset: rules read from other projects' prompts never leave the Mac.
 
-import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,8 +17,14 @@ const REPO = process.env.APPRENTICE_REPO || "https://github.com/Baltsar/apprenti
 const PROJECT = "HACKNATION";
 const FILMS = ["01-team-introduction.mp4", "02-product-demo.mp4", "03-technical-walkthrough.mp4"];
 
+// dist is rebuilt from nothing, but its link to the Vercel project is kept,
+// so a new build deploys to the same address.
+const link = path.join(dist, ".vercel");
+const kept = path.join(here, ".vercel-link");
+if (existsSync(link)) { await rm(kept, { recursive: true, force: true }); await rename(link, kept); }
 await rm(dist, { recursive: true, force: true });
 await mkdir(path.join(dist, "films"), { recursive: true });
+if (existsSync(kept)) await rename(kept, link);
 
 const engine = await readFile(path.join(app, "src", "teach-engine.mjs"), "utf8");
 const nodeImport = 'import { randomUUID } from "node:crypto";';

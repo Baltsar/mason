@@ -1,0 +1,118 @@
+{
+  "out": "03-technical-walkthrough.mp4",
+  "voices": {
+    "anchor": "onwK4e9ZLuTAKqWW03F9",
+    "reporter": "Xb7hH8MSUJpSbSDYk0k2",
+    "apprentice": "JBFqnCBsd6RMkjVDRZzb"
+  },
+  "lines": [
+    {
+      "id": "t1",
+      "voice": "apprentice",
+      "text": "No screenshots. Events, not pixels.",
+      "caption": false
+    },
+    {
+      "id": "t2",
+      "voice": "apprentice",
+      "text": "A small Swift reader asks macOS Accessibility for the front app, the window title and the prompt field. Private apps are refused before anything is written.",
+      "caption": false
+    },
+    {
+      "id": "t3",
+      "voice": "apprentice",
+      "text": "My memory comes from the agent logs already on this Mac. Most of my rules, I picked up without asking.",
+      "caption": false
+    },
+    {
+      "id": "t4",
+      "voice": "apprentice",
+      "text": "When to ask: the prompt has been still for six seconds. Then ninety seconds of silence. Five questions at most.",
+      "caption": false
+    },
+    {
+      "id": "t5",
+      "voice": "apprentice",
+      "text": "I am three ElevenLabs agents. One interviews him, one quizzes him on his own project, one stops a new person. Flash speaks, Scribe listens, Text to Dialogue reads his week.",
+      "caption": false
+    },
+    {
+      "id": "t6",
+      "voice": "apprentice",
+      "text": "And I am an MCP server, so any agent can check a decision before it acts.",
+      "caption": false
+    },
+    {
+      "id": "t7",
+      "voice": "apprentice",
+      "text": "That's how I work. He'll have forgotten by Monday. I'll remind him.",
+      "hl": "I'll remind him."
+    }
+  ],
+  "shots": [
+    {
+      "lines": [
+        "t1"
+      ],
+      "clip": {
+        "image": "raw/slides/slide-1.png"
+      }
+    },
+    {
+      "lines": [
+        "t2"
+      ],
+      "clip": {
+        "image": "raw/slides/slide-2.png"
+      }
+    },
+    {
+      "lines": [
+        "t3"
+      ],
+      "clip": {
+        "image": "raw/slides/slide-3.png"
+      }
+    },
+    {
+      "lines": [
+        "t4"
+      ],
+      "clip": {
+        "image": "raw/slides/slide-4.png"
+      }
+    },
+    {
+      "lines": [
+        "t5"
+      ],
+      "clip": {
+        "image": "raw/slides/slide-5.png"
+      }
+    },
+    {
+      "lines": [
+        "t6"
+      ],
+      "clip": {
+        "image": "raw/slides/slide-6.png"
+      }
+    },
+    {
+      "lines": [
+        "t7"
+      ],
+      "clip": {
+        "card": {
+          "kind": "end",
+          "tagline": "Learning by doing, without the forgetting.",
+          "foot": "github.com/Baltsar/apprentice"
+        }
+      }
+    }
+  ],
+  "fit": 55.0,
+  "pause": {
+    "t1": 0.6
+  }
+}

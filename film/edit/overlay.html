@@ -33,6 +33,21 @@
 
   .label p { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); margin: 0; padding: 8px 16px; border-radius: 999px; background: rgba(11, 11, 12, .82); color: var(--muted); font: 600 20px/1 "SFMono-Regular", ui-monospace, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
 
+  /* Full-frame cards in the app's own type: a headline, or a row of figures. */
+  body[data-kind="title"], body[data-kind="stats"] { background: radial-gradient(900px 600px at 8% 108%, rgba(215, 255, 66, .10), transparent 70%), radial-gradient(1000px 700px at 96% -8%, rgba(169, 139, 255, .14), transparent 70%), #060607; }
+  body[data-kind="title"] .title, body[data-kind="stats"] .stats { display: block; }
+  .title section, .stats section { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 0 128px 110px; }
+  .kicker { display: inline-flex; align-items: center; gap: 14px; color: var(--lime); font: 600 26px/1 "SFMono-Regular", ui-monospace, Menlo, monospace; letter-spacing: .14em; text-transform: uppercase; }
+  .kicker i { width: 12px; height: 12px; border-radius: 50%; background: var(--red); }
+  .title h1 { margin: 34px 0 0; max-width: 1560px; font-size: 150px; line-height: .95; font-weight: 700; letter-spacing: -.05em; text-wrap: balance; }
+  .title h1 b { font-weight: 700; color: var(--lime); }
+  .title p { margin: 36px 0 0; max-width: 1200px; color: var(--muted); font-size: 38px; line-height: 1.3; }
+  .stats h1 { margin: 30px 0 0; font-size: 84px; line-height: 1; font-weight: 700; letter-spacing: -.045em; }
+  .stats .row { display: flex; gap: 90px; margin-top: 70px; }
+  .stats .row b { display: block; font-size: 190px; line-height: .9; font-weight: 700; letter-spacing: -.055em; }
+  .stats .row span { display: block; margin-top: 18px; color: var(--muted); font-size: 34px; }
+  .stats .row div:nth-child(1) b { color: var(--lime); }
+  .stats .row div:nth-child(2) b { color: var(--violet); }
   .end { display: none; }
   .end section { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 26px; }
   .end .mark { display: flex; align-items: center; gap: 30px; font-size: 150px; font-weight: 700; letter-spacing: -.05em; }
@@ -48,6 +63,8 @@
   <div class="layer lower"><div><h1 id="name"></h1><p id="role"></p></div></div>
   <div class="layer bug"><div><svg viewBox="0 0 64 64"><path d="M18 16v30h30" fill="none" stroke="#d7ff42" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" /><circle cx="46" cy="18" r="7.5" fill="#a98bff" /></svg><span>Apprentice</span></div></div>
   <div class="layer label"><p id="label"></p></div>
+  <div class="layer title"><section><p class="kicker"><i></i><span id="kicker"></span></p><h1 id="headline"></h1><p id="sub"></p></section></div>
+  <div class="layer stats"><section><p class="kicker"><i></i><span id="stats-kicker"></span></p><h1 id="stats-head"></h1><div class="row" id="stats-row"></div></section></div>
   <div class="layer end"><section>
     <div class="mark"><svg viewBox="0 0 64 64"><path d="M18 16v30h30" fill="none" stroke="#d7ff42" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" /><circle cx="46" cy="18" r="7.5" fill="#a98bff" /></svg><span>Apprentice</span></div>
     <h2 id="tagline"></h2>
@@ -68,6 +85,15 @@
   document.getElementById("name").textContent = q.get("name") || "";
   document.getElementById("role").textContent = q.get("role") || "";
   document.getElementById("label").textContent = q.get("text") || "";
+  document.getElementById("kicker").textContent = q.get("kicker") || "";
+  let headline = esc(q.get("headline") || "");
+  for (const word of marks) headline = headline.replace(esc(word), `<b>${esc(word)}</b>`);
+  document.getElementById("headline").innerHTML = headline;
+  document.getElementById("sub").textContent = q.get("sub") || "";
+  document.getElementById("stats-kicker").textContent = q.get("kicker") || "";
+  document.getElementById("stats-head").textContent = q.get("headline") || "";
+  // figures=175~instructions|8~projects
+  document.getElementById("stats-row").innerHTML = (q.get("figures") || "").split("|").filter(Boolean).map((pair) => { const [figure, label] = pair.split("~"); return `<div><b>${esc(figure)}</b><span>${esc(label || "")}</span></div>`; }).join("");
   document.getElementById("tagline").textContent = q.get("tagline") || "";
   document.getElementById("foot").textContent = q.get("foot") || "";
 </script>

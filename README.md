@@ -8,6 +8,8 @@ Apprentice is a local macOS assistant that was there. It remembers how a project
 
 Built solo by Gustaf Garnow for Challenge 01, The AI Apprentice, at the Hack-Nation 7th Global AI Hackathon.
 
+Live page with the three films: https://apprentice-demo.vercel.app
+
 ## Where things are
 
 | Folder | What |

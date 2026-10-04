@@ -1,0 +1,217 @@
+{
+  "out": "01-team-introduction.mp4",
+  "voices": {
+    "anchor": "onwK4e9ZLuTAKqWW03F9",
+    "reporter": "Xb7hH8MSUJpSbSDYk0k2",
+    "apprentice": "JBFqnCBsd6RMkjVDRZzb"
+  },
+  "lines": [
+    {
+      "id": "a1",
+      "voice": "anchor",
+      "text": "The team is one person.",
+      "hl": "one person"
+    },
+    {
+      "id": "r1",
+      "voice": "reporter",
+      "text": "And us. We're Apprentice, the app he built.",
+      "say": "[deadpan] And us. We're Apprentice, the app he built.",
+      "hl": "Apprentice"
+    },
+    {
+      "id": "a2",
+      "voice": "anchor",
+      "text": "Gustaf Garnow, designer, Stockholm. He builds by talking to agents.",
+      "hl": "talking to agents"
+    },
+    {
+      "id": "r2",
+      "voice": "reporter",
+      "text": "This week: eight projects, a hundred and seventy-five instructions. On Wednesday the agents worked until thirteen past three.",
+      "caption": "This week: 8 projects, 175 instructions. On Wednesday the agents worked until 03:13.",
+      "hl": "03:13"
+    },
+    {
+      "id": "a3",
+      "voice": "reporter",
+      "text": "A month later, he can't explain what he built. So he built us.",
+      "hl": "can't explain|So he built us."
+    },
+    {
+      "id": "r3",
+      "voice": "reporter",
+      "text": "We remember how he built it, ask him until it sticks, and hand his taste to every agent he uses.",
+      "hl": "remember|ask him until it sticks|every agent"
+    },
+    {
+      "id": "t1",
+      "voice": "anchor",
+      "text": "The expert is him, today. The new hire is him, in a month.",
+      "hl": "him, in a month"
+    },
+    {
+      "id": "a4",
+      "voice": "anchor",
+      "text": "Next: the always-on apprentice, for every team.",
+      "hl": "for every team"
+    },
+    {
+      "id": "a5",
+      "voice": "anchor",
+      "text": "He would tell you this himself.",
+      "caption": false
+    },
+    {
+      "id": "r5",
+      "voice": "reporter",
+      "text": "He is talking to another agent.",
+      "say": "[deadpan] He is talking to another agent.",
+      "caption": false
+    },
+    {
+      "id": "a6",
+      "voice": "anchor",
+      "text": "Apprentice. Learning by doing, without the forgetting.",
+      "caption": false
+    }
+  ],
+  "shots": [
+    {
+      "lines": [
+        "a1",
+        "r1"
+      ],
+      "bug": true,
+      "clip": {
+        "card": {
+          "kind": "title",
+          "kicker": "Team news",
+          "headline": "The team is one person.",
+          "hl": "one person."
+        }
+      },
+      "slot": {
+        "src": "raw/me-team.mp4"
+      }
+    },
+    {
+      "lines": [
+        "a2"
+      ],
+      "bug": true,
+      "clip": {
+        "card": {
+          "kind": "title",
+          "kicker": "Meet the team",
+          "headline": "Gustaf Garnow",
+          "sub": "Designer · Stockholm · builds by talking to agents"
+        }
+      },
+      "slot": {
+        "image": "raw/team.jpg"
+      }
+    },
+    {
+      "lines": [
+        "r2"
+      ],
+      "bug": true,
+      "clip": {
+        "card": {
+          "kind": "stats",
+          "kicker": "This week · 28 Sept – 4 Oct",
+          "headline": "What the agent logs say",
+          "figures": "8~projects|175~instructions|03:13~latest night"
+        }
+      }
+    },
+    {
+      "lines": [
+        "a3"
+      ],
+      "clip": {
+        "src": "raw/built.mp4",
+        "in": 0,
+        "frame": true
+      }
+    },
+    {
+      "lines": [
+        "r3"
+      ],
+      "clip": {
+        "src": "raw/built.mp4",
+        "in": 5.6,
+        "frame": true,
+        "zoom": {
+          "x": 24,
+          "y": 96,
+          "w": 1320,
+          "h": 742
+        }
+      }
+    },
+    {
+      "lines": [
+        "t1"
+      ],
+      "bug": true,
+      "clip": {
+        "card": {
+          "kind": "title",
+          "kicker": "The twist",
+          "headline": "The expert is him today. The new hire is him in a month.",
+          "hl": "him in a month."
+        }
+      }
+    },
+    {
+      "lines": [
+        "a4"
+      ],
+      "bug": true,
+      "clip": {
+        "card": {
+          "kind": "title",
+          "kicker": "Next",
+          "headline": "The always-on apprentice, for every team.",
+          "sub": "People teach it first. Then every agent works inside the same guardrails.",
+          "hl": "for every team."
+        }
+      }
+    },
+    {
+      "lines": [
+        "a5",
+        "r5"
+      ],
+      "bug": true,
+      "clip": {
+        "card": {
+          "kind": "title",
+          "kicker": "Statement",
+          "headline": "He would tell you this himself.",
+          "sub": "He is talking to another agent.",
+          "hl": "himself."
+        }
+      },
+      "slot": {
+        "src": "raw/me-team-end.mp4"
+      }
+    },
+    {
+      "lines": [
+        "a6"
+      ],
+      "clip": {
+        "card": {
+          "kind": "end",
+          "tagline": "Learning by doing, without the forgetting.",
+          "foot": "github.com/Baltsar/apprentice"
+        }
+      }
+    }
+  ],
+  "fit": 57.2
+}

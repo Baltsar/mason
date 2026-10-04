@@ -22,7 +22,9 @@ const words = (text) => text.toLowerCase().replace(/[^a-z0-9' ]+/g, " ").split(/
 const base = (word) => word.replace(/'.*$/, "");
 const alike = (a, b) => base(a) === base(b) || (a.length > 3 && b.length > 3 && (a.startsWith(b.slice(0, 4)) || b.startsWith(a.slice(0, 4))));
 
-const script = JSON.parse(await readFile(path.join(here, "script.json"), "utf8"));
+// Optional second and third arguments: the script to look for and where to write.
+const script = JSON.parse(await readFile(process.argv[3] ? path.resolve(process.argv[3]) : path.join(here, "script.json"), "utf8"));
+const target = process.argv[4] ? path.resolve(process.argv[4]) : path.join(film, "raw", "lines.json");
 const input = path.resolve(process.argv[2]);
 const dir = await mkdtemp(path.join(tmpdir(), "apprentice-lines-"));
 let heard = [];
@@ -41,10 +43,14 @@ try {
 
 const found = {};
 const missing = [];
+// LINES_ORDERED=1: a generated narration is said once and in order, so each
+// line is looked for after the one before it and there are no retakes.
+const ordered = Boolean(process.env.LINES_ORDERED);
+let cursor = 0;
 for (const [number, text] of Object.entries(script)) {
   const want = words(text);
   let best = null;
-  for (let start = 0; start < heard.length; start += 1) {
+  for (let start = ordered ? cursor : 0; start < (ordered ? Math.min(heard.length, cursor + want.length + 40) : heard.length); start += 1) {
     // A reading starts where two of the line's first four words are heard close together.
     const opening = heard.slice(start, start + 5).map((item) => item.word);
     if (want.slice(0, 4).filter((word) => opening.some((said) => alike(said, word))).length < 2) continue;
@@ -62,10 +68,11 @@ for (const [number, text] of Object.entries(script)) {
     if (score < 0.6) continue;
     // Inside one reading the fullest match wins. A separate, later reading
     // replaces it when it is about as good: that is the retake.
-    const later = best && start > best.last;
+    const later = !ordered && best && start > best.last;
     if (!best || (later ? score >= best.score - 0.1 : score > best.score)) best = { score, start: first, last };
   }
   if (!best) { missing.push(number); continue; }
+  cursor = best.last + 1;
   found[number] = {
     in: Math.max(0, heard[best.start].from - 0.12),
     out: heard[best.last].to + 0.22,
@@ -75,13 +82,16 @@ for (const [number, text] of Object.entries(script)) {
 }
 
 // The lines are read in order, so a line cannot begin inside the one before it.
-const numbers = Object.keys(found).map(Number).sort((x, y) => x - y);
-for (const number of numbers) {
-  const before = found[number - 1];
-  const line = found[number];
+const order = Object.keys(script).filter((key) => found[key]);
+for (const [index, key] of order.entries()) {
+  const before = found[order[index - 1]];
+  const line = found[key];
   if (before && line.in < before.out && line.out > before.out) line.in = before.out - 0.2;
+  // A misheard opening word (a name, a number) makes a line look late. In an
+  // ordered narration it starts where the line before it stopped.
+  if (ordered && before && line.in - before.out > 0.35 && !alike(words(line.heard)[0] ?? "", words(script[key])[0])) line.in = before.out + 0.05;
 }
 
-await writeFile(path.join(film, "raw", "lines.json"), JSON.stringify(found, null, 2));
+await writeFile(target, JSON.stringify(found, null, 2));
 for (const [number, line] of Object.entries(found)) console.log(`${number.padStart(2)}  ${line.in.toFixed(1).padStart(6)}–${line.out.toFixed(1).padEnd(6)} ${(line.out - line.in).toFixed(1).padStart(5)} s  ${line.match}  ${line.heard.slice(0, 70)}`);
 if (missing.length) console.log(`not found: ${missing.join(", ")}`);

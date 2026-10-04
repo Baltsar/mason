@@ -4,8 +4,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="color-scheme" content="dark" />
-<title>Apprentice — it watches you work, then asks why</title>
-<meta name="description" content="A local apprentice for people who direct AI agents. It stays quiet while you work, asks why at the pause, and stops the next person before they break your rule." />
+<title>Apprentice — learning by doing, without the forgetting</title>
+<meta name="description" content="I vibe-coded it. A month later I can't explain it. Apprentice was there: it remembers how I built it, asks me until it sticks, and hands my taste to every agent I use." />
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101010'/%3E%3Cpath d='M18 18v28h28' fill='none' stroke='%23d7ff42' stroke-width='8' stroke-linecap='round'/%3E%3Ccircle cx='45' cy='19' r='7' fill='%23a98bff'/%3E%3C/svg%3E" />
 <style>
   :root {
@@ -31,7 +31,7 @@
   .top a.repo:hover { color: var(--paper); }
 
   .hero { border-top: 0; padding-top: clamp(28px, 6vw, 72px); }
-  .hero h1 { max-width: 12ch; font-size: clamp(48px, 9.4vw, 148px); line-height: .92; font-weight: 700; letter-spacing: -.05em; text-wrap: balance; }
+  .hero h1 { max-width: 13ch; font-size: clamp(48px, 9.4vw, 148px); line-height: .92; font-weight: 700; letter-spacing: -.05em; text-wrap: balance; }
   .hero h1 em { font-style: normal; color: var(--lime); }
   .hero p { max-width: 46ch; margin-top: clamp(20px, 3vw, 36px); color: var(--muted); font-size: clamp(17px, 1.7vw, 23px); line-height: 1.4; text-wrap: pretty; }
   .film { margin-top: clamp(32px, 5vw, 64px); border: 1px solid var(--line); border-radius: clamp(12px, 1.6vw, 22px); overflow: hidden; background: #000; }
@@ -91,24 +91,34 @@
 
 <main id="top">
   <section class="hero">
-    <h1>It watches you work. Then it <em>asks why.</em></h1>
-    <p>Apprentice sits behind real work on a Mac. It stays quiet while you type, asks one spoken question at the pause, and turns your answers into a Work Map and a tutor that stops the next person before they break your rule.</p>
+    <h1>Learning by doing, without the <em>forgetting.</em></h1>
+    <p>I vibe-coded it. A month later I can't explain it. Apprentice was there: it remembers how I built it, asks me until it sticks, and hands my taste to every agent I use.</p>
     <div class="film"><video controls playsinline preload="metadata" src="films/02-product-demo.mp4"></video></div>
   </section>
 
   <section>
-    <p class="eyebrow"><b>01</b> How it decides when to speak</p>
-    <h2>Quiet until the pause.</h2>
+    <p class="eyebrow"><b>01</b> What it does</p>
+    <h2>A workflow assistant that was there.</h2>
     <div class="stages">
-      <article><h3>Capture</h3><p class="big">6<i>s</i></p><p>The prompt has been still for six seconds. Then ninety seconds of silence, five questions at most, one of them about a limit.</p></article>
-      <article><h3>Map</h3><p class="big">yes</p><p>A voice call closes the gaps and explains the work back. The debrief is done when the expert says yes.</p></article>
-      <article><h3>Teach</h3><p class="big">Stop.</p><p>A decision the expert never showed is checked against every guardrail and stopped in the expert's own words.</p></article>
+      <article><h3>It remembers</h3><p class="big">120</p><p>Agent sessions in three weeks, across 37 folders. The memory is built from the logs already on the Mac: what was asked, which files changed, what I kept repeating.</p></article>
+      <article><h3>It asks</h3><p class="big">6<i>s</i></p><p>While I work it waits until a prompt has been still for six seconds, then asks why, out loud. Later it quizzes me on my own project: “What do you remember?”</p></article>
+      <article><h3>It hands it on</h3><p class="big">Stop.</p><p>A new person or another agent about to break one of my rules is stopped before it happens, in my own words. The same memory is an MCP server.</p></article>
     </div>
   </section>
 
   <section>
-    <p class="eyebrow"><b>02</b> Try the tutor</p>
-    <h2>Type a decision. See if it gets through.</h2>
+    <p class="eyebrow"><b>02</b> Three minutes</p>
+    <h2>Who, what, how.</h2>
+    <div class="films">
+      <figure><video controls playsinline preload="metadata" src="films/01-team-introduction.mp4"></video><figcaption>Who built it</figcaption></figure>
+      <figure><video controls playsinline preload="metadata" src="films/02-product-demo.mp4"></video><figcaption>The product on real work</figcaption></figure>
+      <figure><video controls playsinline preload="metadata" src="films/03-technical-walkthrough.mp4"></video><figcaption>How it works</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><b>03</b> What another agent gets back</p>
+    <h2>check_decision, in your browser.</h2>
     <div class="try">
       <div class="card">
         <div class="chips" id="chips"></div>
@@ -117,18 +127,8 @@
       </div>
       <div class="card verdict" id="verdict" data-state="idle" aria-live="polite">
         <h3>…</h3>
-        <p id="verdict-note">The same engine as the app, running in your browser on the guardrails from the session in the film.</p>
+        <p id="verdict-note">An agent calls this over MCP before it acts. Here it runs in your browser, on rules from the films.</p>
       </div>
-    </div>
-  </section>
-
-  <section>
-    <p class="eyebrow"><b>03</b> Three minutes</p>
-    <h2>Who, what, how.</h2>
-    <div class="films">
-      <figure><video controls playsinline preload="metadata" src="films/01-team-introduction.mp4"></video><figcaption>Who built it</figcaption></figure>
-      <figure><video controls playsinline preload="metadata" src="films/02-product-demo.mp4"></video><figcaption>The product on real work</figcaption></figure>
-      <figure><video controls playsinline preload="metadata" src="films/03-technical-walkthrough.mp4"></video><figcaption>How it works</figcaption></figure>
     </div>
   </section>
 
@@ -142,7 +142,7 @@ open "Start Apprentice.command"</pre>
     <div class="facts">
       <p><b>Events, not pixels</b>No screenshots and no keystroke log. It reads the front app, the window title and the prompt field.</p>
       <p><b>Private by default</b>Password managers, mail, chat and banking are refused before anything is written. One press pauses everything.</p>
-      <p><b>ElevenLabs</b>Agents for the debrief and the tutor, Flash v2.5 for speech, Scribe v2 Realtime for answers.</p>
+      <p><b>ElevenLabs</b>Three agents (debrief, recall, tutor), Flash v2.5 for speech, Scribe v2 Realtime for answers, Text to Dialogue for the weekly episode.</p>
       <p><b>One memory, every agent</b>The Work Map is also an MCP server, so other agents can check a decision before they act.</p>
     </div>
   </section>

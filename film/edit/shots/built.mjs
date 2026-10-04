@@ -7,7 +7,9 @@ export default async function play(shot) {
   await shot.start();
   await shot.wait(2600);
   await shot.click('button.line[data-project="HACKNATION"]');
+  await shot.wait(500);
+  await shot.glide(430, 1500);
   await shot.wait(5200);
   await shot.point('[data-recall="HACKNATION"]');
-  await shot.wait(1800);
+  await shot.wait(2600);
 }

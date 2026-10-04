@@ -21,4 +21,5 @@ film/reference/
 film/edit/.stills/
 film/edit/.frames/
 site/dist/
+site/.vercel-link/
 .DS_Store

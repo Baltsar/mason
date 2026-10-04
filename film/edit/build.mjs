@@ -120,7 +120,7 @@ for (const [index, clip] of cut.clips.entries()) {
   starts.push(at);
   if (clip.card) {
     // A full-frame still, such as the end card.
-    const png = await still({ kind: "end", ...clip.card });
+    const png = await still({ kind: "end", ...clip.card });  // any full-frame kind: end, title, stats
     const input = add(["-loop", "1", "-t", String(clip.dur), "-i", png]);
     graph.push(`[${input}:v]${fit}[v${index}]`);
     graph.push(`anullsrc=r=48000:cl=stereo,atrim=duration=${clip.dur}[a${index}]`);
@@ -137,26 +137,32 @@ for (const [index, clip] of cut.clips.entries()) {
   }
   const input = source(clip.src);
   const speed = clip.speed || 1;
+  // With `dur` the clip fills that time from `in`, holding its last frame if the source runs out.
+  const hold = clip.dur !== undefined;
+  if (hold) clip.out = clip.in + clip.dur * speed;
   const length = (clip.out - clip.in) / speed;
+  const take = hold
+    ? `trim=start=${clip.in},setpts=(PTS-STARTPTS)/${speed},tpad=stop_mode=clone:stop_duration=60,trim=duration=${length.toFixed(3)},setpts=PTS-STARTPTS`
+    : `trim=start=${clip.in}:end=${clip.out},setpts=(PTS-STARTPTS)/${speed}`;
   // zoom is a region of the source in its own pixels: the island and the
   // question panel are small on a full desktop and unreadable at 1080p.
   const crop = clip.zoom ? `crop=${clip.zoom.w}:${clip.zoom.h}:${clip.zoom.x}:${clip.zoom.y},` : "";
   if (clip.frame) {
     // A capture of the app window: rounded and set on the backdrop, the way
     // a window sits on a desktop.
-    const hold = ["-loop", "1", "-t", (length + 1).toFixed(3), "-i"];
-    const backdrop = add([...hold, await still({ kind: "backdrop" })]);
-    const mask = add([...hold, await still({ kind: "mask" })]);
-    graph.push(`[${input}:v]trim=start=${clip.in}:end=${clip.out},setpts=(PTS-STARTPTS)/${speed},${crop}scale=${FRAME.w}:${FRAME.h}:flags=lanczos,fps=${FPS},format=yuv420p[s${index}]`);
+    const looped = ["-loop", "1", "-t", (length + 1).toFixed(3), "-i"];
+    const backdrop = add([...looped, await still({ kind: "backdrop" })]);
+    const mask = add([...looped, await still({ kind: "mask" })]);
+    graph.push(`[${input}:v]${take},${crop}scale=${FRAME.w}:${FRAME.h}:flags=lanczos,fps=${FPS},format=yuv420p[s${index}]`);
     graph.push(`[${mask}:v]crop=${FRAME.w}:${FRAME.h}:0:0,fps=${FPS},trim=duration=${length.toFixed(3)},format=gray[m${index}]`);
     graph.push(`[s${index}][m${index}]alphamerge[sm${index}]`);
     graph.push(`[${backdrop}:v]fps=${FPS},trim=duration=${length.toFixed(3)},format=yuv420p[b${index}]`);
     graph.push(`[b${index}][sm${index}]overlay=${FRAME.x}:${FRAME.y}:shortest=1,setsar=1,format=yuv420p[v${index}]`);
   } else {
-    graph.push(`[${input}:v]trim=start=${clip.in}:end=${clip.out},setpts=(PTS-STARTPTS)/${speed},${crop}${fit}[v${index}]`);
+    graph.push(`[${input}:v]${take},${crop}${fit}[v${index}]`);
   }
   const gain = clip.gain ?? 1;
-  if (gain > 0 && speed === 1 && await hasAudio(abs(clip.src))) {
+  if (!hold && gain > 0 && speed === 1 && await hasAudio(abs(clip.src))) {
     graph.push(`[${input}:a]atrim=start=${clip.in}:end=${clip.out},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,volume=${gain}[a${index}]`);
   } else {
     graph.push(`anullsrc=r=48000:cl=stereo,atrim=duration=${length.toFixed(3)}[a${index}]`);
@@ -185,6 +191,7 @@ const layers = [];
 // The mark sits in the corner until a full-frame card takes over.
 const firstCard = cut.clips.findIndex((clip) => clip.card);
 if (cut.bug) layers.push({ params: { kind: "bug" }, from: cut.bug.at ?? 0, to: cut.bug.to ?? (firstCard >= 0 ? starts[firstCard] : total) });
+for (const item of cut.bugs || []) layers.push({ params: { kind: "bug" }, from: item.at, to: item.to });
 for (const item of cut.labels || []) { const [from, to] = when(item); layers.push({ params: { kind: "label", text: item.text }, from, to }); }
 for (const item of cut.lower || []) { const [from, to] = when(item); layers.push({ params: { kind: "lower", name: item.name, role: item.role }, from, to }); }
 for (const item of cut.captions || []) {
