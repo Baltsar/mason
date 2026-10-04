@@ -114,7 +114,8 @@ let openProject = null;
 function renderCapture() {
   const { activity } = snapshot;
   const measured = activity.totalSeconds > 0;
-  $("#capture-meta").textContent = activity.totalSeconds ? measured ? minutes(activity.totalSeconds) : "" : "Work as usual. Mason is watching.";
+  // Before anything is measured the page says what happens next.
+  $("#capture-meta").textContent = measured ? minutes(activity.totalSeconds) : "Work as usual. Mason is watching.";
   renderBigs($("#capture-bigs"), ["work", "social", "other"].map((name) => ({
     key: name, number: measured ? activity.groups[name].percent : "–", unit: measured ? "%" : "", word: name, meta: "", tone: TONES[name],
   })), drill.capture);
