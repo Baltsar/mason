@@ -3,7 +3,7 @@
   "voices": {
     "anchor": "onwK4e9ZLuTAKqWW03F9",
     "reporter": "Xb7hH8MSUJpSbSDYk0k2",
-    "apprentice": "JBFqnCBsd6RMkjVDRZzb"
+    "apprentice": "8HM5FCz1RLSISpAef8i0"
   },
   "lines": [
     {
@@ -113,6 +113,6 @@
   ],
   "fit": 55.0,
   "pause": {
-    "t1": 0.6
+    "t1": 0.5
   }
 }

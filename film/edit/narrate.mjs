@@ -60,7 +60,21 @@ const { stdout } = await run(process.execPath, [path.join(here, "lines.mjs"), ta
 let report = stdout;
 if (plan.pause && Object.keys(plan.pause).length) {
   const found = JSON.parse(await readFile(linesFile, "utf8"));
-  const cuts = Object.entries(plan.pause).filter(([id]) => found[id]).map(([id, seconds]) => ({ id, at: found[id].out - 0.1, seconds })).sort((x, y) => x.at - y.at);
+  // A cut is made in the middle of the real silence after the line, never at a
+  // guessed word end: cutting there clipped the tail of the last word.
+  const heardSilence = (await run("/opt/homebrew/bin/ffmpeg", ["-hide_banner", "-i", take, "-af", "silencedetect=noise=-38dB:d=0.07", "-f", "null", "-"]).catch((error) => error)).stderr || "";
+  const starts = [...heardSilence.matchAll(/silence_start: ([\d.]+)/g)].map((match) => Number(match[1]));
+  const ends = [...heardSilence.matchAll(/silence_end: ([\d.]+)/g)].map((match) => Number(match[1]));
+  const quiet = starts.map((start, index) => ({ start, end: ends[index] ?? start + 0.2 }));
+  const cutAfter = (id) => {
+    const spokenEnd = found[id].out - 0.22;
+    // The silence has to lie before the next line's first word, or the cut would fall after it.
+    const ids = plan.lines.map((line) => line.id);
+    const nextIn = found[ids[ids.indexOf(id) + 1]]?.in ?? Infinity;
+    const gap = quiet.filter((item) => item.end > spokenEnd - 0.15 && item.start < Math.min(spokenEnd + 0.9, nextIn + 0.08)).sort((x, y) => Math.abs(x.start - spokenEnd) - Math.abs(y.start - spokenEnd))[0];
+    return gap ? (gap.start + gap.end) / 2 : spokenEnd + 0.12;
+  };
+  const cuts = Object.entries(plan.pause).filter(([id]) => found[id]).map(([id, seconds]) => ({ id, at: cutAfter(id), seconds })).sort((x, y) => x.at - y.at);
   const parts = [];
   let from = 0;
   for (const [index, cut] of cuts.entries()) {
@@ -77,7 +91,7 @@ if (plan.pause && Object.keys(plan.pause).length) {
   let shift = 0;
   report = "";
   for (const id of order) {
-    found[id].in += shift;
+    found[id].in = Math.max(found[id].in, (cuts.filter((item) => order.indexOf(item.id) < order.indexOf(id)).at(-1)?.at ?? 0)) + shift;
     found[id].out += shift;
     report += `${id.padEnd(4)} ${found[id].in.toFixed(1).padStart(6)}–${found[id].out.toFixed(1).padEnd(6)} ${found[id].heard.slice(0, 60)}\n`;
     const cut = cuts.find((item) => item.id === id);

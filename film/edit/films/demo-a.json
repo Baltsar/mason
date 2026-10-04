@@ -1,0 +1,96 @@
+{
+  "out": "02-product-demo-a.mp4",
+  "motion": "motion/demo.html",
+  "fit": 52.5,
+  "pause": {
+    "p1": 0.3,
+    "p2": 0.5,
+    "p3": 0.35,
+    "p4": 0.6,
+    "p5": 0.5,
+    "p6": 0.7,
+    "p8": 0.9,
+    "p9": 0.8,
+    "p10": 0.5
+  },
+  "voices": {
+    "apprentice": "JBFqnCBsd6RMkjVDRZzb"
+  },
+  "lines": [
+    {
+      "id": "p1",
+      "voice": "apprentice",
+      "text": "He built this by talking to AI.",
+      "hl": "by talking to AI"
+    },
+    {
+      "id": "p2",
+      "voice": "apprentice",
+      "text": "A month later, he can't explain how the app works.",
+      "hl": "can't explain"
+    },
+    {
+      "id": "p3",
+      "voice": "apprentice",
+      "text": "The answer is in one of a hundred and twenty chats.",
+      "caption": "The answer is in one of 120 chats.",
+      "hl": "one of 120 chats"
+    },
+    {
+      "id": "p4",
+      "voice": "apprentice",
+      "text": "I was there. I'm Apprentice.",
+      "say": "[warm] I was there. I'm Apprentice.",
+      "hl": "I was there."
+    },
+    {
+      "id": "p5",
+      "voice": "apprentice",
+      "text": "I read the agent logs on his Mac, and I remember how each project was built.",
+      "hl": "remember how each project was built"
+    },
+    {
+      "id": "p6",
+      "voice": "apprentice",
+      "text": "When he corrects an agent twice, it becomes a rule. Nobody asked him.",
+      "hl": "it becomes a rule"
+    },
+    {
+      "id": "p7",
+      "voice": "apprentice",
+      "text": "Then I call him and ask.",
+      "hl": "call him"
+    },
+    {
+      "id": "g1",
+      "voice": "apprentice",
+      "text": "Tell me about Hack Nation. What do you remember?",
+      "caption": false
+    },
+    {
+      "id": "p8",
+      "voice": "apprentice",
+      "text": "Until it sticks.",
+      "hl": "sticks"
+    },
+    {
+      "id": "p9",
+      "voice": "apprentice",
+      "text": "And every agent he uses gets the same memory. Before it breaks one of his rules, it is stopped. In his own words.",
+      "hl": "the same memory|it is stopped|In his own words."
+    },
+    {
+      "id": "p10",
+      "voice": "apprentice",
+      "text": "He did not record this video. He was tired. I was there.",
+      "say": "[lightly amused] He did not record this video. He was tired. I was there.",
+      "hl": "I was there."
+    },
+    {
+      "id": "p11",
+      "voice": "apprentice",
+      "text": "Apprentice. Learning by doing, without the forgetting.",
+      "caption": false
+    }
+  ]
+}
