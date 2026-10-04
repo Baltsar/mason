@@ -56,6 +56,31 @@
 
   .typed { margin: 0; font: 500 52px/1.25 var(--mono); letter-spacing: -.02em; color: var(--lime); }
 
+  .menubar { position: absolute; left: 0; top: 0; width: 1920px; height: 48px; display: flex; align-items: center; gap: 26px; padding: 0 24px; background: rgba(28, 18, 11, .82); font: 500 20px/1 var(--sans); color: var(--paper); }
+  .menubar .apple { width: 18px; height: 18px; border-radius: 50%; background: var(--paper); opacity: .8; }
+  .menubar b { font-weight: 700; }
+  .menubar .clock { margin-left: auto; opacity: .8; }
+  .notch { position: absolute; left: 820px; top: 0; width: 280px; height: 48px; border-radius: 0 0 18px 18px; background: #000; }
+  .island { position: absolute; top: 6px; height: 36px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-radius: 12px; background: #000; color: var(--lime); }
+  .island.left { left: 640px; width: 170px; }
+  .island.right { left: 1110px; width: 60px; justify-content: center; }
+  .island i { width: 40px; height: 5px; border-radius: 3px; background: var(--lime); }
+  .island em { font: 600 18px/1 var(--mono); font-style: normal; color: var(--lime); }
+  .deskwin { position: absolute; left: 230px; top: 150px; width: 1460px; height: 790px; border-radius: 18px; background: #1d140e; box-shadow: 0 0 0 1px #4a3828, 0 40px 120px rgba(0, 0, 0, .6); overflow: hidden; }
+  .deskwin .bar { display: flex; align-items: center; gap: 9px; height: 52px; padding: 0 20px; border-bottom: 1px solid #3d2c1f; }
+  .deskwin .bar i { width: 13px; height: 13px; border-radius: 50%; background: #5a4634; }
+  .deskwin .bar span { margin-left: 16px; color: var(--faint); font: 500 18px/1 var(--mono); }
+  .deskwin .side { position: absolute; left: 0; top: 52px; bottom: 0; width: 250px; padding: 26px 22px; border-right: 1px solid #3d2c1f; display: grid; align-content: start; gap: 18px; }
+  .deskwin .side i { height: 12px; border-radius: 6px; background: #3d2c1f; }
+  .deskwin .side i:nth-child(2) { width: 70%; } .deskwin .side i:nth-child(4) { width: 55%; }
+  .deskwin .chat { position: absolute; left: 250px; right: 0; top: 52px; bottom: 0; padding: 40px 48px; display: flex; flex-direction: column; gap: 26px; }
+  .deskwin .chat i { height: 54px; border-radius: 16px; background: #2e2015; }
+  .deskwin .chat .typed { margin-top: auto; padding: 26px 30px; border: 1px solid #4a3828; border-radius: 16px; font-size: 38px; }
+  .drop { position: absolute; left: 560px; top: 48px; width: 800px; padding: 34px 44px 38px; border-radius: 0 0 30px 30px; background: #000; box-shadow: 0 30px 90px rgba(0, 0, 0, .6); text-align: center; }
+  .drop h1 { font-size: 150px; line-height: 1; color: var(--red); }
+  .drop p { margin-top: 14px; font: 500 34px/1.25 var(--mono); color: var(--paper); }
+  .drop small { display: block; margin-top: 14px; color: var(--muted); font: 500 20px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+
   .pill { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border: 1.5px solid var(--violet); border-radius: 999px; color: var(--violet); font: 600 16px/1 var(--mono); letter-spacing: .1em; }
   .chip { display: inline-flex; align-items: center; gap: 12px; height: 64px; padding: 0 26px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font-size: 30px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; }
   .chip i { width: 12px; height: 12px; border-radius: 50%; background: var(--lime); }
@@ -195,18 +220,33 @@
 
 <!-- 6b. His own last words, heard, one word at a time. -->
 <section class="scene" id="lost">
-  <h1 class="abs" id="l-quote" style="left:128px; top:250px; width:1660px; font-size:150px; line-height:1.05; font-style:italic; font-weight:400"></h1>
-  <p class="abs note" id="l-by" style="left:128px; top:760px; font-size:34px">Gustaf, at the playground</p>
+  <p class="abs eyebrow" style="left:128px; top:210px">Vibecoder</p>
+  <h1 class="abs" id="l-quote" style="left:128px; top:270px; width:1130px; font-size:128px; line-height:1.05; font-style:italic; font-weight:400"></h1>
+  <p class="abs note" id="l-by" style="left:128px; top:760px; font-size:34px"></p>
 </section>
 
 <!-- 6. Every agent gets the same memory, and is stopped where he would stop. -->
 <section class="scene" id="agents">
-  <p class="abs eyebrow" style="left:128px; top:120px" id="g-eyebrow">Teach · a new agent, about to act</p>
-  <p class="abs typed" id="g-plan" style="left:128px; top:190px; font-size:64px; width:1660px"><span style="color:var(--faint)">plan &gt; </span><span id="g-typed"></span></p>
-  <div class="abs" id="g-stop" style="left:128px; top:400px; width:1660px">
-    <h1 class="big" style="color:var(--red); font-size:210px">Stop.</h1>
-    <p class="typed" style="margin-top:26px; font-size:60px; color:var(--paper)" id="g-quote">“de är för mycket text, de ska bara visa de enklaste”</p>
-    <p class="note" style="margin-top:22px; font-size:34px">Gustaf’s own words: <em style="font-style:normal; color:var(--paper)">too much text, only show the simplest.</em> His rule: keep the UI minimal.</p>
+  <div class="abs" id="g-desk" style="left:0; top:0; width:1920px; height:1080px; translate:0 0; background: radial-gradient(1200px 800px at 20% 110%, #6b3f24, transparent 70%), radial-gradient(1100px 700px at 90% -10%, #7a5a2c, transparent 70%), #2a1a10">
+    <div class="menubar">
+      <span class="apple"></span><b>Cursor</b><span>File</span><span>Edit</span><span>View</span>
+      <div class="island left" id="g-island"><img class="logo" src="../brand/logo.png" width="34" height="34" alt="" /><i></i><em>97%</em></div>
+      <div class="notch"></div>
+      <div class="island right"><svg viewBox="0 0 24 24" width="26" height="26"><ellipse cx="12" cy="12" rx="9" ry="6" fill="none" stroke="currentColor" stroke-width="2" /><circle cx="12" cy="12" r="3" fill="currentColor" /></svg></div>
+      <span class="clock">Sun 14:07</span>
+    </div>
+    <div class="deskwin" id="g-win">
+      <div class="bar"><i></i><i></i><i></i><span>agent · new session</span></div>
+      <div class="side"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="chat"><i style="width:52%"></i><i style="width:38%; margin-left:auto"></i><i style="width:60%"></i>
+        <p class="typed" id="g-plan"><span style="color:var(--faint)">&gt; </span><span id="g-typed"></span></p>
+      </div>
+    </div>
+    <div class="drop" id="g-stop">
+      <h1>Stop.</h1>
+      <p>“de ska bara visa de enklaste”</p>
+      <small>gustaf · said 3 times</small>
+    </div>
   </div>
 </section>
 
@@ -537,13 +577,13 @@
   });
 
   scene("agents", ["n9", "n9b"], ({ fly, at, until, tick }) => {
-    // The real engine stops exactly this plan with exactly this quote.
+    // Where Mason is: beside the notch. The real engine stops exactly this plan with this quote.
     const PLAN = "add more text to the ui. show everything on one screen.";
-    fly("#g-eyebrow", RISE(20), { at: 40, dur: 400 });
-    fly("#g-plan", RISE(30), { at: 120, dur: 500 });
-    fly("#g-plan", [{ opacity: 1 }, { opacity: 0.35 }], { at: at("n9b") - 60, dur: 260, ease: QUART });
-    fly("#g-stop", [{ opacity: 0, transform: "scale(1.12)" }, { opacity: 1, transform: "none" }], { at: at("n9b"), dur: 420 });
-    tick((now) => { $("#g-typed").textContent = PLAN.slice(0, Math.round(PLAN.length * ramp(now, 300, Math.max(1200, until("n9") - at("n9") - 500)))); });
+    fly("#g-win", RISE(40), { at: 60, dur: 600 });
+    fly("#g-island", [{ transform: "scale(1)" }, { transform: "scale(1.14)", offset: 0.5 }, { transform: "scale(1)" }], { at: at("n9b") - 300, dur: 420, ease: QUART });
+    fly("#g-win", [{ opacity: 1 }, { opacity: 0.4 }], { at: at("n9b") - 40, dur: 260, ease: QUART });
+    fly("#g-stop", [{ opacity: 0, transform: "translateY(-120px)" }, { opacity: 1, transform: "none" }], { at: at("n9b"), dur: 520 });
+    tick((now) => { $("#g-typed").textContent = PLAN.slice(0, Math.round(PLAN.length * ramp(now, 500, Math.max(1100, until("n9") - at("n9") - 700)))); });
   });
 
   scene("lost", ["m4"], ({ tick }) => {

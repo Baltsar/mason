@@ -17,10 +17,15 @@ const FFMPEG = process.env.FFMPEG_BIN || "/opt/homebrew/bin/ffmpeg";
 const FFPROBE = process.env.FFPROBE_BIN || "/opt/homebrew/bin/ffprobe";
 
 const args = process.argv.slice(2);
-const flags = new Set(args.filter((item) => item.startsWith("--") && !item.startsWith("--from")));
+const VALUED = ["--from", "--x", "--keep"];
+const flags = new Set(args.filter((item) => item.startsWith("--") && !VALUED.includes(item)));
+const valueOf = (flag) => (args.includes(flag) ? Number(args[args.indexOf(flag) + 1]) : null);
+// --x: where a portrait clip sits (pixels from the left). --keep: the share of its width kept, from the left.
+const placeX = valueOf("--x");
+const keep = valueOf("--keep");
 const fromIndex = args.indexOf("--from");
 const from = fromIndex >= 0 ? Number(args[fromIndex + 1]) : 0;
-const [film, clip, atText, lengthText] = args.filter((item, index) => !item.startsWith("--") && !(fromIndex >= 0 && index === fromIndex + 1));
+const [film, clip, atText, lengthText] = args.filter((item, index) => !item.startsWith("--") && !VALUED.includes(args[index - 1]));
 const at = Number(atText);
 
 const probe = async (file, entries, stream) => (await run(FFPROBE, ["-v", "error", ...(stream ? ["-select_streams", stream] : []), "-show_entries", entries, "-of", "csv=p=0", file])).stdout.trim();
@@ -38,16 +43,17 @@ if (hasVideo) {
   const turned = Math.abs(Number((await probe(clip, "stream_side_data=rotation", "v:0")).split(",").filter(Boolean).at(-1) || 0)) === 90;
   const portrait = turned ? width > height : height > width;
   const shape = portrait
-    ? "scale=-2:1080,setsar=1"
+    ? `${keep ? `crop=iw*${keep}:ih:0:0,` : ""}scale=-2:1080,setsar=1`
     : "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,setsar=1";
   graph.push(`[1:v]trim=start=${from}:duration=${length},setpts=PTS-STARTPTS+${at}/TB,fps=30,${shape}[clip]`);
-  graph.push(`[0:v][clip]overlay=${portrait ? "(W-w)/2:0" : "0:0"}:enable='between(t,${at},${end})':eof_action=pass[v]`);
+  graph.push(`[0:v][clip]overlay=${portrait ? `${placeX ?? "(W-w)/2"}:0` : "0:0"}:enable='between(t,${at},${end})':eof_action=pass[v]`);
   video = "[v]";
 }
 const under = flags.has("--mute") ? `volume=enable='between(t,${at},${end})':volume=0` : "anull";
 graph.push(`[0:a]${under}[film]`);
-graph.push(`[1:a]atrim=start=${from}:duration=${length},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-16:TP=-1.5:LRA=11,afade=t=in:d=0.04,afade=t=out:st=${Math.max(0, length - 0.08)}:d=0.08,adelay=${Math.round(at * 1000)}:all=1[voice]`);
-graph.push("[film][voice]amix=inputs=2:normalize=0:duration=first[a]");
+if (!flags.has("--nosound")) graph.push(`[1:a]atrim=start=${from}:duration=${length},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-16:TP=-1.5:LRA=11,afade=t=in:d=0.04,afade=t=out:st=${Math.max(0, length - 0.08)}:d=0.08,adelay=${Math.round(at * 1000)}:all=1[voice]`);
+// --nosound lays in the picture only.
+graph.push(flags.has("--nosound") ? "[film]anull[a]" : "[film][voice]amix=inputs=2:normalize=0:duration=first[a]");
 
 const out = film.replace(/\.mp4$/, ".new.mp4");
 await run(FFMPEG, [

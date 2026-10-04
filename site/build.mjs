@@ -24,7 +24,7 @@ const FFMPEG = process.env.FFMPEG_BIN || "/opt/homebrew/bin/ffmpeg";
 // link to a film that was shared before keeps opening it.
 const FILMS = ["01-team-introduction.mp4", "02-product-demo.mp4", "03-technical-walkthrough.mp4"];
 const PITCH = "02-product-demo.mp4";
-// The frame where the question is on screen: "Do you remember what you built?"
+// Early in the opening, where the question and Gustaf's face are both on screen.
 const POSTER_AT = "2.5";
 
 // dist is rebuilt from nothing, but its link to the Vercel project is kept,
