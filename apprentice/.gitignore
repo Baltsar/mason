@@ -1,0 +1,7 @@
+.runtime/
+data/audio/*.mp3
+data/events.jsonl
+data/state.json
+*.log
+.env.local
+Apprentice.app/

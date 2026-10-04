@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="A private local apprentice that learns from real work." />
+    <title>Apprentice</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101010'/%3E%3Cpath d='M18 18v28h28' fill='none' stroke='%23d7ff42' stroke-width='8' stroke-linecap='round'/%3E%3Ccircle cx='45' cy='19' r='7' fill='%23a98bff'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="topbar">
+      <a class="brand" href="#capture" aria-label="Apprentice">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 16v30h30" fill="none" stroke="#d7ff42" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" /><circle cx="46" cy="18" r="7.5" fill="#a98bff" /></svg>
+        <span>Apprentice</span>
+      </a>
+      <nav class="stages" aria-label="Stages">
+        <button type="button" data-view="capture" aria-current="page"><span>Capture</span><b id="nav-capture">–</b></button>
+        <button type="button" data-view="map"><span>Map</span><b id="nav-map">–</b></button>
+        <button type="button" data-view="teach"><span>Teach</span><b id="nav-teach">–</b></button>
+      </nav>
+      <div class="top-actions">
+        <button class="link" type="button" data-view="recap">Recap</button>
+        <button class="link" type="button" data-view="agents">Agents</button>
+        <button class="pill presence" id="presence" type="button"><i></i><span>Starting</span></button>
+      </div>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <section class="view" data-page="capture">
+        <p class="eyebrow"><span id="capture-meta"></span></p>
+        <div class="bigs" id="capture-bigs"></div>
+        <div class="drill" id="capture-drill" hidden></div>
+        <section class="projects" id="projects-card" aria-live="polite" hidden></section>
+        <div class="pair">
+          <section class="card session" id="session-card" aria-live="polite"></section>
+          <section class="card ask" id="question-card" aria-live="polite" hidden></section>
+        </div>
+        <details class="log">
+          <summary>Log<span id="trust-line"></span></summary>
+          <ol id="signals"></ol>
+        </details>
+      </section>
+
+      <section class="view" data-page="map" hidden>
+        <div class="bigs" id="map-bigs"></div>
+        <section class="card debrief" id="debrief-card" aria-live="polite"></section>
+        <section class="timeline" aria-label="Work Map">
+          <div id="steps"></div>
+        </section>
+      </section>
+
+      <section class="view" data-page="teach" hidden>
+        <div class="bigs" id="teach-bigs"></div>
+        <div class="pair teach-pair">
+          <section class="card case" aria-label="A decision to check">
+            <div class="chips" id="case-presets"></div>
+            <textarea id="teach-prompt" rows="3" aria-label="Decision about to be saved"></textarea>
+            <div class="row"><button class="primary" type="button" data-tutor>Tutor call</button><button class="secondary" id="teach-review" type="button">Check</button></div>
+          </section>
+          <section class="card verdict" id="teach-result" aria-live="polite" hidden></section>
+        </div>
+        <section class="timeline" aria-label="Rules">
+          <div class="mastery" id="mastery"></div>
+        </section>
+      </section>
+
+      <section class="view" data-page="recap" hidden>
+        <p class="eyebrow"><span id="recap-meta"></span></p>
+        <h1 class="statement" id="recap-heading">Your week, as news.</h1>
+        <div class="onair" id="onair" hidden>
+          <div class="bar"><i></i></div>
+          <small></small>
+          <p></p>
+        </div>
+        <div class="actions">
+          <button class="primary" id="play-week" type="button">Make episode</button>
+          <button class="secondary" id="play-recap" type="button">Today</button>
+          <button class="link" id="new-week" type="button" hidden>New take</button>
+        </div>
+        <div class="beats" id="recap-grid"></div>
+      </section>
+
+      <section class="view" data-page="agents" hidden>
+        <h1 class="statement">One memory,<br />every agent.</h1>
+        <div class="pair agents-pair">
+          <div class="card terminal">
+            <pre><code id="mcp-config"></code></pre>
+          </div>
+          <div class="tools" id="tools"></div>
+        </div>
+        <pre class="card answer" id="mcp-answer"></pre>
+      </section>
+    </main>
+
+    <dialog id="source">
+      <header><p class="label" id="source-title">Source</p><button type="button" id="source-close" aria-label="Close">Close</button></header>
+      <pre id="source-body"></pre>
+    </dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>

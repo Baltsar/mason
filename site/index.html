@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>Apprentice — it watches you work, then asks why</title>
+<meta name="description" content="A local apprentice for people who direct AI agents. It stays quiet while you work, asks why at the pause, and stops the next person before they break your rule." />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101010'/%3E%3Cpath d='M18 18v28h28' fill='none' stroke='%23d7ff42' stroke-width='8' stroke-linecap='round'/%3E%3Ccircle cx='45' cy='19' r='7' fill='%23a98bff'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --ink: #0b0b0c; --paper: #f4f3ef; --muted: #9f9f9b; --faint: #6c6c70; --line: #2b2b2e;
+    --panel: #151517; --raised: #1d1d20; --lime: #d7ff42; --violet: #a98bff; --red: #ff6b5f;
+    --font: Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    --mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+    --gutter: clamp(16px, 5vw, 72px);
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--ink); color: var(--paper); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+  body { margin: 0; }
+  h1, h2, h3, p, pre, blockquote { margin: 0; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
+  section, header.top, footer { padding-inline: var(--gutter); }
+  section { padding-block: clamp(56px, 9vw, 120px); border-top: 1px solid var(--line); }
+
+  .top { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.03em; text-decoration: none; }
+  .brand svg { width: 22px; height: 22px; }
+  .top a.repo { color: var(--muted); font: 500 13px var(--mono); text-decoration: none; }
+  .top a.repo:hover { color: var(--paper); }
+
+  .hero { border-top: 0; padding-top: clamp(28px, 6vw, 72px); }
+  .hero h1 { max-width: 12ch; font-size: clamp(48px, 9.4vw, 148px); line-height: .92; font-weight: 700; letter-spacing: -.05em; text-wrap: balance; }
+  .hero h1 em { font-style: normal; color: var(--lime); }
+  .hero p { max-width: 46ch; margin-top: clamp(20px, 3vw, 36px); color: var(--muted); font-size: clamp(17px, 1.7vw, 23px); line-height: 1.4; text-wrap: pretty; }
+  .film { margin-top: clamp(32px, 5vw, 64px); border: 1px solid var(--line); border-radius: clamp(12px, 1.6vw, 22px); overflow: hidden; background: #000; }
+  video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+
+  .eyebrow { color: var(--muted); font: 500 13px var(--mono); letter-spacing: .04em; }
+  .eyebrow b { color: var(--lime); font-weight: 600; }
+  h2 { margin-top: 14px; max-width: 16ch; font-size: clamp(34px, 5.4vw, 80px); line-height: .96; font-weight: 700; letter-spacing: -.045em; text-wrap: balance; }
+
+  .stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: clamp(28px, 4vw, 56px); margin-top: clamp(32px, 5vw, 64px); }
+  .stages h3 { font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+  .stages .big { margin-top: 10px; font-size: clamp(44px, 5.6vw, 84px); line-height: 1; font-weight: 700; letter-spacing: -.045em; white-space: nowrap; }
+  .stages .big i { font-style: normal; font-size: .42em; margin-left: .14em; color: var(--muted); font-weight: 600; }
+  .stages article:nth-child(1) .big { color: var(--lime); }
+  .stages article:nth-child(2) .big { color: var(--violet); }
+  .stages p { margin-top: 14px; max-width: 34ch; color: var(--muted); font-size: 16px; line-height: 1.45; }
+
+  .try { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(16px, 2.4vw, 32px); margin-top: clamp(28px, 4vw, 56px); align-items: start; }
+  @media (max-width: 860px) { .try { grid-template-columns: 1fr; } }
+  .card { border: 1px solid var(--line); border-radius: 18px; background: var(--panel); padding: clamp(16px, 2vw, 26px); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .chips button { height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; }
+  .chips button:hover { color: var(--paper); border-color: var(--faint); }
+  textarea { display: block; width: 100%; min-height: 108px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--ink); color: var(--paper); font: inherit; font-size: 17px; line-height: 1.4; resize: vertical; }
+  .primary { margin-top: 14px; height: 46px; padding: 0 24px; border: 0; border-radius: 12px; background: var(--lime); color: #000; font: inherit; font-size: 16px; font-weight: 650; cursor: pointer; }
+  .verdict h3 { font-size: clamp(44px, 5vw, 76px); line-height: 1; font-weight: 700; letter-spacing: -.045em; }
+  .verdict[data-state="stop"] h3 { color: var(--red); }
+  .verdict[data-state="clear"] h3 { color: var(--lime); }
+  .verdict[data-state="idle"] h3 { color: var(--faint); }
+  .verdict blockquote { margin-top: 18px; font-size: clamp(19px, 1.9vw, 26px); line-height: 1.3; letter-spacing: -.015em; text-wrap: pretty; }
+  .verdict p { margin-top: 14px; color: var(--muted); font-size: 15px; line-height: 1.45; }
+  .verdict p code { color: var(--paper); font: 13px var(--mono); }
+
+  .films { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: clamp(16px, 2vw, 28px); margin-top: clamp(28px, 4vw, 56px); }
+  .films figure { margin: 0; }
+  .films video { border: 1px solid var(--line); border-radius: 14px; }
+  .films figcaption { margin-top: 10px; color: var(--muted); font-size: 15px; }
+
+  pre.run { margin-top: clamp(24px, 3vw, 40px); padding: clamp(16px, 2vw, 26px); border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: #cfcfca; font: clamp(13px, 1.25vw, 17px)/1.7 var(--mono); overflow-x: auto; }
+  pre.run b { color: var(--lime); font-weight: 400; }
+  pre.run s { text-decoration: none; color: var(--faint); }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px 40px; margin-top: 32px; color: var(--muted); font-size: 16px; line-height: 1.45; }
+  .facts b { display: block; color: var(--paper); font-weight: 600; }
+
+  footer { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; padding-block: 28px 40px; border-top: 1px solid var(--line); color: var(--faint); font: 13px var(--mono); }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="#top" aria-label="Apprentice">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 16v30h30" fill="none" stroke="#d7ff42" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" /><circle cx="46" cy="18" r="7.5" fill="#a98bff" /></svg>
+    <span>Apprentice</span>
+  </a>
+  <a class="repo" href="__REPO__">source on GitHub</a>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <h1>It watches you work. Then it <em>asks why.</em></h1>
+    <p>Apprentice sits behind real work on a Mac. It stays quiet while you type, asks one spoken question at the pause, and turns your answers into a Work Map and a tutor that stops the next person before they break your rule.</p>
+    <div class="film"><video controls playsinline preload="metadata" src="films/02-product-demo.mp4"></video></div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><b>01</b> How it decides when to speak</p>
+    <h2>Quiet until the pause.</h2>
+    <div class="stages">
+      <article><h3>Capture</h3><p class="big">6<i>s</i></p><p>The prompt has been still for six seconds. Then ninety seconds of silence, five questions at most, one of them about a limit.</p></article>
+      <article><h3>Map</h3><p class="big">yes</p><p>A voice call closes the gaps and explains the work back. The debrief is done when the expert says yes.</p></article>
+      <article><h3>Teach</h3><p class="big">Stop.</p><p>A decision the expert never showed is checked against every guardrail and stopped in the expert's own words.</p></article>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><b>02</b> Try the tutor</p>
+    <h2>Type a decision. See if it gets through.</h2>
+    <div class="try">
+      <div class="card">
+        <div class="chips" id="chips"></div>
+        <textarea id="decision" aria-label="A decision about to be made"></textarea>
+        <button class="primary" id="check" type="button">Check</button>
+      </div>
+      <div class="card verdict" id="verdict" data-state="idle" aria-live="polite">
+        <h3>…</h3>
+        <p id="verdict-note">The same engine as the app, running in your browser on the guardrails from the session in the film.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><b>03</b> Three minutes</p>
+    <h2>Who, what, how.</h2>
+    <div class="films">
+      <figure><video controls playsinline preload="metadata" src="films/01-team-introduction.mp4"></video><figcaption>Who built it</figcaption></figure>
+      <figure><video controls playsinline preload="metadata" src="films/02-product-demo.mp4"></video><figcaption>The product on real work</figcaption></figure>
+      <figure><video controls playsinline preload="metadata" src="films/03-technical-walkthrough.mp4"></video><figcaption>How it works</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><b>04</b> Run it</p>
+    <h2>It lives on your Mac, not here.</h2>
+<pre class="run">git clone <b>__REPO__</b>
+cd apprentice
+cp .env.local.example .env.local   <s># add an ElevenLabs key</s>
+open "Start Apprentice.command"</pre>
+    <div class="facts">
+      <p><b>Events, not pixels</b>No screenshots and no keystroke log. It reads the front app, the window title and the prompt field.</p>
+      <p><b>Private by default</b>Password managers, mail, chat and banking are refused before anything is written. One press pauses everything.</p>
+      <p><b>ElevenLabs</b>Agents for the debrief and the tutor, Flash v2.5 for speech, Scribe v2 Realtime for answers.</p>
+      <p><b>One memory, every agent</b>The Work Map is also an MCP server, so other agents can check a decision before they act.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span>Built solo by Gustaf Garnow, Stockholm</span>
+  <span>Challenge 01, The AI Apprentice · Hack-Nation 7th Global AI Hackathon</span>
+</footer>
+
+<script type="module">
+  import { reviewDecision } from "./teach-engine.js";
+
+  const PRESETS = __PRESETS__;
+  const map = await fetch("workmap.json").then((reply) => reply.json());
+  const field = document.getElementById("decision");
+  const verdict = document.getElementById("verdict");
+
+  const esc = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  document.getElementById("chips").innerHTML = PRESETS.map((preset, index) => `<button type="button" data-preset="${index}">${esc(preset.label)}</button>`).join("");
+  document.getElementById("chips").addEventListener("click", (event) => {
+    const chip = event.target.closest("[data-preset]");
+    if (!chip) return;
+    field.value = PRESETS[Number(chip.dataset.preset)].text;
+    check();
+  });
+  field.value = PRESETS[0].text;
+
+  function check() {
+    const prompt = field.value.trim();
+    if (!prompt) return;
+    const { intervention, checked } = reviewDecision(prompt, map);
+    if (intervention) {
+      verdict.dataset.state = "stop";
+      verdict.innerHTML = `<h3>Stop.</h3><blockquote>“${esc(intervention.quote)}”</blockquote><p>${esc(intervention.guardrailTitle)}. Matched on <code>${esc(intervention.matched.join(", "))}</code>.</p>`;
+    } else {
+      verdict.dataset.state = "clear";
+      verdict.innerHTML = `<h3>Clear.</h3><p>Checked against ${checked} guardrails in the expert's words. Nothing stops this decision.</p>`;
+    }
+  }
+  document.getElementById("check").addEventListener("click", check);
+</script>
+</body>
+</html>

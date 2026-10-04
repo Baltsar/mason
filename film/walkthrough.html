@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>Apprentice · technical walkthrough</title>
+<style>
+  :root {
+    --ink: #0b0b0c; --paper: #f4f3ef; --muted: #9f9f9b; --faint: #6c6c70; --line: #2b2b2e;
+    --panel: #151517; --lime: #d7ff42; --violet: #a98bff; --red: #ff6b5f;
+    --font: Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    --mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--ink); color: var(--paper); font-family: var(--font); -webkit-font-smoothing: antialiased; overflow: hidden; cursor: default; }
+  h1, p, pre { margin: 0; }
+
+  /* One slide at a time. The lower right corner stays empty for the camera bubble. */
+  .slide { position: fixed; inset: 0; display: none; grid-template-columns: minmax(0, 46fr) minmax(0, 54fr); grid-template-rows: auto 1fr; column-gap: 4vw; padding: 6.5vh 5vw 0; }
+  .slide[data-on] { display: grid; }
+  .label { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; margin-bottom: 4vh; color: var(--muted); font: 500 1.05vw var(--mono); letter-spacing: .02em; }
+  .label b { color: var(--lime); font-weight: 600; }
+  h1 { font-size: 6.6vw; line-height: .94; font-weight: 700; letter-spacing: -.045em; text-wrap: balance; }
+  h1 em { font-style: normal; color: var(--lime); }
+
+  .bigs { display: flex; gap: 2.6vw; margin-top: 5vh; }
+  .bigs div { min-width: 0; }
+  .bigs b { display: block; font-size: 4.2vw; line-height: 1; font-weight: 700; letter-spacing: -.04em; white-space: nowrap; }
+  .bigs b i { font-style: normal; font-size: .45em; margin-left: .12em; color: var(--muted); font-weight: 600; letter-spacing: -.01em; }
+  .bigs span { display: block; margin-top: 1vh; color: var(--muted); font-size: 1.15vw; }
+  .bigs .word b { font-size: 2.3vw; letter-spacing: -.03em; }
+  .bigs div:nth-child(1) b { color: var(--lime); }
+  .bigs div:nth-child(2) b { color: var(--violet); }
+
+  .code { align-self: start; border: 1px solid var(--line); border-radius: 1.1vw; background: var(--panel); overflow: hidden; }
+  .code header { display: flex; justify-content: space-between; padding: 1.1vw 1.5vw; border-bottom: 1px solid var(--line); color: var(--faint); font: 500 .95vw var(--mono); }
+  .code header b { color: var(--muted); font-weight: 500; }
+  .code pre { padding: 1.5vw; font: 400 1.12vw/1.62 var(--mono); color: #cfcfca; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .code mark { background: none; color: var(--lime); }
+  .code u { text-decoration: none; color: var(--violet); }
+  .code s { text-decoration: none; color: var(--faint); }
+
+  .say { position: fixed; left: 5vw; bottom: 9vh; width: 56vw; color: var(--paper); font-size: 1.55vw; line-height: 1.35; letter-spacing: -.01em; text-wrap: pretty; }
+  body[data-quiet] .say { display: none; }
+  .foot { position: fixed; left: 5vw; bottom: 4.2vh; display: flex; align-items: center; gap: 14px; color: var(--faint); font: 500 .95vw var(--mono); }
+  .dots { display: flex; gap: 6px; }
+  .dots i { width: 22px; height: 3px; border-radius: 2px; background: var(--line); }
+  .dots i[data-on] { background: var(--lime); }
+</style>
+</head>
+<body>
+
+<section class="slide" data-say="No screenshots. Apprentice reads events, not pixels.">
+  <p class="label"><b>01</b> What it sees</p>
+  <div>
+    <h1>Events,<br />not <em>pixels.</em></h1>
+    <div class="bigs">
+      <div><b>0</b><span>screenshots</span></div>
+      <div><b>0</b><span>keystrokes logged</span></div>
+      <div><b>1</b><span>line per event</span></div>
+    </div>
+  </div>
+  <div class="code">
+    <header><b>data/events.jsonl</b><span>two real lines</span></header>
+<pre>{ "type": "window", "app": "Claude",
+  "source": "macOS Accessibility",
+  <mark>"stored": "event-not-image"</mark> }
+
+{ "type": "prompt", "app": "Claude",
+  "excerpt": "de är för mycket text, de ska bara
+              visa de enklaste, snabbblick …",
+  <u>"fingerprint": "c01ebfdb13b9c2ed"</u>,
+  "source": "focused prompt field" }</pre>
+  </div>
+</section>
+
+<section class="slide" data-say="A small Swift reader asks macOS Accessibility for the front app, the window title and the prompt field. Private apps are refused before anything is written.">
+  <p class="label"><b>02</b> Trust</p>
+  <div>
+    <h1>Refused <em>before</em> it is written.</h1>
+    <div class="bigs">
+      <div class="word"><b>app</b><span>in front</span></div>
+      <div class="word"><b>window</b><span>title</span></div>
+      <div class="word"><b>prompt</b><span>field, never a password field</span></div>
+    </div>
+  </div>
+  <div class="code">
+    <header><b>native/ApprenticeReader.swift</b><span>106 lines</span></header>
+<pre><mark>if excluded.contains(bundle) {</mark>
+    emit(["status": "excluded", "app": appName, "bundle": bundle])
+    <mark>exit(0)</mark>
+}
+
+let secure = role == "AXSecureTextField"
+          || subrole == "AXSecureTextField"
+if allowedRoles.contains(role) <u>&amp;&amp; !secure &amp;&amp; promptSurface</u> {
+    let value = attribute(focused, "AXValue") as? String ?? ""</pre>
+  </div>
+</section>
+
+<section class="slide" data-say="The memory comes from the agent logs already on this Mac. Most of its rules were picked up without asking.">
+  <p class="label"><b>03</b> Where the memory comes from</p>
+  <div>
+    <h1>It was <em>already there.</em></h1>
+    <div class="bigs">
+      <div><b>120</b><span>agent sessions</span></div>
+      <div><b>37</b><span>project folders</span></div>
+      <div><b>21</b><span>days</span></div>
+    </div>
+  </div>
+  <div class="code">
+    <header><b>src/projects.mjs · src/memory.mjs</b><span>real lines</span></header>
+<pre>const CLAUDE_DIR = path.join(os.homedir(), <mark>".claude", "projects"</mark>);
+
+<s>// A rule only counts when its example really is
+// something they said.</s>
+keeps_saying: reply.keeps_saying
+  .filter((item) =&gt; <u>Number(item.times) &gt;= 2</u>)
+  .filter((item) =&gt; said.some((text) =&gt;
+    text.includes(item.example.toLowerCase() …)))</pre>
+  </div>
+</section>
+
+<section class="slide" data-say="When to ask: the prompt has been still for six seconds, then ninety seconds of silence, five questions at most.">
+  <p class="label"><b>04</b> When to ask</p>
+  <div>
+    <h1>It waits for the <em>pause.</em></h1>
+    <div class="bigs">
+      <div><b>6<i>s</i></b><span>prompt held still</span></div>
+      <div><b>90<i>s</i></b><span>quiet after a question</span></div>
+      <div><b>5</b><span>questions at most</span></div>
+    </div>
+  </div>
+  <div class="code">
+    <header><b>src/question-engine.mjs</b><span>102 lines</span></header>
+<pre>if (pauseMs &lt; <mark>limit.pause</mark>) return null;
+if (last &amp;&amp; now - last &lt; <mark>limit.cooldown</mark>) return null;
+if (limit.asked &gt;= <mark>limit.max</mark>) return null;
+
+<s>// The brief also wants a guardrail, so one is
+// asked by the third question at the latest.</s>
+if (kind !== "guardrail" &amp;&amp; <u>limit.asked &gt;= 2</u>
+    &amp;&amp; !runtime.session.guardrailAsked) {
+  kind = "guardrail";
+  text = "Where is the limit here?";
+}</pre>
+  </div>
+</section>
+
+<section class="slide" data-say="Three ElevenLabs agents: one interviews me, one quizzes me on my own project, one stops a new person. Flash speaks, Scribe listens, Text to Dialogue reads my week.">
+  <p class="label"><b>05</b> The voice</p>
+  <div>
+    <h1>Three agents, <em>one memory.</em></h1>
+    <div class="bigs">
+      <div><b>3</b><span>ElevenLabs agents</span></div>
+      <div class="word"><b>Flash · Scribe</b><span>speaks · listens</span></div>
+      <div class="word"><b>Dialogue v3</b><span>the week, two voices</span></div>
+    </div>
+  </div>
+  <div class="code">
+    <header><b>src/agent.mjs</b><span>real lines</span></header>
+<pre>const ROLES = {
+  <mark>debrief</mark>: { name: "Apprentice · debrief",
+             prompt: PROMPT, tools: TOOLS },
+  <mark>tutor</mark>:   { name: "Apprentice · tutor",
+             prompt: TUTOR_PROMPT, tools: TUTOR_TOOLS },
+  <mark>recall</mark>:  { name: "Apprentice · recall",
+             prompt: RECALL_PROMPT, tools: RECALL_TOOLS },
+};
+
+<s>// the recall agent opens with</s>
+<u>"Tell me about HACKNATION. What do you remember?"</u></pre>
+  </div>
+</section>
+
+<section class="slide" data-say="The same memory is an MCP server, so any agent can check a decision before it acts.">
+  <p class="label"><b>06</b> Agent-ready guardrails</p>
+  <div>
+    <h1>One memory, <em>every agent.</em></h1>
+    <div class="bigs">
+      <div><b>8</b><span>MCP tools</span></div>
+      <div class="word"><b>local</b><span>stdio and 127.0.0.1</span></div>
+    </div>
+  </div>
+  <div class="code">
+    <header><b>src/mcp-handler.mjs</b><span>tools</span></header>
+<pre>what_happened_last
+what_did_you_learn
+what_are_you_unsure_about
+how_was_the_day
+how_was_it_built
+search_work_map
+<mark>check_decision</mark>         <s>→ STOP with the expert's words, or CLEAR</s>
+<mark>guardrails_for_agents</mark>  <s>→ the map as instructions</s></pre>
+  </div>
+</section>
+
+<p class="say" id="say"></p>
+<div class="foot"><span id="count"></span><span class="dots" id="dots"></span></div>
+
+<script>
+  // Space or → next, ← back, T hides the line being read.
+  const slides = [...document.querySelectorAll(".slide")];
+  const dots = document.getElementById("dots");
+  dots.innerHTML = slides.map(() => "<i></i>").join("");
+  let at = 0;
+  function show(index) {
+    at = Math.max(0, Math.min(slides.length - 1, index));
+    slides.forEach((slide, i) => slide.toggleAttribute("data-on", i === at));
+    [...dots.children].forEach((dot, i) => dot.toggleAttribute("data-on", i <= at));
+    document.getElementById("say").textContent = slides[at].dataset.say;
+    document.getElementById("count").textContent = `${String(at + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}`;
+  }
+  addEventListener("keydown", (event) => {
+    if (event.key === " " || event.key === "ArrowRight") { event.preventDefault(); show(at + 1); }
+    if (event.key === "ArrowLeft") show(at - 1);
+    if (event.key.toLowerCase() === "t") document.body.toggleAttribute("data-quiet");
+  });
+  addEventListener("click", () => show(at + 1));
+  show(0);
+</script>
+</body>
+</html>

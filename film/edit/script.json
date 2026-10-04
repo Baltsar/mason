@@ -1,0 +1,18 @@
+{
+  "1": "A month later, I can't explain what I built.",
+  "2": "I'm Gustaf Garnow, a designer in Stockholm. I build by talking to agents: a hundred and twenty sessions in the last three weeks, across thirty-seven folders.",
+  "3": "The code stays. The knowledge of how and why stays in the prompts, not in my head.",
+  "4": "So I built Apprentice, a workflow assistant that was there. It remembers how I built it, asks me until it sticks, and hands my taste to every agent I use.",
+  "5": "The expert is me today. The new hire is me in a month, and my agents.",
+  "6": "Next is the always-on apprentice for every team: people teach it first, then every agent works inside the same guardrails.",
+  "7": "I vibe-coded it. A month later I can't explain it. Apprentice was there.",
+  "8": "While I work, it waits for the pause.",
+  "9": "And when someone is about to break my rule, it stops them.",
+  "10": "The same memory is open to every agent I use.",
+  "11": "No screenshots. Apprentice reads events, not pixels.",
+  "12": "A small Swift reader asks macOS Accessibility for the front app, the window title and the prompt field. Private apps are refused before anything is written.",
+  "13": "The memory comes from the agent logs already on this Mac. Most of its rules were picked up without asking.",
+  "14": "When to ask: the prompt has been still for six seconds, then ninety seconds of silence, five questions at most.",
+  "15": "Three ElevenLabs agents: one interviews me, one quizzes me on my own project, one stops a new person. Flash speaks, Scribe listens, Text to Dialogue reads my week.",
+  "16": "The same memory is an MCP server, so any agent can check a decision before it acts."
+}

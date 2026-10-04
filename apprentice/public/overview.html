@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Apprentice · today</title>
+    <style>
+      /* Every state of this panel is read in one to three seconds: one thing in
+         large type, icons instead of labels, no explanations. */
+      :root {
+        --ink: #0b0b0c; --paper: #f4f3ef; --muted: #9f9f9b; --line: #2b2b2e; --panel: #151517;
+        --lime: #d7ff42; --violet: #a98bff; --red: #ff6b5f; --grey: #7b7b82; --night: #120e1c;
+        --font: Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+        --mono: "SFMono-Regular", ui-monospace, Menlo, monospace;
+        --ease: cubic-bezier(.2, .8, .2, 1);
+      }
+      * { box-sizing: border-box; }
+      html { background: var(--ink); color: var(--paper); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+      /* Inside the desktop panel the native card draws the surface and its corners. */
+      html[data-shell="desktop"] { background: transparent; }
+      html[data-shell="desktop"], html[data-shell="desktop"] body { overflow: hidden; }
+      /* The panel is glass: a light tint for contrast, and translucent controls. */
+      html[data-shell="desktop"] body { background: transparent; }
+      html[data-shell="desktop"] .tools .round { background: rgba(255, 255, 255, .13); }
+      html[data-shell="desktop"] .tools .round:hover { background: rgba(255, 255, 255, .2); }
+      html[data-shell="desktop"] .big:hover { background: rgba(255, 255, 255, .08); }
+      html[data-shell="desktop"] .call { background: transparent; }
+      body { margin: 0 auto; width: 100%; max-width: 460px; user-select: none; -webkit-user-select: none; cursor: default; }
+      button, textarea { font: inherit; color: inherit; }
+      button { cursor: pointer; }
+      .wrap { padding: 20px 22px 14px; }
+
+      /* Three modes of one panel: today ("full"), a question ("ask"), a call. */
+      html:is([data-mode="ask"], [data-mode="call"]) .wrap { padding: 8px; }
+      html:is([data-mode="ask"], [data-mode="call"]) :is(.top, .bigs) { display: none; }
+      html[data-mode="call"] #ask { display: none; }
+      html:not([data-mode="call"]) .call { display: none; }
+      html[data-mode="ask"] .ask { margin: 0; }
+      html[data-mode="full"] .ask .timer { display: none; }
+
+      .round { display: grid; flex: none; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; transition: transform .12s, background .15s; }
+      .round:active { transform: scale(.93); }
+      .round svg { width: 17px; height: 17px; }
+
+      /* Today: the project, where it was left, and the split. */
+      .top { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; margin-bottom: 6px; }
+      .who { display: flex; align-items: center; gap: 9px; min-width: 0; color: var(--muted); font: 600 11px/1 var(--mono); letter-spacing: .09em; text-transform: uppercase; }
+      .who i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--grey); }
+      .who[data-state="watching"] i { background: var(--lime); }
+      .who:is([data-state="private"], [data-state="private-surface"], [data-state="paused"]) i { background: var(--violet); }
+      .who[data-state="permission"] i { background: #ff9f43; }
+      .who b { overflow: hidden; color: var(--paper); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+      .tools { display: flex; gap: 8px; }
+      .tools .round { width: 36px; height: 36px; background: #1f1f23; color: var(--paper); }
+      .tools .round:hover { background: #2a2a2f; }
+      .tools .round svg { width: 14px; height: 14px; }
+      .tools .play[data-state="playing"], .tools .ring[data-ready] { background: var(--lime); color: #101100; }
+      .headline { grid-column: 1 / -1; margin: 8px 0 0; font-size: 27px; line-height: 1.06; letter-spacing: -.04em; font-weight: 680; text-wrap: balance; }
+      .headline:empty { display: none; }
+
+      .bigs { display: grid; margin: 4px -8px 0; }
+      .big { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 12px; width: 100%; padding: 2px 8px 0; border: 0; border-radius: 14px; background: transparent; text-align: left; opacity: 0; transform: translateY(14px); }
+      body.go .big { animation: rise .5s var(--ease) forwards; animation-delay: calc(var(--i) * 90ms); }
+      body.still .big { opacity: 1; transform: none; animation: none; }
+      .big:hover, .big:focus-visible { background: #18181b; outline: 0; }
+      .big b { min-width: 2.05ch; font-size: 96px; line-height: .9; letter-spacing: -.075em; font-weight: 720; font-variant-numeric: tabular-nums; text-align: right; }
+      .big b i { margin-left: 1px; font-size: .36em; font-style: normal; letter-spacing: -.02em; }
+      .big > span { font-size: 34px; line-height: 1; letter-spacing: -.05em; font-weight: 680; }
+      .big[data-group="work"] b { color: var(--lime); }
+      .big[data-group="social"] b { color: var(--red); }
+      .big[data-group="other"] b { color: #8a8a90; }
+
+      /* A question: the question, a field to answer in, a way out. */
+      .ask { position: relative; margin: 0 0 16px; padding: 16px 16px 18px; overflow: hidden; border-radius: 17px; background: var(--violet); color: var(--night); animation: arrive .42s var(--ease) both; }
+      .ask h2 { margin: 0; padding-right: 34px; font-size: 25px; line-height: 1.06; letter-spacing: -.04em; font-weight: 700; text-wrap: balance; }
+      .ask .dismiss { position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: rgba(18, 14, 28, .12); color: var(--night); }
+      .ask .dismiss:hover { background: rgba(18, 14, 28, .22); }
+      .ask .dismiss svg { width: 10px; height: 10px; }
+      .composer { position: relative; display: flex; align-items: flex-end; gap: 8px; min-height: 54px; margin-top: 14px; padding: 7px 7px 7px 16px; border-radius: 27px; background: var(--night); color: var(--paper); }
+      .composer textarea { flex: 1; align-self: center; min-width: 0; max-height: 96px; padding: 0; resize: none; border: 0; outline: 0; background: transparent; font-size: 16px; line-height: 1.35; user-select: text; -webkit-user-select: text; }
+      .composer textarea::placeholder { color: #8d86a0; }
+      .composer .live { display: none; flex: 1; align-self: center; min-width: 0; }
+      .composer .live p { margin: 0 0 6px; font-size: 16px; line-height: 1.3; }
+      .composer .live p:empty { display: none; }
+      /* Before the first word: whether the microphone is open and hears anything. */
+      .composer .live p.ghost { color: #8d86a0; }
+      .composer[data-ear="hearing"] .live p.ghost { color: var(--lime); }
+      .composer[data-ear="silent"] .live p.ghost { color: var(--red); }
+      .composer .live canvas { display: block; width: 100%; height: 26px; }
+      .composer .note { display: none; flex: 1; align-self: center; margin: 0; font-size: 16px; font-weight: 600; }
+      .mic { background: var(--paper); color: var(--night); }
+      .mic:hover { background: #fff; }
+      .send { display: none; background: var(--violet); color: var(--night); }
+      .stop { display: none; position: relative; background: var(--lime); color: var(--night); }
+      .stop::after { content: ""; position: absolute; inset: -5px; border: 2px solid var(--lime); border-radius: 50%; opacity: .5; animation: ring 1.4s ease-out infinite; }
+      .composer[data-state="typing"] .send { display: grid; }
+      .composer[data-state="listening"] :is(textarea, .mic, .send) { display: none; }
+      .composer[data-state="listening"] .live { display: block; }
+      .composer[data-state="listening"] .stop { display: grid; }
+      .composer:is([data-state="saving"], [data-state="saved"]) :is(textarea, .round) { display: none; }
+      .composer:is([data-state="saving"], [data-state="saved"]) .note { display: block; }
+      .composer[data-state="saved"] { background: var(--lime); color: var(--night); }
+      .composer[data-novoice] .mic { display: none; }
+      /* Only ever shown when something went wrong with the microphone. */
+      .trouble { display: block; margin: 10px 2px 0; padding: 0; border: 0; background: none; color: var(--night); font-size: 14px; font-weight: 650; line-height: 1.3; text-align: left; }
+      .trouble:empty { display: none; }
+      .trouble[data-fix] { text-decoration: underline; text-underline-offset: 3px; }
+      .timer { position: absolute; inset: auto 0 0; height: 3px; background: rgba(18, 14, 28, .12); }
+      .timer i { display: block; height: 100%; background: var(--night); transform-origin: left; }
+
+      /* A call: what is being said, who is talking, what was kept. */
+      .call { padding: 14px 16px 16px; border-radius: 17px; background: var(--panel); animation: arrive .42s var(--ease) both; }
+      .call-top { display: flex; align-items: center; gap: 9px; color: var(--muted); font: 600 12px/1 var(--mono); font-variant-numeric: tabular-nums; }
+      .call-top i { width: 7px; height: 7px; border-radius: 50%; background: var(--lime); }
+      .call[data-state="calling"] .call-top i { background: var(--grey); }
+      .call-top .end { margin-left: auto; width: 36px; height: 36px; background: var(--red); color: #1c0806; }
+      .call-top .end svg { width: 16px; height: 16px; transform: rotate(135deg); }
+      .call .agent { display: -webkit-box; min-height: 52px; margin: 10px 0 0; overflow: hidden; font-size: 22px; line-height: 1.16; letter-spacing: -.035em; font-weight: 650; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
+      .call .agent.cut { color: #77777d; }
+      /* What it heard you say, in your words: the proof that it got through. */
+      .call .you { display: -webkit-box; margin: 8px 0 0; overflow: hidden; color: var(--lime); font-size: 15px; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+      .call .you:empty { display: none; }
+      .call .you::before { content: "\201C"; }
+      .call .you::after { content: "\201D"; }
+      /* The ear: the microphone's own level at all times, the sound on the line,
+         and one word for who has the floor. */
+      .ear { display: flex; align-items: center; gap: 11px; margin-top: 14px; --tone: var(--grey); cursor: pointer; }
+      .ear .dot { display: grid; flex: none; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: color-mix(in srgb, var(--tone) 20%, transparent); color: var(--tone); box-shadow: 0 0 0 calc(var(--level, 0) * 10px) color-mix(in srgb, var(--tone) 28%, transparent); transition: box-shadow .09s linear, background .2s, color .2s; }
+      .ear .dot svg { width: 14px; height: 14px; }
+      .ear canvas { display: block; flex: 1; min-width: 0; width: auto; height: 30px; }
+      .ear b { flex: none; max-width: 46%; overflow: hidden; color: var(--tone); font: 600 11px/1.2 var(--mono); letter-spacing: .1em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; transition: color .2s; }
+      .call[data-ear="agent"] .ear { --tone: var(--violet); }
+      .call[data-ear="open"] .ear { --tone: var(--paper); }
+      .call[data-ear="hearing"] .ear { --tone: var(--lime); }
+      .call[data-ear="hearing"] .ear .dot { background: var(--lime); color: var(--night); }
+      .call:is([data-ear="silent"], [data-ear="tap"]) .ear { --tone: var(--red); }
+      .fix { display: inline-grid; place-items: center; height: 44px; margin-top: 14px; padding: 0 20px; border: 0; border-radius: 22px; background: var(--lime); color: #101100; font-size: 15px; font-weight: 700; }
+      .fix:disabled { background: rgba(255, 255, 255, .12); color: var(--muted); cursor: default; }
+      .call .saved { display: grid; gap: 6px; margin-top: 10px; }
+      .call .saved:empty { display: none; }
+      .call .saved p { display: flex; align-items: center; gap: 9px; margin: 0; font-size: 14px; line-height: 1.25; animation: arrive .35s var(--ease) both; }
+      .call .saved p::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--violet); }
+      .call .saved p[data-kind="stopped"]::before { background: var(--red); }
+      .call .saved p[data-kind="cleared"]::before { background: var(--lime); }
+      .call[data-state="ended"] :is(.ear, .you) { display: none; }
+      .call[data-state="ended"]:not([data-blocked]) .end { display: none; }
+      .call:not([data-blocked]) #open-mic { display: none; }
+
+      /* No access: one sentence and one button, nothing else. */
+      .access { display: none; margin-top: 8px; }
+      .access h2 { margin: 0; font-size: 27px; line-height: 1.06; letter-spacing: -.04em; font-weight: 680; text-wrap: balance; }
+      html[data-access="needed"][data-mode="full"] .access { display: block; }
+      html[data-access="needed"][data-mode="full"] :is(.headline, .bigs, .tools) { display: none; }
+      .call[data-state="ended"] .call-top i { background: var(--violet); }
+
+      @keyframes rise { to { opacity: 1; transform: none; } }
+      @keyframes arrive { from { opacity: 0; transform: translateY(-10px) scale(.985); } }
+      @keyframes ring { to { transform: scale(1.35); opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) { .big { opacity: 1; transform: none; } * { animation: none !important; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div id="ask"></div>
+      <section class="call" id="call" data-state="calling" aria-live="polite">
+        <div class="call-top"><i></i><time id="call-time">0:00</time><button class="round end" type="button" id="hang" title="End call" aria-label="End call"></button></div>
+        <p class="agent" id="call-agent"></p>
+        <p class="you" id="call-you"></p>
+        <div class="ear" id="call-ear" title="Cut in">
+          <span class="dot" id="call-dot"></span>
+          <canvas id="call-wave"></canvas>
+          <b id="call-word">Calling</b>
+        </div>
+        <button class="fix" type="button" id="open-mic">Open settings</button>
+        <div class="saved" id="call-saved"></div>
+      </section>
+      <header class="top">
+        <div class="who" id="who"><i></i><b></b></div>
+        <div class="tools" id="tools"></div>
+        <p class="headline" id="headline"></p>
+      </header>
+      <section class="access" id="access">
+        <h2 id="access-line">Can’t see your work.</h2>
+        <button class="fix" type="button" id="fix-access">Fix access</button>
+      </section>
+      <div class="bigs" id="bigs"></div>
+    </div>
+    <script type="module">
+      import { canDictate, dictate, drawLevels, hearing } from "/voice.js";
+      import { startCall } from "/call.js";
+
+      const $ = (selector) => document.querySelector(selector);
+      const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
+      const native = window.webkit?.messageHandlers?.apprentice;
+      const tell = (message) => native ? native.postMessage(message) : null;
+      const open = (view) => native ? tell({ type: "open", view }) : (location.href = `/#${view}`);
+      const ICON = {
+        mic: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>`,
+        send: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>`,
+        stop: `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>`,
+        close: `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8"/></svg>`,
+        play: `<svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2.5 1.2v9.6L10.5 6z"/></svg>`,
+        halt: `<svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><rect x="2.5" y="2.5" width="7" height="7" rx="1.5"/></svg>`,
+        quiz: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 9a3.5 3.5 0 1 1 5.2 3.1c-1 .6-1.7 1.3-1.7 2.4"/><path d="M12 18.4v.1"/></svg>`,
+        phone: `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .57 3.6 1 1 0 0 1-.25 1z"/></svg>`,
+      };
+      // Long enough to hear the question and decide, short enough to be gone
+      // before it is in the way.
+      const WAIT_MS = 24_000;
+      // How long an opened microphone waits for a first word before it gives up.
+      const QUIET_MS = 9000;
+
+      // The modes of the panel that are a call, and the kind of call each one is.
+      const CALLS = { call: "debrief", tutor: "tutor", recall: "recall" };
+
+      let state = null;
+      let stream = null;
+      let askedId = null;
+      let session = null;
+      let call = null;
+      let callClock = null;
+      // The project whose recap is being read aloud right now, if any.
+      let playing = null;
+      // "Fix access" has been pressed and the switch in System Settings is awaited.
+      let fixing = null;
+      const timer = { left: WAIT_MS, timeout: null, running: false, cancelled: false };
+      const mode = () => document.documentElement.dataset.mode;
+
+      async function post(url, body) {
+        const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+        return response.json();
+      }
+      const reportHeight = () => requestAnimationFrame(() => tell({ type: "height", value: document.body.scrollHeight }));
+
+      /* The countdown: it runs only while nobody is touching the question. */
+
+      function runTimer() {
+        if (mode() !== "ask" || timer.cancelled || timer.running || !$("#timer")) return;
+        timer.running = true;
+        timer.startedAt = performance.now();
+        const bar = $("#timer");
+        bar.style.transition = "none";
+        bar.style.transform = `scaleX(${timer.left / WAIT_MS})`;
+        void bar.offsetWidth;
+        bar.style.transition = `transform ${timer.left}ms linear`;
+        bar.style.transform = "scaleX(0)";
+        timer.timeout = setTimeout(() => tell({ type: "close", reason: "timeout" }), timer.left);
+      }
+      function holdTimer() {
+        if (!timer.running) return;
+        timer.running = false;
+        clearTimeout(timer.timeout);
+        timer.left = Math.max(0, timer.left - (performance.now() - timer.startedAt));
+        const bar = $("#timer");
+        if (!bar) return;
+        bar.style.transition = "none";
+        bar.style.transform = `scaleX(${timer.left / WAIT_MS})`;
+      }
+      function cancelTimer() { holdTimer(); timer.cancelled = true; }
+      function resetTimer() { clearTimeout(timer.timeout); Object.assign(timer, { left: WAIT_MS, running: false, cancelled: false }); }
+
+      /* The answer field. */
+
+      const composer = () => $("#composer");
+      function setComposer(next, note = "") {
+        const node = composer();
+        if (!node) return;
+        node.dataset.state = next;
+        if (note) $("#note").textContent = note;
+        reportHeight();
+      }
+      // `fix` names the settings pane a press on the line opens.
+      const trouble = (text, fix = "") => {
+        const node = $("#trouble");
+        if (!node) return;
+        node.textContent = text;
+        if (fix) node.dataset.fix = fix; else delete node.dataset.fix;
+        reportHeight();
+      };
+      // Until the first word is back, the field says what the microphone is doing.
+      function ghost(text, ear = "open") {
+        const node = $("#live");
+        if (!node) return;
+        composer().dataset.ear = ear;
+        if (node.textContent !== text) node.textContent = text;
+        node.classList.add("ghost");
+      }
+
+      async function save(answer, source) {
+        const id = askedId;
+        setComposer("saving", "Saving");
+        await post("/api/answer", { id, answer, source });
+        setComposer("saved", "Saved");
+        setTimeout(() => { if (mode() === "ask") tell({ type: "close", reason: "answered" }); else load(); }, 1100);
+      }
+
+      // handsFree: the panel opened the microphone itself, after the question was
+      // spoken in a capture session. If nobody answers it closes it again.
+      async function listen({ handsFree = false } = {}) {
+        if (session || composer()?.dataset.state !== "idle") return;
+        cancelTimer();
+        trouble("");
+        let heard = false;
+        let quiet;
+        try {
+          setComposer("listening");
+          ghost("Opening mic");
+          const ear = hearing();
+          session = await dictate({
+            language: state.voice.language,
+            onPartial: (text) => {
+              if (!text) return;
+              heard = true;
+              $("#live").classList.remove("ghost");
+              $("#live").textContent = text;
+              reportHeight();
+            },
+            onLevels: (bars) => {
+              if (!$("#wave")) return;
+              const now = ear(bars.at(-1));
+              drawLevels($("#wave"), bars, now === "silent" ? "#ff6b5f" : "#d7ff42");
+              if (!heard) ghost(now === "silent" ? "No sound" : now === "hearing" ? "Hearing you" : "Listening", now);
+            },
+          });
+          if (handsFree) quiet = setTimeout(() => { if (!heard) session?.cancel(); }, QUIET_MS);
+          const text = await session.done;
+          clearTimeout(quiet);
+          session = null;
+          if (text) return save(text, "voice");
+          setComposer("idle");
+          if (handsFree) { timer.cancelled = false; timer.left = Math.min(timer.left, 8000); runTimer(); }
+        } catch (error) {
+          clearTimeout(quiet);
+          session = null;
+          setComposer("idle");
+          if (error.name === "NotAllowedError") trouble("Mic blocked. Open settings", "microphone");
+          else trouble(error.message);
+        }
+      }
+
+      function askMarkup(question) {
+        const voice = state.voice.scribe && canDictate();
+        return `
+          <form class="ask" id="ask-form">
+            <button class="dismiss" type="button" id="later" title="Later" aria-label="Later, in the debrief">${ICON.close}</button>
+            <h2>${esc(question.text)}</h2>
+            <div class="composer" id="composer" data-state="idle" ${voice ? "" : "data-novoice"}>
+              <textarea id="answer" rows="1" placeholder="Answer" aria-label="Answer"></textarea>
+              <div class="live"><p id="live"></p><canvas id="wave"></canvas></div>
+              <p class="note" id="note"></p>
+              <button class="round send" type="submit" title="Send" aria-label="Send">${ICON.send}</button>
+              <button class="round mic" type="button" id="mic" title="Answer by voice" aria-label="Answer by voice">${ICON.mic}</button>
+              <button class="round stop" type="button" id="stop" title="Done" aria-label="Done speaking">${ICON.stop}</button>
+            </div>
+            <button class="trouble" type="button" id="trouble"></button>
+            <div class="timer"><i id="timer"></i></div>
+          </form>`;
+      }
+
+      /* The debrief call. */
+
+      // Three kinds of call on the same line: the debrief about today, the tutor
+      // for a new person, and recall, where it asks how a project was built.
+      async function beginCall(kind = "debrief", project = "") {
+        if (call) return;
+        document.documentElement.dataset.mode = "call";
+        // During a call the panel stays, whatever is clicked elsewhere.
+        tell({ type: "hold" });
+        const node = $("#call");
+        node.dataset.state = "calling";
+        $("#call-agent").textContent = "";
+        $("#call-agent").classList.remove("cut");
+        $("#call-you").textContent = "";
+        $("#call-dot").innerHTML = ICON.mic;
+        delete node.dataset.blocked;
+        $("#call-saved").innerHTML = "";
+        // One word for who has the floor, changed only when it changes.
+        const setEar = (next, word) => {
+          if (node.dataset.ear === next && $("#call-word").textContent === word) return;
+          node.dataset.ear = next;
+          $("#call-word").textContent = word;
+        };
+        setEar("wait", "Calling");
+        const ear = hearing();
+        let blocked = false;
+        // Sound not yet allowed to start: the line may open, but nothing is live.
+        let asleep = false;
+        $("#call-time").textContent = "0:00";
+        $("#hang").innerHTML = ICON.phone;
+        reportHeight();
+        const started = Date.now();
+        clearInterval(callClock);
+        callClock = setInterval(() => {
+          const seconds = Math.floor((Date.now() - started) / 1000);
+          $("#call-time").textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+        }, 1000);
+        let closing = "";
+        try {
+          call = await startCall({
+            kind,
+            project,
+            onState: (next) => {
+              if (next === "tap") { asleep = true; setEar("tap", "Tap to start"); }
+              if (next === "awake") { asleep = false; setEar("wait", "Calling"); }
+              if (next === "live" && !asleep) node.dataset.state = "live";
+            },
+            onAgent: (text) => { $("#call-agent").classList.remove("cut"); $("#call-agent").textContent = text; reportHeight(); },
+            onUser: (text) => { $("#call-you").textContent = text; reportHeight(); },
+            onInterrupt: () => $("#call-agent").classList.add("cut"),
+            onSaved: (step) => { $("#call-saved").insertAdjacentHTML("beforeend", `<p data-kind="${esc(step.kind)}">${esc(step.title)}</p>`); reportHeight(); },
+            onLevels: (bars, who) => drawLevels($("#call-wave"), bars, who === "agent" ? "#a98bff" : node.dataset.ear === "silent" ? "#ff6b5f" : node.dataset.ear === "hearing" ? "#d7ff42" : "#77777d"),
+            onMic: (level, { muted, agent, duplex }) => {
+              $("#call-dot").style.setProperty("--level", level.toFixed(2));
+              if (node.dataset.state !== "live") return;
+              // While the agent talks, only a clear voice counts as you: a
+              // trace of its own sound in the microphone is not an answer.
+              const now = ear(level, { muted, floor: agent ? 0.3 : 0.09 });
+              if (now === "silent") return setEar("silent", call?.device ? `No sound · ${call.device.replace(/\s*\(.*\)$/, "")}` : "No sound");
+              if (now === "hearing") return setEar("hearing", "Hearing you");
+              setEar(agent ? "agent" : "open", agent ? (duplex === "half" ? "Tap to cut in" : "Apprentice") : "Your turn");
+            },
+          });
+          const result = await call.done;
+          closing = result.summary || "Call ended";
+        } catch (error) {
+          blocked = error.name === "NotAllowedError";
+          closing = blocked ? "Mic is blocked." : error.message;
+        }
+        call = null;
+        clearInterval(callClock);
+        node.dataset.state = "ended";
+        $("#call-agent").classList.remove("cut");
+        $("#call-agent").textContent = closing;
+        if (blocked) node.dataset.blocked = "";
+        reportHeight();
+        // The result is read in a moment; then the panel goes away by itself.
+        // A blocked microphone stays until it is dealt with or dismissed.
+        if (!blocked) setTimeout(() => { if (!call && mode() === "call") leaveCall(); }, 4500);
+      }
+
+      function leaveCall() {
+        call?.end();
+        if (native) return tell({ type: "close", reason: "call" });
+        document.documentElement.dataset.mode = "full";
+        load();
+      }
+
+      const statusWord = (data) => ({
+        watching: data.now.project || data.runtime.currentApp || "Watching",
+        "private-surface": "Private",
+        private: "Looking away",
+        paused: "Paused",
+        idle: "Idle",
+        permission: "No access",
+        starting: "Starting",
+      })[data.presence];
+
+      function render() {
+        const { activity, map, runtime } = state;
+        const question = map.questions.find((item) => item.status === "open");
+        // The form is rebuilt only for a new question, so a half-said or
+        // half-typed answer survives every live update.
+        if ((question?.id || null) !== askedId) {
+          session?.cancel();
+          session = null;
+          askedId = question?.id || null;
+          resetTimer();
+          $("#ask").innerHTML = question ? askMarkup(question) : "";
+          runTimer();
+        }
+        // In ask mode the panel exists for the question. When it is gone, so is the panel.
+        if (!question && mode() === "ask") tell({ type: "close", reason: "gone" });
+
+        // The project last worked in, where it was left, and two controls.
+        const project = state.now.recent;
+        const memory = project && state.memories[project];
+        // Without access nothing else on this panel is true, so only that is said.
+        const locked = state.presence === "permission";
+        document.documentElement.dataset.access = locked ? "needed" : "ok";
+        if (!locked && fixing) { clearInterval(fixing); fixing = null; }
+        $("#access-line").textContent = fixing ? "Switch Apprentice on." : "Can’t see your work.";
+        $("#fix-access").textContent = fixing ? "Waiting" : "Fix access";
+        $("#fix-access").disabled = Boolean(fixing);
+        const who = $("#who");
+        who.dataset.state = state.presence;
+        who.querySelector("b").textContent = locked ? statusWord(state) : project || statusWord(state);
+        $("#headline").textContent = memory?.headline || "";
+        const ready = runtime.debriefReady && state.voice.elevenLabs;
+        $("#tools").innerHTML = `
+          ${memory?.spoken ? `<button class="round play" type="button" id="memory-play" data-project="${esc(project)}" data-state="${playing === project ? "playing" : "idle"}" title="${playing === project ? "Stop" : "Hear where you left off"}" aria-label="${playing === project ? "Stop" : "Hear where you left off"}">${playing === project ? ICON.halt : ICON.play}</button>` : ""}
+          ${state.voice.elevenLabs && memory?.left_off ? `<button class="round" type="button" id="recall" data-project="${esc(project)}" title="Quiz me on how I built this" aria-label="Quiz me on how I built this">${ICON.quiz}</button>` : ""}
+          ${state.voice.elevenLabs ? `<button class="round ring" type="button" id="debrief" ${ready ? "data-ready" : ""} title="${ready ? "The debrief is ready: take the call" : "Debrief call"}" aria-label="Debrief call">${ICON.phone}</button>` : ""}`;
+
+        $("#bigs").innerHTML = activity.totalSeconds
+          ? ["work", "social", "other"].map((name, index) => `<button class="big" type="button" data-group="${name}" style="--i:${index}"><b>${activity.groups[name].percent}<i>%</i></b><span>${name}</span></button>`).join("")
+          : "";
+        reportHeight();
+      }
+
+      async function load() {
+        state = await (await fetch("/api/state")).json();
+        render();
+      }
+
+      // The numbers rise in once, when the panel drops. A live update after
+      // that redraws them in place.
+      function launch() {
+        document.body.classList.remove("go", "still");
+        void document.body.offsetWidth;
+        document.body.classList.add("go");
+        setTimeout(() => document.body.classList.add("still"), 900);
+      }
+
+      function connect() {
+        stream?.close();
+        stream = new EventSource("/api/stream");
+        let wait;
+        stream.addEventListener("update", (event) => {
+          const { kind } = JSON.parse(event.data);
+          if (kind === "listen") { if (askedId && state.voice.scribe && canDictate()) listen({ handsFree: true }); return; }
+          if (kind === "spoken") { playing = null; render(); return; }
+          clearTimeout(wait);
+          wait = setTimeout(load, 250);
+        });
+      }
+
+      // The desktop panel calls these when it drops down and when it is put
+      // away, so a hidden panel holds no connection and no microphone.
+      window.apprenticeShow = async (next = "full") => {
+        // A call in progress is never replaced by another view of the panel.
+        if (call) return;
+        document.documentElement.dataset.mode = next;
+        if (next !== "ask") cancelTimer();
+        await load();
+        connect();
+        if (CALLS[next]) return beginCall(CALLS[next], next === "recall" ? state.now.recent || "" : "");
+        if (next === "full") launch(); else { resetTimer(); runTimer(); }
+        reportHeight();
+      };
+      window.apprenticeHide = () => { clearInterval(fixing); fixing = null; stream?.close(); stream = null; session?.cancel(); session = null; call?.end(); clearTimeout(timer.timeout); timer.running = false; };
+
+      document.addEventListener("click", async (event) => {
+        if (event.target.closest("#mic")) return listen();
+        if (event.target.closest("#stop")) return session?.stop();
+        if (event.target.closest("#later")) {
+          session?.cancel();
+          await post("/api/answer", { id: askedId, action: "later" });
+          return mode() === "ask" ? tell({ type: "close", reason: "later" }) : load();
+        }
+        const play = event.target.closest("#memory-play");
+        if (play) {
+          if (playing) { playing = null; render(); return post("/api/speak", { stop: true }); }
+          playing = play.dataset.project;
+          render();
+          return post("/api/memory", { project: playing });
+        }
+        if (event.target.closest("#fix-access")) {
+          // Asked again for this build; the panel then waits for the switch.
+          await post("/api/access", { action: "fix" });
+          fixing = setInterval(load, 2000);
+          return render();
+        }
+        if (event.target.closest("#open-mic")) { await post("/api/access", { action: "microphone" }); return leaveCall(); }
+        const fix = event.target.closest("#trouble[data-fix]");
+        if (fix) return post("/api/access", { action: fix.dataset.fix });
+        if (event.target.closest("#debrief")) return beginCall();
+        const recall = event.target.closest("#recall");
+        if (recall) return beginCall("recall", recall.dataset.project);
+        if (event.target.closest("#hang")) return call ? call.end() : leaveCall();
+        if (event.target.closest("#call-ear")) {
+          if ($("#call").dataset.ear === "tap") return call?.wake();
+          if ($("#call").dataset.ear === "silent") return post("/api/access", { action: "sound" });
+          return call?.cutIn();
+        }
+        const big = event.target.closest(".big");
+        if (big) return open(`capture/${big.dataset.group}`);
+        if (event.target.closest(".headline, .who") && state.presence !== "permission") return open("capture");
+      });
+      document.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const answer = $("#answer").value.trim();
+        if (answer) save(answer, "typed");
+      });
+      document.addEventListener("input", (event) => {
+        if (event.target.id !== "answer") return;
+        cancelTimer();
+        const field = event.target;
+        field.style.height = "auto";
+        field.style.height = `${field.scrollHeight}px`;
+        setComposer(field.value.trim() ? "typing" : "idle");
+      });
+      // Typing needs the keyboard, so only then does the panel take it from the work.
+      document.addEventListener("pointerdown", (event) => { if (event.target.id === "answer") { cancelTimer(); tell({ type: "key" }); } });
+      document.addEventListener("pointerover", (event) => { if (event.target.closest(".ask")) holdTimer(); });
+      document.addEventListener("pointerout", (event) => { if (event.target.closest(".ask") && !event.relatedTarget?.closest?.(".ask")) runTimer(); });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey && event.target.id === "answer") { event.preventDefault(); $("#ask-form").requestSubmit(); }
+        if (event.key === "Escape") tell({ type: "close", reason: "escape" });
+        if (event.key === " " && call && event.target.tagName !== "TEXTAREA") { event.preventDefault(); call.cutIn(); }
+      });
+
+      const wanted = new URLSearchParams(location.search).get("mode");
+      document.documentElement.dataset.mode = wanted === "ask" ? "ask" : CALLS[wanted] ? "call" : "full";
+      await load();
+      connect();
+      if (mode() === "call") beginCall(CALLS[wanted], wanted === "recall" ? state.now.recent || "" : "");
+      if (mode() === "full") launch();
+    </script>
+  </body>
+</html>

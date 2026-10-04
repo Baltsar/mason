@@ -1,0 +1,17 @@
+{
+  "name": "apprentice-local-harness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A local-first apprentice that turns real work into sourced decisions, recaps and an MCP.",
+  "scripts": {
+    "build:reader": "node scripts/build-reader.mjs",
+    "start": "node scripts/build-reader.mjs && node src/server.mjs",
+    "demo": "node scripts/simulate-session.mjs",
+    "test": "node --test",
+    "mcp": "node src/mcp.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

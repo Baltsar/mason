@@ -1,0 +1,24 @@
+# The memory is built on each Mac from its own agent logs and stays there.
+apprentice/data/
+apprentice/wiki/
+apprentice/.runtime/
+apprentice/Apprentice.app/
+apprentice/tmp/
+apprentice/.env.local
+*.log
+
+# Working material that is not the product.
+_backup/
+.claude/
+demo/
+HANDOVER.md
+challgen*.pdf
+
+# Film: sources and renders are large, the reference films are not ours.
+film/raw/
+film/out/
+film/reference/
+film/edit/.stills/
+film/edit/.frames/
+site/dist/
+.DS_Store

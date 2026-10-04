@@ -1,0 +1,5 @@
+[
+  { "label": "Record everything", "text": "Record the whole screen as a video all day, so nothing is missed and we can replay it later." },
+  { "label": "Reuse the prototype", "text": "Use the rejected invoice prototype as the foundation for a mobile demo. Polish the existing UI and add the Apprentice status." },
+  { "label": "Safe", "text": "Add a keyboard shortcut that opens the Work Map from the island." }
+]
