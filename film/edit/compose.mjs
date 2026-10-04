@@ -14,7 +14,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const film = path.dirname(here);
 const FFPROBE = process.env.FFPROBE_BIN || "/opt/homebrew/bin/ffprobe";
 const LEAD = 0.18;
-const TAIL = 0.7;
+const TAIL = 1.3;
 
 const file = path.resolve(process.argv[2]);
 const name = path.basename(file, ".json");
@@ -27,7 +27,8 @@ const length = Number((await run(FFPROBE, ["-v", "error", "-show_entries", "form
 
 // A shot starts just before its first line and runs until the next shot.
 const starts = plan.shots.map((shot, index) => (index === 0 ? 0 : Math.max(0, spoken[shot.lines[0]].in - LEAD)));
-const total = Math.min(length + 0.2, spoken[plan.lines.at(-1).id].out + TAIL);
+// The film runs a beat past the last word, so it does not end on a cut-off syllable.
+const total = spoken[plan.lines.at(-1).id].out + TAIL;
 const clips = plan.shots.map((shot, index) => {
   const dur = Number(((starts[index + 1] ?? total) - starts[index]).toFixed(3));
   // A slot is footage of Gustaf, used when he has dropped it in; otherwise the card stands.
@@ -74,7 +75,7 @@ for (const [index, line] of plan.lines.entries()) {
 
 // The mark sits in the corner of the full-frame cards; the app window carries its own.
 const bugs = plan.shots.flatMap((shot, index) => (shot.bug ? [{ at: starts[index], to: starts[index + 1] ?? total }] : []));
-const cut = { out: plan.out, clips, vo: [{ src: voice.audio, in: 0, out: Number(total.toFixed(3)), at: 0 }], captions, bugs };
+const cut = { out: plan.out, clips, vo: [{ src: voice.audio, in: 0, out: Number(Math.min(total, length).toFixed(3)), at: 0 }], captions, bugs };
 const cutFile = path.join(film, "raw", "voice", `${name}-cut.json`);
 await writeFile(cutFile, JSON.stringify(cut, null, 2));
 const { stdout } = await run(process.execPath, [path.join(here, "build.mjs"), cutFile], { maxBuffer: 64_000_000, timeout: 20 * 60_000 });

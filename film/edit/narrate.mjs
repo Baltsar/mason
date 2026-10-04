@@ -113,7 +113,8 @@ if (Object.keys(pauses).length || lead) {
     // A recogniser lets the last word run on into the quiet after it; the line ends at the cut.
     found[id].out = Math.min(found[id].out, cut.at + shift + 0.05);
     // The silent lines after this one sit inside the silence that was laid in.
-    let inside = cut.at + shift;
+    // A plain pause on the same line comes first, then the silent lines.
+    let inside = cut.at + shift + (plan.pause?.[id] || 0);
     for (const line of silentAfter.get(id) || []) { found[line.id] = { in: inside, out: inside + line.dur, heard: "(silent)", match: 1 }; inside += line.dur; }
     shift += cut.seconds;
   }

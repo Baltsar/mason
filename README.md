@@ -8,7 +8,7 @@ Mason is a local macOS assistant that was there. It remembers how a project was 
 
 Built solo by Gustaf Garnow for Challenge 01, The AI Apprentice, at the Hack-Nation 7th Global AI Hackathon.
 
-Live page with the three films: https://mason-demo-eight.vercel.app
+Live page with the pitch film: https://mason-demo-eight.vercel.app
 
 ## Where things are
 

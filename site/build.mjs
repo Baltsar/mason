@@ -1,23 +1,31 @@
 // Assembles the public page into site/dist: node site/build.mjs
 //
-// The tutor on the page is the app's own teach engine, copied as it is with
-// only its Node import swapped for the browser's. The Work Map it runs on is a
-// public subset: rules read from other projects' prompts never leave the Mac.
+// The page is one file: the pitch film, the app's screens drawn in its own
+// colours, the woodcuts and where to find the rest. The build writes in the
+// addresses, copies the films and takes the poster from the film itself.
+// site/assets holds the brand images at web size, cut with cwebp from
+// apprentice/native and the brand sources.
 
-import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { copyFile, cp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
+const run = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.dirname(here);
-const app = path.join(root, "apprentice");
 const dist = path.join(here, "dist");
 const REPO = process.env.MASON_REPO || "https://github.com/Baltsar/mason";
-// git clone makes a folder named after the repository; the app is one level in.
-const CLONE = path.basename(new URL(REPO).pathname).replace(/\.git$/, "");
-const PROJECT = "HACKNATION";
+const SITE = process.env.MASON_SITE || "https://mason-demo-eight.vercel.app";
+const FFMPEG = process.env.FFMPEG_BIN || "/opt/homebrew/bin/ffmpeg";
+// Only the product demo is on the page. The other two are still copied, so a
+// link to a film that was shared before keeps opening it.
 const FILMS = ["01-team-introduction.mp4", "02-product-demo.mp4", "03-technical-walkthrough.mp4"];
+const PITCH = "02-product-demo.mp4";
+// The frame where the question is on screen: "Do you remember what you built?"
+const POSTER_AT = "2.5";
 
 // dist is rebuilt from nothing, but its link to the Vercel project is kept,
 // so a new build deploys to the same address.
@@ -28,31 +36,12 @@ await rm(dist, { recursive: true, force: true });
 await mkdir(path.join(dist, "films"), { recursive: true });
 if (existsSync(kept)) await rename(kept, link);
 
-const engine = await readFile(path.join(app, "src", "teach-engine.mjs"), "utf8");
-const nodeImport = 'import { randomUUID } from "node:crypto";';
-if (!engine.includes(nodeImport)) throw new Error("teach-engine.mjs no longer starts with the import this build replaces.");
-await writeFile(path.join(dist, "teach-engine.js"), engine.replace(nodeImport, "const randomUUID = () => crypto.randomUUID();"));
-
-const map = JSON.parse(await readFile(path.join(app, "data", "work-map.json"), "utf8"));
-const isPublic = (item) => item.source?.type !== "inferred" || item.source?.project === PROJECT;
-// The Work Map was written while the product was still called the apprentice.
-// The public copy carries the name it has now; the map on the Mac is not touched.
-const renamed = (text) => typeof text === "string" ? text.replace(/\bthe apprentice\b/gi, "Mason") : text;
-const decisions = map.decisions.filter(isPublic).map(({ id, kind, title, body, quote, moment, source }) => ({
-  id, kind, title: renamed(title), body: renamed(body), quote: renamed(quote),
-  moment: moment ? { at: moment.at, app: moment.app, evidence: moment.evidence } : null,
-  source: { label: source?.label ?? "" },
-}));
-await writeFile(path.join(dist, "workmap.json"), JSON.stringify({ decisions }, null, 2));
-
-const presets = JSON.parse(await readFile(path.join(here, "presets.json"), "utf8"));
 const page = (await readFile(path.join(here, "index.html"), "utf8"))
+  .replaceAll("__REPO_NAME__", REPO.replace(/^https?:\/\//, ""))
   .replaceAll("__REPO__", REPO)
-  .replaceAll("__CLONE__", CLONE)
-  .replace("__PRESETS__", JSON.stringify(presets));
+  .replaceAll("__SITE__", SITE.replace(/\/$/, ""));
 await writeFile(path.join(dist, "index.html"), page);
-
-await copyFile(path.join(root, "film", "brand", "logo.png"), path.join(dist, "logo.png"));
+await cp(path.join(here, "assets"), path.join(dist, "assets"), { recursive: true });
 
 const missing = [];
 for (const film of FILMS) {
@@ -61,6 +50,10 @@ for (const film of FILMS) {
   else missing.push(film);
 }
 
-console.log(`dist: ${decisions.length} of ${map.decisions.length} Work Map items are public`);
-for (const item of decisions) console.log(`  ${item.kind.padEnd(9)} ${item.title}`);
+const pitch = path.join(dist, "films", PITCH);
+const poster = existsSync(pitch) && existsSync(FFMPEG);
+if (poster) await run(FFMPEG, ["-y", "-v", "error", "-ss", POSTER_AT, "-i", pitch, "-frames:v", "1", "-q:v", "4", path.join(dist, "poster.jpg")]);
+
+console.log(`dist: page for ${SITE}, source at ${REPO}`);
 if (missing.length) console.log(`films not cut yet: ${missing.join(", ")}`);
+if (!poster) console.log("no poster: the pitch film or ffmpeg is missing");

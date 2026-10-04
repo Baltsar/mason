@@ -1,11 +1,12 @@
 {
   "out": "02-product-demo.mp4",
   "motion": "motion/demo.html",
-  "fit": 28,
+  "fit": 28.5,
   "pause": {
     "n2": 0.3,
     "n4": 0.3,
-    "n7": 0.25
+    "n7": 0.25,
+    "n9b": 1.6
   },
   "voices": {
     "narrator": "8HM5FCz1RLSISpAef8i0"
@@ -14,8 +15,8 @@
     {
       "id": "m0",
       "silent": true,
-      "dur": 6.9,
-      "text": "I have a question for you. Do you remember when you built this? Probably not.",
+      "dur": 5.2,
+      "text": "Do you remember when you built this? Probably not.",
       "hl": "Probably not.",
       "caption": false
     },
@@ -43,19 +44,19 @@
     {
       "id": "n4",
       "voice": "narrator",
-      "text": "I read the agent logs, and remember how each project was built.",
-      "hl": "remember how each project was built"
+      "text": "I read the agent logs and remember how it was built.",
+      "hl": "remember how it was built"
     },
     {
       "id": "n6",
       "voice": "narrator",
-      "text": "Then I call him.",
-      "hl": "call him"
+      "text": "Then I call him, as an ElevenLabs agent.",
+      "hl": "ElevenLabs agent"
     },
     {
       "id": "g1",
       "voice": "narrator",
-      "text": "Tell me about Hack Nation. What do you remember?",
+      "text": "Tell me about the food app you built a month ago. What do you remember?",
       "caption": false
     },
     {
@@ -75,22 +76,28 @@
     {
       "id": "n8",
       "voice": "narrator",
-      "text": "And every week, his work becomes a podcast.",
+      "text": "Each week, his work becomes a podcast.",
       "hl": "a podcast"
     },
     {
       "id": "m3",
       "silent": true,
-      "dur": 5.3,
-      "text": "“Ja sluta fråga publicera.” Stop asking. Just publish.",
-      "hl": "Stop asking. Just publish."
+      "dur": 7.2,
+      "text": "Quote of the week. You told an agent this twice. “Stop asking. Just publish.”",
+      "hl": "“Stop asking. Just publish.”"
     },
     {
       "id": "n9",
       "voice": "narrator",
-      "text": "Every agent he uses gets the same memory, and stops where he would.",
-      "say": "[pause] Every agent he uses gets the same memory, and stops where he would.",
-      "hl": "the same memory|stops where he would"
+      "text": "A new agent wants to add more text.",
+      "say": "[pause] A new agent wants to add more text.",
+      "hl": "add more text"
+    },
+    {
+      "id": "n9b",
+      "voice": "narrator",
+      "text": "I stop it, with his own words.",
+      "hl": "his own words"
     },
     {
       "id": "m4",
@@ -102,8 +109,8 @@
     {
       "id": "n11",
       "voice": "narrator",
-      "text": "Not anymore. Mason. Learning by doing, without the forgetting.",
-      "say": "[pause] Not anymore. Mason. Learning by doing, without the forgetting.",
+      "text": "Not anymore. I'm Mason.",
+      "say": "[pause] Not anymore. I'm Mason.",
       "caption": false
     }
   ]

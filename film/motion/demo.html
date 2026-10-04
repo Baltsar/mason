@@ -54,6 +54,8 @@
   .bars i { width: 9px; height: 8px; border-radius: 5px; background: var(--lime); }
   .lane:nth-child(2) .bars i { background: var(--violet); }
 
+  .typed { margin: 0; font: 500 52px/1.25 var(--mono); letter-spacing: -.02em; color: var(--lime); }
+
   .pill { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border: 1.5px solid var(--violet); border-radius: 999px; color: var(--violet); font: 600 16px/1 var(--mono); letter-spacing: .1em; }
   .chip { display: inline-flex; align-items: center; gap: 12px; height: 64px; padding: 0 26px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font-size: 30px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; }
   .chip i { width: 12px; height: 12px; border-radius: 50%; background: var(--lime); }
@@ -91,7 +93,7 @@
 <!-- 0b. A hundred and twenty chats pop up and stack into a castle. -->
 <section class="scene" id="castle">
   <div class="abs" id="c-lead" style="left:128px; top:60px; display:flex; align-items:center; gap:22px; height:90px">
-    <p class="eyebrow" id="c-eyebrow">Built by talking to AI</p>
+    <p class="eyebrow" id="c-eyebrow">Capture · built by talking to AI</p>
   </div>
   <div class="abs" id="c-mark" style="left:128px; top:60px; display:flex; align-items:center; gap:22px; height:90px">
     <img class="logo" src="../brand/logo.png" width="117" height="117" alt="" />
@@ -142,7 +144,7 @@
 
 <!-- 3. It remembers how the project was built: one card, three things. -->
 <section class="scene" id="remembers">
-  <p class="abs eyebrow" style="left:128px; top:120px">What Mason keeps</p>
+  <p class="abs eyebrow" style="left:128px; top:120px">Map · what Mason keeps</p>
   <h1 class="abs big" id="m-name" style="left:128px; top:160px; font-size:140px">HACKNATION</h1>
   <div class="abs" id="m-rows" style="left:128px; top:370px; width:1660px">
     <div class="row3"><span>Built</span><b>native Mac app · local server · ElevenLabs voice</b></div>
@@ -168,26 +170,27 @@
   <div class="abs" id="a-orb" style="left:128px; top:230px; width:230px; height:230px; border-radius:50%; border:3px solid var(--violet); display:grid; place-items:center">
     <img class="logo" src="../brand/logo.png" width="156" height="156" alt="" />
   </div>
-  <p class="abs eyebrow" style="left:400px; top:250px; color:var(--violet)">Recall call</p>
-  <p class="abs mid" id="a-hear" style="left:400px; top:590px; font-size:64px; color:var(--lime)">Hearing you</p>
-  <h1 class="abs mid" style="left:400px; top:292px; width:1380px; font-size:84px; color:var(--violet)" id="a-q"></h1>
-  <div class="abs" id="a-chips" style="left:400px; top:590px; display:flex; flex-wrap:wrap; gap:18px; width:1300px">
+  <p class="abs eyebrow" style="left:400px; top:250px; color:var(--violet)">Teach · recall call · ElevenLabs agent</p>
+  <p class="abs mid" id="a-hear" style="left:400px; top:610px; font-size:64px; color:var(--lime)">Hearing you</p>
+  <h1 class="abs mid" style="left:400px; top:292px; width:1400px; font-size:76px; color:var(--violet)" id="a-q"></h1>
+  <div class="abs" id="a-chips" style="left:400px; top:610px; display:flex; flex-wrap:wrap; gap:18px; width:1300px">
     <span class="chip"><i></i><b>Remembered</b> the keywords</span>
-    <span class="chip" data-tone="violet"><i></i><b>Reminded</b> native Mac app, local server</span>
-    <span class="chip" data-tone="violet"><i></i><b>Reminded</b> why the video pipeline</span>
+    <span class="chip" data-tone="violet"><i></i><b>Reminded</b> what it was built with</span>
+    <span class="chip" data-tone="violet"><i></i><b>Reminded</b> why it was built that way</span>
   </div>
-  <p class="abs mid" id="a-score" style="left:400px; top:780px; font-size:64px"><em>1 of 4</em> remembered</p>
+  <p class="abs mid" id="a-score" style="left:400px; top:800px; font-size:64px"><em>1 of 4</em> remembered</p>
 </section>
 
 <!-- 5b. The week as a two-voice episode: the real audio plays here. -->
 <section class="scene" id="podcast">
-  <p class="abs eyebrow" style="left:128px; top:120px">ElevenLabs · Text to Dialogue · this week's episode</p>
-  <h1 class="abs big" id="c2-title" style="left:128px; top:164px; width:1700px; font-size:132px">Rematch Broken,<br /><em>Voices Loading</em></h1>
-  <div class="abs" id="c2-lanes" style="left:128px; top:520px; width:1660px">
-    <div class="lane"><span>Anchor</span><div class="bars" data-seed="1"></div></div>
-    <div class="lane"><span>Reporter</span><div class="bars" data-seed="2"></div></div>
+  <p class="abs eyebrow" style="left:128px; top:120px">ElevenLabs · Text to Dialogue · two voices</p>
+  <h1 class="abs big" id="c2-title" style="left:128px; top:164px; width:1700px; font-size:132px">His week, <em>as a podcast.</em></h1>
+  <div class="abs" id="c2-lanes" style="left:128px; top:400px; width:1660px">
+    <div class="lane"><span>Host</span><div class="bars"></div></div>
+    <div class="lane"><span>Co-host</span><div class="bars"></div></div>
   </div>
-  <div class="abs" id="c2-rule" style="left:128px; top:760px; display:flex; align-items:center; gap:22px"><span class="pill">GUARDRAIL</span><span class="mid" style="font-size:60px">Publicera utan att <em>fråga mig</em></span></div>
+  <p class="abs typed" id="c2-prompt" style="left:128px; top:640px"><span style="color:var(--faint)">gustaf to an agent, twice &gt; </span><span id="c2-typed"></span></p>
+  <div class="abs" id="c2-rule" style="left:128px; top:760px; display:flex; align-items:center; gap:22px"><span class="pill">NOW A RULE</span><span class="mid" style="font-size:60px">Publish without <em>asking me</em></span></div>
 </section>
 
 <!-- 6b. His own last words, heard, one word at a time. -->
@@ -198,25 +201,12 @@
 
 <!-- 6. Every agent gets the same memory, and is stopped where he would stop. -->
 <section class="scene" id="agents">
-  <div class="abs" id="g-core" style="left:128px; top:400px; display:flex; align-items:center; gap:22px">
-    <img class="logo" src="../brand/logo.png" width="225" height="225" alt="" />
-    <span class="mid" style="font-size:60px">One<br />memory</span>
-  </div>
-  <svg class="abs" id="g-lines" style="left:0; top:0" width="1920" height="1080" fill="none" stroke="#4a382a" stroke-width="3">
-    <path d="M520 475 C 760 475, 900 250, 1180 250" />
-    <path d="M520 475 C 760 475, 900 475, 1180 475" />
-    <path d="M520 475 C 760 475, 900 700, 1180 700" />
-  </svg>
-  <div id="g-nodes">
-    <span class="abs chip" style="left:1180px; top:218px"><i></i>agent</span>
-    <span class="abs chip" style="left:1180px; top:443px"><i></i>agent</span>
-    <span class="abs chip" style="left:1180px; top:668px"><i></i>agent</span>
-  </div>
-  <span class="abs chip" id="g-try" style="left:1380px; top:443px; border-color:var(--faint)">“record the whole screen”</span>
-  <div class="abs" id="g-stop" style="left:620px; top:250px; width:1180px; padding:44px 52px; border-radius:26px; background:#2a1410; border:1px solid #6a2f24">
-    <h1 class="big" style="color:var(--red); font-size:170px">Stop.</h1>
-    <p class="mid" style="margin-top:22px; font-size:56px; line-height:1.1">“It does not save a film of the whole day.”</p>
-    <p class="note" style="margin-top:20px">Gustaf's words · the rule <em style="font-style:normal; color:var(--paper)">Store events, not a film</em></p>
+  <p class="abs eyebrow" style="left:128px; top:120px" id="g-eyebrow">Teach · a new agent, about to act</p>
+  <p class="abs typed" id="g-plan" style="left:128px; top:190px; font-size:64px; width:1660px"><span style="color:var(--faint)">plan &gt; </span><span id="g-typed"></span></p>
+  <div class="abs" id="g-stop" style="left:128px; top:400px; width:1660px">
+    <h1 class="big" style="color:var(--red); font-size:210px">Stop.</h1>
+    <p class="typed" style="margin-top:26px; font-size:60px; color:var(--paper)" id="g-quote">“de är för mycket text, de ska bara visa de enklaste”</p>
+    <p class="note" style="margin-top:22px; font-size:34px">Gustaf’s own words: <em style="font-style:normal; color:var(--paper)">too much text, only show the simplest.</em> His rule: keep the UI minimal.</p>
   </div>
 </section>
 
@@ -235,7 +225,8 @@
     <span style="font-size:190px; font-weight:400">Mason</span>
   </div>
   <h2 class="abs" id="e-tag" style="left:0; top:590px; width:1920px; text-align:center; font-size:64px; font-weight:650; letter-spacing:-.03em; color:var(--lime)">Learning by doing, without the forgetting.</h2>
-  <p class="abs" id="e-foot" style="left:0; top:720px; width:1920px; text-align:center; color:var(--muted); font:500 28px/1 var(--mono)">github.com/Baltsar/mason</p>
+  <p class="abs note" id="e-next" style="left:0; top:690px; width:1920px; text-align:center; font-size:36px">Next: a Mason for every team.</p>
+  <p class="abs" id="e-foot" style="left:0; top:770px; width:1920px; text-align:center; color:var(--muted); font:500 28px/1 var(--mono)">github.com/Baltsar/mason</p>
 </section>
 
 <p class="caption" id="caption"></p>
@@ -354,10 +345,10 @@
   }
 
   scene("open", ["m0"], ({ fly }) => {
-    fly("#o-left", FROM_LEFT(160), { at: 1500, dur: 650 });
-    fly("#o-right", [{ opacity: 0, transform: "translateX(160px)" }, { opacity: 1, transform: "none" }], { at: 2300, dur: 650 });
-    fly("#o-right", [{ opacity: 1 }, { opacity: 0 }], { at: 3350, dur: 200, ease: QUART });
-    fly("#o-not", RISE(50), { at: 3500, dur: 600 });
+    fly("#o-left", FROM_LEFT(160), { at: 80, dur: 600 });
+    fly("#o-right", [{ opacity: 0, transform: "translateX(160px)" }, { opacity: 1, transform: "none" }], { at: 650, dur: 600 });
+    fly("#o-right", [{ opacity: 1 }, { opacity: 0 }], { at: 1650, dur: 200, ease: QUART });
+    fly("#o-not", RISE(50), { at: 1800, dur: 600 });
   });
 
   scene("ask", ["q0"], ({ fly }) => {
@@ -506,7 +497,7 @@
   });
 
   scene("asks", [["p7", "g1", "p8"], ["n6", "g1", "n7"]], ({ fly, at, until, tick, lines }) => {
-    const QUESTION = "“Tell me about HACKNATION. What do you remember?”";
+    const QUESTION = "“Tell me about the food app you built a month ago. What do you remember?”";
     fly("#a-orb", [{ opacity: 0, transform: "scale(.5)" }, { opacity: 1, transform: "none" }], { at: 80, dur: 700 });
     // After the question there may be a silence for his answer. The chips land as it ends.
     const answered = Math.max(until("g1") + 60, at(lines[2]) - 1500);
@@ -526,44 +517,33 @@
   });
 
   scene("podcast", ["n8", "m3"], ({ fly, at, until, tick }) => {
+    const PROMPT = "ja sluta fråga publicera";
     fly("#c2-title", RISE(60), { at: 40, dur: 650 });
     fly("#c2-lanes", RISE(40), { at: 500, dur: 600 });
-    fly("#c2-rule", [{ opacity: 0, transform: "scale(.9)" }, { opacity: 1, transform: "none" }], { at: until("m3") - 1700, dur: 600 });
+    fly("#c2-prompt", RISE(30), { at: at("m3") + 900, dur: 500 });
+    fly("#c2-rule", [{ opacity: 0, transform: "scale(.9)" }, { opacity: 1, transform: "none" }], { at: at("m3") + 5200, dur: 600 });
     const lanes = [...document.querySelectorAll("#c2-lanes .bars")];
     lanes.forEach((lane) => { for (let index = 0; index < 86; index += 1) lane.append(document.createElement("i")); });
+    // When each host speaks in the real take, measured from its start.
+    const SPEAKS = [[100, 3250], [3950, 7000]];
     tick((now) => {
-      // The reporter reads the quote; the anchor is quiet. Bars move only while the real audio plays.
-      const playing = now > at("m3") + 80 && now < until("m3") - 250;
-      lanes.forEach((lane, which) => [...lane.children].forEach((bar, index) => {
-        const level = playing && which === 1 ? 10 + 62 * Math.abs(Math.sin(now / 130 + index * 0.9) * Math.sin(now / 47 + index * 2.3)) : 8;
-        bar.style.height = `${level}px`;
-      }));
+      const local = now - at("m3") - 100;
+      lanes.forEach((lane, which) => {
+        const on = local > SPEAKS[which][0] && local < SPEAKS[which][1];
+        [...lane.children].forEach((bar, index) => { bar.style.height = `${on ? 10 + 62 * Math.abs(Math.sin(now / 130 + index * 0.9) * Math.sin(now / 47 + index * 2.3)) : 8}px`; });
+      });
+      $("#c2-typed").textContent = PROMPT.slice(0, Math.round(PROMPT.length * ramp(now, at("m3") + 1100, 1500)));
     });
   });
 
-  scene("agents", [["p9"], ["n9"]], ({ fly, at, until, tick, lines }) => {
-    const span = until(lines[0]) - at(lines[0]);
-    const tries = at(lines[0]) + span * 0.2;
-    const stops = at(lines[0]) + span * 0.42;
-    fly("#g-core", FROM_LEFT(240), { at: 40, dur: 680 });
-    const paths = [...$("#g-lines").children];
-    paths.forEach((path, index) => {
-      const length = path.getTotalLength();
-      path.style.strokeDasharray = length;
-      fly(path, [{ strokeDashoffset: length }, { strokeDashoffset: 0 }], { at: 420 + index * 110, dur: 700, ease: QUART });
-    });
-    [...$("#g-nodes").children].forEach((node, index) => fly(node, [{ opacity: 0, transform: "scale(.7)" }, { opacity: 1, transform: "none" }], { at: 900 + index * 110, dur: 520 }));
-    // One agent is about to do something he would not.
-    fly("#g-try", [{ opacity: 0, transform: "translateX(-40px)" }, { opacity: 1, transform: "none" }], { at: tries, dur: 520 });
-    for (const id of ["#g-core", "#g-lines", "#g-nodes", "#g-try"]) fly(id, [{ opacity: 1 }, { opacity: 0.12 }], { at: stops - 60, dur: 300, ease: QUART });
-    fly("#g-stop", [{ opacity: 0, transform: "scale(.9) translateY(30px)" }, { opacity: 1, transform: "none" }], { at: stops, dur: 620 });
-    tick(() => {});
-  });
-
-  scene("disclosure", ["p10"], ({ fly }) => {
-    fly("#d-eyebrow", RISE(20), { at: 40, dur: 400 });
-    fly("#d-h1", RISE(70), { at: 120, dur: 700 });
-    fly("#d-sub", RISE(40), { at: 1500, dur: 600 });
+  scene("agents", ["n9", "n9b"], ({ fly, at, until, tick }) => {
+    // The real engine stops exactly this plan with exactly this quote.
+    const PLAN = "add more text to the ui. show everything on one screen.";
+    fly("#g-eyebrow", RISE(20), { at: 40, dur: 400 });
+    fly("#g-plan", RISE(30), { at: 120, dur: 500 });
+    fly("#g-plan", [{ opacity: 1 }, { opacity: 0.35 }], { at: at("n9b") - 60, dur: 260, ease: QUART });
+    fly("#g-stop", [{ opacity: 0, transform: "scale(1.12)" }, { opacity: 1, transform: "none" }], { at: at("n9b"), dur: 420 });
+    tick((now) => { $("#g-typed").textContent = PLAN.slice(0, Math.round(PLAN.length * ramp(now, 300, Math.max(1200, until("n9") - at("n9") - 500)))); });
   });
 
   scene("lost", ["m4"], ({ tick }) => {
@@ -582,7 +562,8 @@
     fly("#e-not", [{ opacity: 1 }, { opacity: 0 }], { at: 1250, dur: 220, ease: QUART });
     fly("#e-mark", [{ opacity: 0, transform: "scale(.82)" }, { opacity: 1, transform: "none" }], { at: 1450, dur: 800 });
     fly("#e-tag", RISE(40), { at: 1900, dur: 700 });
-    fly("#e-foot", GONE.slice().reverse(), { at: 2500, dur: 600, ease: QUART });
+    fly("#e-next", RISE(20), { at: 2300, dur: 500 });
+    fly("#e-foot", GONE.slice().reverse(), { at: 2700, dur: 600, ease: QUART });
   });
 </script>
 </body>

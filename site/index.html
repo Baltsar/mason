@@ -6,197 +6,281 @@
 <meta name="color-scheme" content="dark" />
 <title>Mason — learning by doing, without the forgetting</title>
 <meta name="description" content="I vibe-coded it. A month later I can't explain it. Mason was there: it remembers how I built it, asks me until it sticks, and hands my taste to every agent I use." />
-<link rel="icon" type="image/png" href="logo.png" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="__SITE__" />
+<meta property="og:title" content="Mason — learning by doing, without the forgetting" />
+<meta property="og:description" content="A local macOS assistant that remembers how you built it." />
+<meta property="og:image" content="__SITE__/poster.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" type="image/png" href="assets/favicon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&display=swap" />
 <style>
+  /* The public page in MASON's own colours and type. The values are the ones in
+     apprentice/public/brand.html; change them there first.
+     Two kinds of thing are on the page. The app is drawn as it is, with round
+     corners. The woodcuts are objects: square, on bone, with a hard shadow. */
   :root {
-    --ink: #1b120c; --paper: #eadfc6; --muted: #a99a82; --faint: #7d6d59; --line: #3d2c1f;
-    --panel: #261910; --raised: #2e2015; --lime: #dba743; --violet: #cf7a56; --red: #c2452f;
-    --font: "IM FELL English", "Iowan Old Style", Georgia, serif; --sans: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    --ink: #0e0d0b; --panel: #171512; --raised: #201d19; --line: #2e2b25;
+    --paper: #f3eee2; --soft: #cfc9bb; --muted: #a39d90; --grey: #8c877d;
+    --lime: #d7ff42; --gold: #d6a647; --red: #ff6b5f; --stone-ink: #18110a; --on-lime: #101100;
+    --font: Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
     --mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
-    --gutter: clamp(16px, 5vw, 72px);
+    --gutter: clamp(16px, 4.5vw, 56px);
+    --hair: rgba(255, 255, 255, .12);
   }
   * { box-sizing: border-box; }
   html { background: var(--ink); color: var(--paper); font-family: var(--font); -webkit-font-smoothing: antialiased; }
-  body { margin: 0; }
-  h1, h2, h3, p, pre, blockquote { margin: 0; }
+  body { margin: 0; overflow-x: hidden; }
+  h1, h2, h3, p, figure { margin: 0; }
   a { color: inherit; }
+  img, video { display: block; max-width: 100%; height: auto; }
   :focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
-  section, header.top, footer { padding-inline: var(--gutter); }
-  section { padding-block: clamp(56px, 9vw, 120px); border-top: 1px solid var(--line); }
+  .wrap { width: min(100% - 2 * var(--gutter), 1180px); margin-inline: auto; }
+  .label { color: var(--muted); font: 600 11px/1.3 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+  section { padding-block: clamp(56px, 8vw, 104px); border-top: 1px solid var(--line); }
+  h2 { margin-top: 14px; font-size: clamp(30px, 4.6vw, 60px); font-weight: 700; letter-spacing: -.05em; line-height: 1; text-wrap: balance; }
 
-  .top { display: flex; align-items: center; justify-content: space-between; height: 64px; }
-  .brand { display: inline-flex; align-items: center; gap: 10px; font-size: 24px; line-height: 1; text-decoration: none; }
-  .brand img { width: 34px; height: 34px; }
-  .top a.repo { color: var(--muted); font: 500 13px var(--mono); text-decoration: none; }
-  .top a.repo:hover { color: var(--paper); }
+  .top { display: flex; align-items: center; justify-content: space-between; height: 76px; }
+  .brand { display: inline-flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 800; letter-spacing: .2em; text-decoration: none; }
+  .brand img { width: 42px; }
+  .top .label { text-decoration: none; }
+  .top .label:hover { color: var(--paper); }
 
-  .hero { border-top: 0; padding-top: clamp(28px, 6vw, 72px); }
-  .hero h1 { max-width: 13ch; font-size: clamp(48px, 9.4vw, 148px); line-height: .92; font-weight: 700; letter-spacing: -.05em; text-wrap: balance; }
-  .hero h1 em { font-style: normal; color: var(--lime); }
-  .hero p { max-width: 46ch; margin-top: clamp(20px, 3vw, 36px); color: var(--muted); font-size: clamp(17px, 1.7vw, 23px); line-height: 1.4; text-wrap: pretty; }
-  .film { margin-top: clamp(32px, 5vw, 64px); border: 1px solid var(--line); border-radius: clamp(12px, 1.6vw, 22px); overflow: hidden; background: #000; }
-  video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+  .hero { padding-block: clamp(20px, 4vw, 48px) clamp(56px, 8vw, 104px); border-top: 0; }
+  .hero .label, .screens .wrap > .label { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 9px; }
+  .label b + span { margin-left: 9px; }
+  .nb { white-space: nowrap; }
+  .label b { color: var(--paper); font-weight: 600; }
+  .label .apple { margin-top: -2px; color: var(--paper); }
+  h1 { margin-top: 22px; font-size: clamp(42px, 7.4vw, 96px); font-weight: 720; letter-spacing: -.065em; line-height: .93; text-wrap: balance; }
+  h1 em { color: var(--lime); font-style: normal; }
+  /* The hand hangs below the button and over the film's corner, so this row sits above the film. */
+  .lede { position: relative; z-index: 2; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 28px 48px; margin-top: clamp(22px, 3vw, 36px); }
+  .lede p { max-width: 44ch; color: var(--soft); font-size: clamp(17px, 1.5vw, 20px); line-height: 1.42; text-wrap: pretty; }
+  .press { position: relative; display: inline-flex; flex: none; align-items: center; height: 54px; margin-right: 44px; padding: 0 26px; border-radius: 27px; background: var(--lime); color: var(--on-lime); font-size: 17px; font-weight: 680; letter-spacing: -.02em; text-decoration: none; }
+  .press img { position: absolute; top: calc(100% - 20px); left: calc(100% - 36px); width: 80px; max-width: none; pointer-events: none; transition: transform .18s ease-out; }
+  .press:hover img { transform: translate(-5px, -6px); }
+  .press:active { transform: translateY(1px); }
 
-  .eyebrow { color: var(--muted); font: 500 13px var(--mono); letter-spacing: .04em; }
-  .eyebrow b { color: var(--lime); font-weight: 600; }
-  h2 { margin-top: 14px; max-width: 16ch; font-size: clamp(34px, 5.4vw, 80px); line-height: .96; font-weight: 700; letter-spacing: -.045em; text-wrap: balance; }
+  .film { margin-top: clamp(44px, 5vw, 64px); }
+  .film div { position: relative; overflow: hidden; border: 1px solid var(--hair); border-radius: clamp(14px, 2vw, 24px); background: #000; }
+  .film video { width: 100%; aspect-ratio: 16 / 9; }
+  /* Bottom left, so the button does not sit on the face in the poster. */
+  .film button { position: absolute; inset: 0; display: none; place-items: end start; width: 100%; padding: clamp(16px, 3vw, 36px); border: 0; background: transparent; cursor: pointer; }
+  .film[data-ready] button { display: grid; }
+  .film button span { display: grid; place-items: center; width: clamp(60px, 7.4vw, 92px); aspect-ratio: 1; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 clamp(6px, .8vw, 10px) rgba(215, 255, 66, .25); transition: transform .18s ease-out; }
+  .film button:hover span { transform: scale(1.06); }
+  .film button svg { width: 40%; margin-left: 6%; }
+  .film figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; margin-top: 14px; }
 
-  .stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: clamp(28px, 4vw, 56px); margin-top: clamp(32px, 5vw, 64px); }
-  .stages h3 { font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
-  .stages .big { margin-top: 10px; font-size: clamp(44px, 5.6vw, 84px); line-height: 1; font-weight: 700; letter-spacing: -.045em; white-space: nowrap; }
-  .stages .big i { font-style: normal; font-size: .42em; margin-left: .14em; color: var(--muted); }
-  .stages article:nth-child(1) .big { color: var(--lime); }
-  .stages article:nth-child(2) .big { color: var(--violet); }
-  .stages article:nth-child(3) .big { color: var(--red); }
-  .stages p { margin-top: 14px; max-width: 34ch; color: var(--muted); font-size: 16px; line-height: 1.45; }
+  .apple { flex: none; width: 1.15em; height: 1.15em; fill: currentColor; }
+  .screen figcaption { margin-top: 12px; }
+  .screens .wrap > .screen { margin-top: clamp(28px, 4vw, 48px); }
+  /* A Mac desktop, drawn: the wallpaper and the editor are not ours, the island and the panel are. */
+  .desktop { position: relative; display: grid; justify-items: center; min-height: clamp(0px, 52vw, 640px); padding-bottom: clamp(20px, 4vw, 44px); overflow: hidden; border: 1px solid var(--hair); border-radius: clamp(12px, 1.6vw, 20px); background: linear-gradient(120deg, #3c49b9, #4b5cc4 38%, #2c3273 62%, #5a67b3); align-content: start; }
+  .menubar { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; width: 100%; height: 34px; padding: 0 16px; background: rgba(14, 13, 11, .22); color: #fff; font-size: 13px; }
+  .menubar > div:not(.island) { display: flex; align-items: center; gap: 16px; font-variant-numeric: tabular-nums; }
+  .menubar .apple { width: 15px; height: 15px; margin-top: -2px; }
+  @media (max-width: 760px) { .menubar span { display: none; } }
+  /* On a phone only the Apple menu and the island fit in the bar. */
+  @media (max-width: 560px) {
+    .menubar b, .menubar > div:last-child { display: none; }
+    .menubar .island { transform: translateX(-50%); }
+    .menubar .notch { width: 64px; }
+  }
+  .window { position: absolute; inset: clamp(52px, 8vw, 84px) 5% -1px; display: grid; align-content: start; gap: 11px; padding: 44px 22px 0; border: 1px solid var(--hair); border-radius: 12px 12px 0 0; background: #1b1a18; }
+  .window::before { content: ""; position: absolute; top: 15px; left: 16px; width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: 20px 0 #febc2e, 40px 0 #28c840; }
+  .window i { width: var(--w); height: 9px; margin-left: var(--in, 0); border-radius: 5px; background: #34312c; }
+  .drop { position: relative; z-index: 1; width: min(420px, 100% - 28px); margin-top: 10px; box-shadow: 0 24px 60px rgba(0, 0, 0, .5); }
+  .island { position: absolute; top: 0; left: 50%; display: flex; width: max-content; height: 34px; transform: translateX(-62%); }
+  .island .wing { display: flex; align-items: center; gap: 11px; padding: 0 12px 0 10px; border-radius: 0 0 0 12px; background: rgba(14, 13, 11, .8); color: var(--lime); font: 700 12px/1 var(--mono); }
+  .island .wing img { width: auto; height: 25px; }
+  .island .notch { width: clamp(84px, 13vw, 150px); border-radius: 0 0 9px 9px; background: #000; }
+  .island .eye { display: grid; place-items: center; width: 30px; border-radius: 0 0 12px 0; background: rgba(14, 13, 11, .8); }
+  .island .eye span { display: grid; place-items: center; width: 12px; height: 12px; border: 2px solid var(--lime); border-radius: 50%; }
+  .island .eye span::after { content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--lime); }
 
-  .try { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(16px, 2.4vw, 32px); margin-top: clamp(28px, 4vw, 56px); align-items: start; }
-  @media (max-width: 860px) { .try { grid-template-columns: 1fr; } }
-  .card { border: 1px solid var(--line); border-radius: 18px; background: var(--panel); padding: clamp(16px, 2vw, 26px); }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
-  .chips button { height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; }
-  .chips button:hover { color: var(--paper); border-color: var(--faint); }
-  textarea { display: block; width: 100%; min-height: 108px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--ink); color: var(--paper); font: inherit; font-size: 17px; line-height: 1.4; resize: vertical; }
-  .primary { margin-top: 14px; height: 46px; padding: 0 24px; border: 0; border-radius: 12px; background: var(--lime); color: #000; font: inherit; font-size: 16px; font-weight: 650; cursor: pointer; }
-  .verdict h3 { font-size: clamp(44px, 5vw, 76px); line-height: 1; font-weight: 700; letter-spacing: -.045em; }
-  .verdict[data-state="stop"] h3 { color: var(--red); }
-  .verdict[data-state="clear"] h3 { color: var(--lime); }
-  .verdict[data-state="idle"] h3 { color: var(--faint); }
-  .verdict blockquote { margin-top: 18px; font-size: clamp(19px, 1.9vw, 26px); line-height: 1.3; letter-spacing: -.015em; text-wrap: pretty; }
-  .verdict p { margin-top: 14px; color: var(--muted); font-size: 15px; line-height: 1.45; }
-  .verdict p code { color: var(--paper); font: 13px var(--mono); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(18px, 2.4vw, 28px); margin-top: clamp(22px, 3vw, 32px); align-items: start; }
+  @media (max-width: 820px) { .pair { grid-template-columns: 1fr; } }
+  .stack { display: grid; gap: clamp(18px, 2.4vw, 28px); }
+  .panel { padding: 20px 22px 16px; border: 1px solid var(--hair); border-radius: 24px; background: var(--panel); }
+  .who { display: flex; align-items: center; gap: 9px; color: var(--muted); font: 600 11px/1 var(--mono); letter-spacing: .09em; text-transform: uppercase; }
+  .who i { width: 7px; height: 7px; border-radius: 50%; background: var(--lime); }
+  .who b { color: var(--paper); }
+  .who span { display: grid; place-items: center; width: 34px; height: 34px; margin-left: auto; border-radius: 50%; background: var(--lime); color: var(--on-lime); font-size: 14px; }
+  .panel .head { margin: 10px 0 4px; font-size: clamp(21px, 2.1vw, 25px); font-weight: 680; letter-spacing: -.04em; line-height: 1.06; }
+  .big { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 12px; }
+  .big b { min-width: 2.05ch; font-size: 86px; font-weight: 720; font-variant-numeric: tabular-nums; letter-spacing: -.075em; line-height: .9; text-align: right; }
+  .big b i { font-size: .36em; font-style: normal; letter-spacing: -.02em; }
+  .big span { font-size: 31px; font-weight: 680; letter-spacing: -.05em; }
+  .big.work b { color: var(--lime); }
+  .big.social b { color: var(--red); }
+  .big.other b { color: var(--grey); }
+  .ask { padding: 16px 16px 18px; border-radius: 17px; background: var(--gold); color: var(--stone-ink); }
+  .ask h3 { font-size: 23px; font-weight: 700; letter-spacing: -.04em; line-height: 1.06; }
+  .ask div { display: flex; align-items: center; height: 50px; margin-top: 14px; padding: 0 8px 0 16px; border-radius: 25px; background: var(--stone-ink); color: #a39a85; font-size: 15px; }
+  .ask div i { width: 36px; height: 36px; margin-left: auto; border-radius: 50%; background: var(--paper); }
+  .call { padding: 14px 16px 16px; border: 1px solid var(--hair); border-radius: 17px; background: var(--panel); }
+  .call h3 { font-size: 20px; font-weight: 650; letter-spacing: -.035em; line-height: 1.16; }
+  .call .you { margin-top: 8px; color: var(--lime); font-size: 14px; }
+  .ear { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .ear .mic { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 5px rgba(215, 255, 66, .25); }
+  .ear .bars { display: flex; flex: 1; align-items: center; gap: 3px; height: 26px; }
+  .ear .bars i { flex: 1; border-radius: 2px; background: var(--lime); }
+  .ear b { color: var(--lime); font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+  .kept { display: grid; gap: 6px; margin-top: 10px; font-size: 13px; }
+  .kept p { display: flex; align-items: center; gap: 9px; }
+  .kept p::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--lime); }
+  .kept p + p::before { background: var(--gold); }
 
-  .films { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: clamp(16px, 2vw, 28px); margin-top: clamp(28px, 4vw, 56px); }
-  .films figure { margin: 0; }
-  .films video { border: 1px solid var(--line); border-radius: 14px; }
-  .films figcaption { margin-top: 10px; color: var(--muted); font-size: 15px; }
+  .plates .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(20px, 3vw, 40px); margin-top: clamp(28px, 4vw, 48px); }
+  @media (max-width: 760px) { .plates .row { grid-template-columns: 1fr; gap: 32px; } }
+  .plates picture { position: relative; display: block; aspect-ratio: 4 / 3; background: var(--paper); box-shadow: 8px 8px 0 var(--grey); }
+  .plates img { position: absolute; inset: 9%; width: 82%; height: 82%; object-fit: contain; }
+  .plates figcaption { margin-top: 22px; }
 
-  pre.run { margin-top: clamp(24px, 3vw, 40px); padding: clamp(16px, 2vw, 26px); border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: #d8ccb4; font: clamp(13px, 1.25vw, 17px)/1.7 var(--mono); overflow-x: auto; }
-  pre.run b { color: var(--lime); font-weight: 400; }
-  pre.run s { text-decoration: none; color: var(--faint); }
-  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px 40px; margin-top: 32px; color: var(--muted); font-size: 16px; line-height: 1.45; }
-  .facts b { display: block; color: var(--paper); font-weight: 600; }
+  footer { padding-block: clamp(40px, 6vw, 72px) 44px; border-top: 1px solid var(--line); }
+  .foot { display: grid; grid-template-columns: 1fr 1fr; gap: 40px clamp(32px, 6vw, 96px); align-items: start; }
+  @media (max-width: 760px) { .foot { grid-template-columns: 1fr; } }
+  .sign { display: flex; align-items: center; gap: 20px; }
+  .sign img { width: clamp(84px, 9vw, 112px); }
+  .sign b { display: block; font-size: clamp(30px, 4.4vw, 52px); font-weight: 800; letter-spacing: .22em; line-height: 1; }
+  .sign span { display: block; margin-top: 10px; color: var(--muted); font-size: 17px; }
+  .links { border-top: 1px solid var(--line); }
+  .links a { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; padding: 17px 0; border-bottom: 1px solid var(--line); text-decoration: none; }
+  .links b { font-size: 20px; font-weight: 650; letter-spacing: -.035em; }
+  .links a:hover b { color: var(--lime); }
+  .fine { margin-top: clamp(36px, 5vw, 56px); color: var(--grey); font: 12px/1.6 var(--mono); }
 
-  footer { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; padding-block: 28px 40px; border-top: 1px solid var(--line); color: var(--faint); font: 13px var(--mono); }
-
-  /* Mason: IM Fell has one weight and wants almost no tightening. It carries the
-     headlines, the big figures and the quoted rule. Everything else is set in sans. */
-  h1, h2, .stages .big, .verdict h3 { font-weight: 400 !important; letter-spacing: -.012em !important; }
-  .hero p, .stages h3, .stages p, .facts, .chips button, textarea, .primary, .verdict p, .films figcaption { font-family: var(--sans); }
-  .stages .big { font-family: var(--font); }
-  /* IM Fell draws 1, 2 and 0 at x-height. Raised to cap height so the three figures read as one row. */
-  .stages .big .low { font-size: 1.4em; line-height: 0; }
+  @media (prefers-reduced-motion: no-preference) {
+    .hero > * { animation: rise .7s cubic-bezier(.2, .8, .2, 1) both; }
+    .hero > :nth-child(2) { animation-delay: .07s; }
+    .hero > :nth-child(3) { animation-delay: .14s; }
+    .hero > :nth-child(4) { animation-delay: .22s; }
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+    /* The bars move, so "Hearing you" is shown and not only said. */
+    .ear .bars i { animation: hear 1s ease-in-out infinite alternate; }
+    .ear .bars i:nth-child(3n) { animation-duration: .7s; }
+    .ear .bars i:nth-child(3n + 1) { animation-duration: 1.3s; animation-delay: -.4s; }
+    @keyframes hear { to { transform: scaleY(.3); } }
+  }
 </style>
 </head>
 <body>
 
-<header class="top">
-  <a class="brand" href="#top" aria-label="Mason">
-    <img src="logo.png" alt="Mason" width="34" height="34">
-    <span>Mason</span>
-  </a>
-  <a class="repo" href="__REPO__">source on GitHub</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="apple" viewBox="0 0 24 24"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" /></symbol></svg>
+
+<header class="top wrap">
+  <a class="brand" href="#top" aria-label="Mason"><img src="assets/mark.webp" alt="" width="840" height="770" /><span>MASON</span></a>
+  <a class="label" href="__REPO__">Source on GitHub</a>
 </header>
 
 <main id="top">
-  <section class="hero">
+  <div class="hero wrap">
+    <p class="label"><svg class="apple" viewBox="0 0 24 24" aria-hidden="true"><use href="#apple" /></svg><b>Native Mac app</b><span>Challenge 01, The AI Apprentice · <span class="nb">Hack-Nation</span></span></p>
     <h1>Learning by doing, without the <em>forgetting.</em></h1>
-    <p>I vibe-coded it. A month later I can't explain it. Mason was there: it remembers how I built it, asks me until it sticks, and hands my taste to every agent I use.</p>
-    <div class="film"><video controls playsinline preload="metadata" src="films/02-product-demo.mp4"></video></div>
-  </section>
-
-  <section>
-    <p class="eyebrow"><b>01</b> What it does</p>
-    <h2>A workflow assistant that was there.</h2>
-    <div class="stages">
-      <article><h3>It remembers</h3><p class="big"><span class="low">120</span></p><p>Agent sessions in three weeks, across 37 folders. The memory is built from the logs already on the Mac: what was asked, which files changed, what I kept repeating.</p></article>
-      <article><h3>It asks</h3><p class="big">6<i>s</i></p><p>While I work it waits until a prompt has been still for six seconds, then asks why, out loud. Later it quizzes me on my own project: “What do you remember?”</p></article>
-      <article><h3>It hands it on</h3><p class="big">Stop.</p><p>A new person or another agent about to break one of my rules is stopped before it happens, in my own words. The same memory is an MCP server.</p></article>
+    <div class="lede">
+      <p>I vibe-coded it. A month later I can't explain it. Mason was there: it remembers how I built it, asks me until it sticks, and hands my taste to every agent I use.</p>
+      <a class="press" href="__REPO__">Get it on GitHub<img src="assets/hand.webp" alt="" width="320" height="373" /></a>
     </div>
-  </section>
-
-  <section>
-    <p class="eyebrow"><b>02</b> Three minutes</p>
-    <h2>Who, what, how.</h2>
-    <div class="films">
-      <figure><video controls playsinline preload="metadata" src="films/01-team-introduction.mp4"></video><figcaption>Who built it</figcaption></figure>
-      <figure><video controls playsinline preload="metadata" src="films/02-product-demo.mp4"></video><figcaption>The product on real work</figcaption></figure>
-      <figure><video controls playsinline preload="metadata" src="films/03-technical-walkthrough.mp4"></video><figcaption>How it works</figcaption></figure>
-    </div>
-  </section>
-
-  <section>
-    <p class="eyebrow"><b>03</b> What another agent gets back</p>
-    <h2>check_decision, in your browser.</h2>
-    <div class="try">
-      <div class="card">
-        <div class="chips" id="chips"></div>
-        <textarea id="decision" aria-label="A decision about to be made"></textarea>
-        <button class="primary" id="check" type="button">Check</button>
+    <figure class="film">
+      <div>
+        <video controls playsinline preload="none" poster="poster.jpg" src="films/02-product-demo.mp4"></video>
+        <button type="button" aria-label="Play the pitch film"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16l13-8z" fill="#101100" /></svg></span></button>
       </div>
-      <div class="card verdict" id="verdict" data-state="idle" aria-live="polite">
-        <h3>…</h3>
-        <p id="verdict-note">An agent calls this over MCP before it acts. Here it runs in your browser, on rules from the films.</p>
+      <figcaption class="label"><span>The pitch film</span><span>Gustaf, at the playground</span></figcaption>
+    </figure>
+  </div>
+
+  <section class="screens">
+    <div class="wrap">
+      <p class="label"><svg class="apple" viewBox="0 0 24 24" aria-hidden="true"><use href="#apple" /></svg><b>Native Mac app</b><span>macOS 13 or later</span></p>
+      <h2>The mason was there.</h2>
+
+      <figure class="screen">
+        <div class="desktop">
+          <div class="menubar">
+            <div><svg class="apple" viewBox="0 0 24 24" role="img" aria-label="Apple menu"><use href="#apple" /></svg><b>Cursor</b><span>File</span><span>Edit</span><span>View</span></div>
+            <div class="island">
+              <div class="wing"><img src="assets/mark.webp" alt="" width="840" height="770" /><img src="assets/work.webp" alt="" width="690" height="440" />97%</div>
+              <div class="notch"></div>
+              <div class="eye"><span></span></div>
+            </div>
+            <div><span>Sun 4 Oct</span>13:52</div>
+          </div>
+          <div class="window" aria-hidden="true">
+            <i style="--w:34%"></i><i style="--w:52%;--in:4%"></i><i style="--w:41%;--in:4%"></i><i style="--w:63%;--in:8%"></i><i style="--w:28%;--in:8%"></i><i style="--w:47%;--in:4%"></i><i style="--w:18%"></i><i style="--w:56%"></i><i style="--w:38%;--in:4%"></i><i style="--w:66%;--in:8%"></i><i style="--w:44%;--in:8%"></i><i style="--w:30%;--in:4%"></i><i style="--w:58%"></i><i style="--w:24%;--in:4%"></i><i style="--w:49%;--in:8%"></i><i style="--w:36%;--in:4%"></i><i style="--w:61%"></i><i style="--w:27%;--in:4%"></i><i style="--w:53%;--in:8%"></i><i style="--w:40%"></i><i style="--w:22%;--in:4%"></i><i style="--w:57%;--in:4%"></i><i style="--w:33%;--in:8%"></i><i style="--w:46%"></i><i style="--w:64%;--in:4%"></i><i style="--w:29%;--in:8%"></i><i style="--w:51%"></i><i style="--w:37%;--in:4%"></i>
+          </div>
+          <div class="panel drop">
+            <div class="who"><i></i><b>KUBB</b><span>☎</span></div>
+            <p class="head">Rematch broken, lobby rebuilt</p>
+            <div class="big work"><b>97<i>%</i></b><span>work</span></div>
+            <div class="big social"><b>0<i>%</i></b><span>social</span></div>
+            <div class="big other"><b>3<i>%</i></b><span>other</span></div>
+          </div>
+        </div>
+        <figcaption class="label">On the desktop: the island around the notch, the day under it</figcaption>
+      </figure>
+
+      <div class="pair">
+        <figure class="screen">
+          <div class="ask"><h3>When should I stop and ask you?</h3><div>Answer<i></i></div></div>
+          <figcaption class="label">It asks</figcaption>
+        </figure>
+        <figure class="screen">
+          <div class="call">
+            <h3>Tell me about KUBB. What do you remember?</h3>
+            <p class="you">“A Viking kubb brawler, multiplayer, with a lobby.”</p>
+            <div class="ear"><span class="mic"></span><div class="bars"><i style="height:30%"></i><i style="height:70%"></i><i style="height:100%"></i><i style="height:55%"></i><i style="height:20%"></i><i style="height:85%"></i><i style="height:100%"></i><i style="height:60%"></i><i style="height:35%"></i><i style="height:90%"></i><i style="height:45%"></i><i style="height:75%"></i></div><b>Hearing you</b></div>
+            <div class="kept"><p>Remembered · the lobby</p><p>Reminded · why the rematch broke</p></div>
+          </div>
+          <figcaption class="label">The recall call</figcaption>
+        </figure>
       </div>
     </div>
   </section>
 
-  <section>
-    <p class="eyebrow"><b>04</b> Run it</p>
-    <h2>It lives on your Mac, not here.</h2>
-<pre class="run">git clone <b>__REPO__</b>
-cd __CLONE__/apprentice
-cp .env.local.example .env.local   <s># add an ElevenLabs key</s>
-open "Start Mason.command"</pre>
-    <div class="facts">
-      <p><b>Events, not pixels</b>No screenshots and no keystroke log. It reads the front app, the window title and the prompt field.</p>
-      <p><b>Private by default</b>Password managers, mail, chat and banking are refused before anything is written. One press pauses everything.</p>
-      <p><b>ElevenLabs</b>Three agents (debrief, recall, tutor), Flash v2.5 for speech, Scribe v2 Realtime for answers, Text to Dialogue for the weekly episode.</p>
-      <p><b>One memory, every agent</b>The Work Map is also an MCP server, so other agents can check a decision before they act.</p>
+  <section class="plates">
+    <div class="wrap">
+      <p class="label">The woodcuts</p>
+      <h2>Old tools for new work.</h2>
+      <div class="row">
+        <figure><picture><img src="assets/mark.webp" alt="A block of sandstone with a hammer, a trowel and a compass on it, and a banner that says Mason" width="840" height="770" loading="lazy" /></picture><figcaption class="label">The mark</figcaption></figure>
+        <figure><picture><img src="assets/plate-stone.webp" alt="A hand in a sackcloth sleeve on a computer mouse cut from stone" width="820" height="539" loading="lazy" /></picture><figcaption class="label">Work, in stone</figcaption></figure>
+        <figure><picture><img src="assets/work.webp" alt="A hand in a wide sleeve on a computer mouse carved from wood" width="690" height="440" loading="lazy" /></picture><figcaption class="label">Work, as the island shows it</figcaption></figure>
+      </div>
     </div>
   </section>
 </main>
 
 <footer>
-  <span>Mason · built solo by Gustaf Garnow, Stockholm</span>
-  <span>Challenge 01, The AI Apprentice · Hack-Nation 7th Global AI Hackathon</span>
+  <div class="wrap">
+    <div class="foot">
+      <div class="sign">
+        <img src="assets/mark.webp" alt="" width="840" height="770" loading="lazy" />
+        <p><b>MASON</b><span>The mason was there.</span></p>
+      </div>
+      <nav class="links" aria-label="Elsewhere">
+        <a href="https://github.com/Baltsar"><b>Gustaf Garnow</b><span class="label">github.com/Baltsar</span></a>
+        <a href="https://headless.design"><b>Portfolio</b><span class="label">headless.design</span></a>
+        <a href="https://opensverige.se"><b>OpenSverige</b><span class="label">opensverige.se</span></a>
+        <a href="__REPO__"><b>Source</b><span class="label">__REPO_NAME__</span></a>
+      </nav>
+    </div>
+    <p class="fine">Built solo by Gustaf Garnow, Stockholm. Challenge 01, The AI Apprentice, at the <span class="nb">Hack-Nation</span> 7th Global AI Hackathon.</p>
+  </div>
 </footer>
 
-<script type="module">
-  import { reviewDecision } from "./teach-engine.js";
-
-  const PRESETS = __PRESETS__;
-  const map = await fetch("workmap.json").then((reply) => reply.json());
-  const field = document.getElementById("decision");
-  const verdict = document.getElementById("verdict");
-
-  const esc = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-
-  document.getElementById("chips").innerHTML = PRESETS.map((preset, index) => `<button type="button" data-preset="${index}">${esc(preset.label)}</button>`).join("");
-  document.getElementById("chips").addEventListener("click", (event) => {
-    const chip = event.target.closest("[data-preset]");
-    if (!chip) return;
-    field.value = PRESETS[Number(chip.dataset.preset)].text;
-    check();
-  });
-  field.value = PRESETS[0].text;
-
-  function check() {
-    const prompt = field.value.trim();
-    if (!prompt) return;
-    const { intervention, checked } = reviewDecision(prompt, map);
-    if (intervention) {
-      verdict.dataset.state = "stop";
-      verdict.innerHTML = `<h3>Stop.</h3><blockquote>“${esc(intervention.quote)}”</blockquote><p>${esc(intervention.guardrailTitle)}. Matched on <code>${esc(intervention.matched.join(", "))}</code>.</p>`;
-    } else {
-      verdict.dataset.state = "clear";
-      verdict.innerHTML = `<h3>Clear.</h3><p>Checked against ${checked} guardrails in the expert's words. Nothing stops this decision.</p>`;
-    }
-  }
-  document.getElementById("check").addEventListener("click", check);
+<script>
+  // Without script the film keeps the browser's own controls.
+  const film = document.querySelector(".film");
+  const video = film.querySelector("video");
+  const play = film.querySelector("button");
+  video.controls = false;
+  film.dataset.ready = "";
+  play.addEventListener("click", () => { play.remove(); video.controls = true; video.play(); });
 </script>
 </body>
 </html>

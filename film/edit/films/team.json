@@ -42,8 +42,8 @@
     {
       "id": "a4",
       "voice": "narrator",
-      "text": "Next: a Mason for every team.",
-      "hl": "for every team"
+      "text": "Next: a Mason for every team. People teach it first. Then every agent works inside the same guardrails.",
+      "hl": "for every team|the same guardrails"
     },
     {
       "id": "a6",
@@ -70,12 +70,7 @@
         "a2"
       ],
       "clip": {
-        "card": {
-          "kind": "title",
-          "kicker": "Meet the team",
-          "headline": "Gustaf Garnow",
-          "sub": "Designer · Stockholm · builds by talking to agents"
-        }
+        "image": "raw/my-team.jpg"
       }
     },
     {
