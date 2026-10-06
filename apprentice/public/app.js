@@ -5,8 +5,8 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 const native = window.webkit?.messageHandlers?.apprentice;
 
-const VIEWS = ["capture", "flow", "days", "map", "teach", "recap", "agents", "settings"];
-const LEGACY = { now: "capture", mcp: "agents" };
+const VIEWS = ["today", "flow", "days", "more", "map", "teach", "recap", "agents", "settings"];
+const LEGACY = { now: "today", capture: "today", mcp: "agents" };
 const TONES = { work: "var(--lime)", social: "var(--red)", other: "var(--grey)" };
 // Cases to try in Teach are made from the rules that are really in the map:
 // two that go against a rule, in the owner's own words, and one that is safe.
@@ -28,9 +28,9 @@ const TOOLS = [
 ];
 
 let snapshot;
-let view = "capture";
+let view = "today";
 // Which line of each result is pressed open.
-const drill = { capture: null, map: null, flow: null };
+const drill = { today: null, map: null, flow: null };
 let verdict = null;
 let lastStop = null;
 let listening = null;
@@ -40,6 +40,8 @@ let clockTimer = null;
 let playing = null;
 let todayPlaying = false;
 let airTimer = null;
+// Whether the proposal on screen shows what it rests on.
+let proposeOpen = false;
 // What the settings screen shows: the settings and the state of what Mason depends on.
 let prefs = null;
 // How a day moved between tools: the day shown (none is today) and the tool picked in it.
@@ -116,32 +118,81 @@ const MIC = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 // An answer field that can be spoken into: the words appear as they are heard.
 const answerField = (id, placeholder) => `<div class="composer"><textarea id="${id}" rows="2" placeholder="${placeholder}"></textarea>${canVoice() ? `<button class="mic" type="button" data-mic="${id}" aria-pressed="false" aria-label="Answer by voice" title="Answer by voice">${MIC}</button>` : ""}</div>`;
 
-/* 01 · Capture */
+/* Today: the day against what it is for */
 
 // Every view is read in a second or three: figures in large type, a few words,
 // and the detail one press away.
 let openProject = null;
+// The list of every recent project, opened from "Another project".
+let aimOthers = false;
 
-function renderCapture() {
-  const { activity } = snapshot;
+function renderToday() {
+  const { activity, aim } = snapshot;
   const measured = activity.totalSeconds > 0;
-  // Before anything is measured the page says what happens next.
-  $("#capture-meta").textContent = measured ? minutes(activity.totalSeconds) : "Work as usual. Mason is watching.";
-  renderBigs($("#capture-bigs"), ["work", "social", "other"].map((name) => ({
-    key: name, number: measured ? activity.groups[name].percent : "–", unit: measured ? "%" : "", word: name, meta: "", tone: TONES[name],
-  })), drill.capture);
+  const day = new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  $("#today-meta").textContent = measured ? `${day} · ${minutes(activity.totalSeconds)}` : "Work as usual. Mason is watching.";
+  $("#aim-change").hidden = !aim.aim;
+
+  // The aim, or the question of what it is: three things left open, one press.
+  const node = $("#aim");
+  if (aim.aim) {
+    paint(node, JSON.stringify(aim.aim), `<h1 class="statement">${esc(aim.aim.project)}</h1>${aim.aim.text ? `<p class="lede">${esc(aim.aim.text)}</p>` : ""}`);
+  } else if (aim.proposals.length) {
+    const others = aimOthers ? aim.others.filter((name) => !aim.proposals.some((item) => item.project === name)) : [];
+    paint(node, JSON.stringify([aim.proposals, aimOthers, others]), `<h1 class="statement">What is today for?</h1>
+      <ol class="aims">${aim.proposals.map((item) => `<li><button type="button" data-aim="${esc(item.project)}" data-text="${esc(item.text)}"><b>${esc(item.project)}</b><span>${esc(item.text || item.headline)}</span></button></li>`).join("")}
+      ${others.map((name) => `<li><button type="button" data-aim="${esc(name)}" data-text=""><b>${esc(name)}</b><span></span></button></li>`).join("")}</ol>
+      ${aim.others.length > aim.proposals.length && !aimOthers ? `<button class="quiet" type="button" data-aim-others>Another project</button>` : ""}`);
+  } else {
+    paint(node, "none", "");
+  }
+
+  // Against an aim the day splits into on it, social and elsewhere; without
+  // one it is work, social and other, as before.
+  const rows = aim.aim
+    ? [
+      { key: "on", number: measured ? aim.onPercent : "–", unit: measured ? "%" : "", word: "on it", meta: aim.longestOn ? `longest ${minutes(aim.longestOn.seconds)}` : "", tone: "var(--lime)" },
+      { key: "social", number: measured ? aim.socialPercent : "–", unit: measured ? "%" : "", word: "social", meta: "", tone: TONES.social },
+      { key: "elsewhere", number: measured ? aim.elsewherePercent : "–", unit: measured ? "%" : "", word: "elsewhere", meta: aim.away.count ? `left ${aim.away.count} ${aim.away.count === 1 ? "time" : "times"}` : "", tone: TONES.other },
+    ]
+    : ["work", "social", "other"].map((name) => ({ key: name, number: measured ? activity.groups[name].percent : "–", unit: measured ? "%" : "", word: name, meta: "", tone: TONES[name] }));
+  if (drill.today && !rows.some((row) => row.key === drill.today)) drill.today = null;
+  renderBigs($("#today-bigs"), rows, drill.today);
   renderDrill();
+
+  // The one thing worth saying about the day, and what is waiting right now.
+  const said = $("#today-said");
+  const ready = aim.ready.map((answer) => answer.project).filter((name, index, all) => all.indexOf(name) === index);
+  const line = ready.length ? `${ready.length === 1 ? "An answer is" : `${ready.length} answers are`} ready: ${ready.join(", ")}.` : aim.sentence?.text || "";
+  said.hidden = !line;
+  said.dataset.tone = ready.length ? "ready" : aim.sentence?.tone || "plain";
+  said.textContent = line;
+
+  renderPropose();
   renderProjects();
-  renderSession();
   renderQuestion();
   renderSignals();
 }
 
 function renderDrill() {
-  const node = $("#capture-drill");
-  const name = drill.capture;
+  const node = $("#today-drill");
+  const name = drill.today;
   node.hidden = !name;
   if (!name) { delete node.dataset.sig; return; }
+  const { aim } = snapshot;
+  const bars = (items, label, value, tone) => {
+    const longest = Math.max(1, ...items.map(value));
+    return items.length ? `<ul class="bars wide">${items.map((item) => `<li style="--w:${Math.round((value(item) / longest) * 100)}%;--tone:${tone}"><span><em>${esc(label(item))}</em></span><i></i><b>${item.count ?? minutes(item.seconds)}</b></li>`).join("")}</ul>` : `<p class="empty">Nothing.</p>`;
+  };
+  if (name === "on") {
+    // When it was begun, the longest stretch, and what it was left for.
+    const facts = [aim.startedOnAt ? `Begun ${clock(aim.startedOnAt)}` : "Not begun", aim.longestOn ? `longest ${minutes(aim.longestOn.seconds)} at ${clock(aim.longestOn.startedAt)}` : null, aim.away.count ? `left ${aim.away.count} times` : null].filter(Boolean).join(" · ");
+    return paint(node, JSON.stringify(["on", facts, aim.away.to]), `<header><h2>${esc(aim.aim.project)}</h2><p>${esc(facts)}</p></header>${aim.away.to.length ? bars(aim.away.to, (item) => item.name, (item) => item.count, "var(--lime)") : ""}`);
+  }
+  if (name === "elsewhere") {
+    const waited = aim.waited.seconds >= 60 ? `<header><h2>Answers waited ${minutes(aim.waited.seconds)}</h2><p>${aim.waited.answers} finished while you were elsewhere</p></header>${bars(aim.waited.where, (item) => item.tool, (item) => item.seconds, "var(--gold)")}` : "";
+    return paint(node, JSON.stringify(["elsewhere", aim.elsewhere, aim.waited]), `${bars(aim.elsewhere, (item) => item.tool, (item) => item.seconds, TONES.other)}${waited}`);
+  }
   const group = snapshot.activity.groups[name];
   const longest = Math.max(1, ...group.apps.map((item) => item.seconds));
   paint(node, JSON.stringify([name, group.seconds, group.apps.length]), `
@@ -149,6 +200,21 @@ function renderDrill() {
       <div>${group.apps.length ? `<ul class="bars">${group.apps.map((item) => `<li style="--w:${Math.round((item.seconds / longest) * 100)}%;--tone:${item.color}"><span>${esc(item.app)}</span><i></i><b>${minutes(item.seconds)}</b></li>`).join("")}</ul>` : `<p class="empty">Nothing.</p>`}</div>
       <div>${group.windows.length ? `<ul class="windows">${group.windows.slice(0, 5).map((item) => `<li><span>${esc(item.window || item.app)}</span><b>${minutes(item.seconds)}</b></li>`).join("")}</ul>` : ""}</div>
     </div>`);
+}
+
+// Something Mason has seen often enough to propose a change. One at a time,
+// with what it rests on, and never done without a press.
+function renderPropose() {
+  const node = $("#propose");
+  const proposal = snapshot.suggestions?.open?.[0];
+  node.hidden = !proposal;
+  if (!proposal) { delete node.dataset.sig; return; }
+  paint(node, JSON.stringify([proposal, proposeOpen]), `<p class="label">You keep saying this · ${proposal.times} times in ${proposal.projects} projects</p>
+    <h2>${esc(proposal.rule)}</h2>
+    ${proposeOpen ? `<ul class="quotes">${proposal.evidence.map((item) => `<li><b>${esc(item.project)}</b><span>“${esc(item.example)}”</span></li>`).join("")}</ul>
+      <textarea id="propose-rule" rows="2" aria-label="The rule, in the words it will be written in">${esc(proposal.rule)}</textarea>
+      <p class="where">One line in ${esc(proposal.file)}, where every agent reads it. A default, not a law: what a prompt asks for comes first. It can be taken out again in Settings.</p>` : ""}
+    <div class="row"><button class="primary" type="button" data-propose="apply" data-id="${esc(proposal.id)}">Tell every agent</button><button class="secondary" type="button" data-propose="dismiss" data-id="${esc(proposal.id)}">No</button><button class="quiet" type="button" data-propose-open>${proposeOpen ? "Less" : "What I said"}</button></div>`);
 }
 
 // A project is one line: its name, where it was left in a few words, its time.
@@ -239,7 +305,20 @@ function renderSignals() {
   paint($("#signals"), rows[0]?.id || "none", rows.map((event) => `<li data-type="${esc(event.type)}"><time>${clock(event.at, true)}</time><b>${esc(event.app || "Mason")}</b><span>${esc(describe(event))}</span></li>`).join(""));
 }
 
-/* 02 · Map */
+/* More: what was built for handing the work to someone else */
+
+function renderMore() {
+  const { stats, teach, podcast } = snapshot;
+  const doors = [
+    ["map", "Map", `${stats.steps} ${stats.steps === 1 ? "step" : "steps"}`],
+    ["teach", "Teach", `${teach.stops} stopped`],
+    ["recap", "Recap", podcast.episode ? podcast.episode.title : "The week as news"],
+    ["agents", "Agents", "One memory, every agent"],
+  ];
+  paint($("#doors"), JSON.stringify(doors), doors.map(([name, title, note]) => `<button type="button" data-view="${name}"><b>${title}</b><span>${esc(note)}</span></button>`).join(""));
+}
+
+/* Map */
 
 function renderMap() {
   const { stats } = snapshot;
@@ -248,6 +327,7 @@ function renderMap() {
     { key: "calls", number: stats.judgementCalls, word: "judgement calls", meta: "", tone: "var(--lime)" },
     { key: "guardrails", number: stats.guardrails, word: "guardrails", meta: "", tone: "var(--gold)" },
   ], drill.map);
+  renderSession();
   renderDebrief();
   renderSteps();
 }
@@ -664,10 +744,12 @@ function renderSettings() {
   const on = (text) => `<b>${esc(text)}</b>`;
   const off = (text) => `<b data-off>${esc(text)}</b>`;
   const { model, logs } = status;
+  const applied = snapshot?.suggestions?.applied || [];
   const writer = model.ready ? (model.name === "Claude" ? "Claude" : `${model.name} · ${model.onThisMac ? "on this Mac" : model.where}`) : model.name === "Claude" ? "Claude not found" : "No model named";
-  paint(node, JSON.stringify(prefs), `
+  paint(node, JSON.stringify([prefs, applied]), `
     <label class="set"><span>Name</span><input id="set-name" type="text" value="${esc(settings.name || name)}" maxlength="40" autocomplete="off" spellcheck="false" /></label>
     ${row("speech", "Sound")}
+    ${row("cues", "A word on the island", settings.cues ? on("Answer ready, time away") : off("Silent"))}
     <p class="group">Reads</p>
     <div class="set"><span>Screen: app, window, prompt</span>${status.access === "on" ? on("On") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
     ${row("logs", "Agent logs", settings.logs ? on(`Claude Code · ${logs.claude} ${logs.claude === 1 ? "project" : "projects"}`) : off("Not read"))}
@@ -677,6 +759,7 @@ function renderSettings() {
     ${status.elevenLabsKey
       ? row("elevenlabs", "ElevenLabs voice", settings.elevenlabs ? (status.credits ? on(`${thousands(status.credits.left)} credits left`) : "") : off("Mac voice, no calls"))
       : `<div class="set"><span>ElevenLabs voice</span>${off("No key in .env.local")}</div>`}
+    ${applied.length ? `<p class="group">Told every agent</p>${applied.map((rule) => `<div class="set rule"><span>${esc(rule.rule)}</span><button class="secondary" type="button" data-rule-remove="${esc(rule.id)}">Take out</button></div>`).join("")}` : ""}
     <p class="group">Keeps</p>
     <div class="set"><span>Memory</span><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Show in Finder</button></div>
     <div class="set"><span>Notes for Obsidian</span><button class="secondary" type="button" data-reveal="notes">Show in Finder</button></div>
@@ -691,12 +774,11 @@ async function loadPrefs() {
 /* Shell */
 
 function renderShell() {
-  const { activity, stats, teach, runtime, presence } = snapshot;
-  $("#nav-capture").textContent = activity.totalSeconds ? `${activity.workPercent}%` : "–";
+  const { activity, runtime, presence } = snapshot;
+  // With an aim the figure is how much of the day went to it; without one, the share that was work.
+  $("#nav-today").textContent = activity.totalSeconds ? `${snapshot.aim.aim ? snapshot.aim.onPercent : activity.workPercent}%` : "–";
   $("#nav-flow").textContent = activity.totalSeconds ? snapshot.flow.jumps : "–";
   $("#nav-days").textContent = snapshot.days || "–";
-  $("#nav-map").textContent = stats.steps;
-  $("#nav-teach").textContent = teach.stops;
   const pill = $("#presence");
   pill.dataset.state = presence;
   $("span", pill).textContent = {
@@ -713,7 +795,7 @@ function renderShell() {
 
 function render() {
   renderShell();
-  ({ capture: renderCapture, flow: renderFlow, days: renderDays, map: renderMap, teach: renderTeach, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
+  ({ today: renderToday, flow: renderFlow, days: renderDays, more: renderMore, map: renderMap, teach: renderTeach, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
 }
 
 async function load() {
@@ -829,6 +911,26 @@ async function act(event) {
   const nav = target.closest("[data-view]");
   if (nav) return show(nav.dataset.view);
 
+  const pick = target.closest("[data-aim]");
+  if (pick) {
+    snapshot.aim = await post("/api/aim", { action: "pick", project: pick.dataset.aim, text: pick.dataset.text });
+    aimOthers = false;
+    drill.today = null;
+    return load();
+  }
+  if (target.closest("[data-aim-others]")) { aimOthers = true; return render(); }
+  if (target.closest("#aim-change")) { snapshot.aim = await post("/api/aim", { action: "clear" }); drill.today = null; return load(); }
+  if (target.closest("[data-propose-open]")) { proposeOpen = !proposeOpen; return render(); }
+  const proposed = target.closest("[data-propose]");
+  if (proposed) {
+    snapshot.suggestions = await post("/api/suggestions", { action: proposed.dataset.propose, id: proposed.dataset.id, rule: $("#propose-rule")?.value || "" });
+    proposeOpen = false;
+    if (proposed.dataset.propose === "apply") toast("Added. Every agent reads it from now on.");
+    return render();
+  }
+  const taken = target.closest("[data-rule-remove]");
+  if (taken) { snapshot.suggestions = await post("/api/suggestions", { action: "remove", id: taken.dataset.ruleRemove }); toast("Taken out"); return renderSettings(); }
+
   const step = target.closest("[data-flow-step]");
   if (step) {
     const next = flow.days[flow.days.indexOf(flow.day) + Number(step.dataset.flowStep)];
@@ -863,7 +965,6 @@ async function act(event) {
     drill[view] = drill[view] === key ? null : key;
     return render();
   }
-  if (target.closest("[data-drill-close]")) { drill.capture = null; return render(); }
 
   const session = target.closest("[data-session]");
   if (session) {

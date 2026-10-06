@@ -67,9 +67,26 @@
       .big b { min-width: 2.05ch; font-size: 96px; line-height: .9; letter-spacing: -.075em; font-weight: 720; font-variant-numeric: tabular-nums; text-align: right; }
       .big b i { margin-left: 1px; font-size: .36em; font-style: normal; letter-spacing: -.02em; }
       .big > span { font-size: 34px; line-height: 1; letter-spacing: -.05em; font-weight: 680; }
-      .big[data-group="work"] b { color: var(--lime); }
+      .big > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .big:is([data-group="work"], [data-group="on"]) b { color: var(--lime); }
       .big[data-group="social"] b { color: var(--red); }
-      .big[data-group="other"] b { color: #8a8a90; }
+      .big:is([data-group="other"], [data-group="elsewhere"]) b { color: #8a8a90; }
+
+      /* What the day is for: asked once, answered with one press. And the one
+         thing worth saying about the day so far. */
+      .aims { display: grid; margin: 10px 0 2px; }
+      .aims:empty, .said:empty { display: none; }
+      .aims p { margin: 0 0 4px; font-size: 27px; line-height: 1.06; letter-spacing: -.04em; font-weight: 680; }
+      .aims button { display: grid; gap: 2px; width: 100%; padding: 11px 0; border: 0; border-top: 1px solid var(--line); background: transparent; text-align: left; }
+      .aims button b { overflow: hidden; font-size: 21px; letter-spacing: -.035em; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+      .aims button span { overflow: hidden; color: var(--muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+      .aims button:hover b { color: var(--lime); }
+      .said { margin: 12px 0 4px; padding-left: 12px; border-left: 3px solid var(--grey); font-size: 17px; line-height: 1.25; letter-spacing: -.02em; font-weight: 620; }
+      .said[data-tone="off"] { border-color: var(--red); }
+      .said[data-tone="on"] { border-color: var(--lime); }
+      .said[data-tone="ready"] { border-color: var(--gold); color: var(--gold); }
+      html:is([data-mode="ask"], [data-mode="call"]) :is(.aims, .said) { display: none; }
+      html[data-access="needed"][data-mode="full"] :is(.aims, .said) { display: none; }
 
       /* A question: the question, a field to answer in, a way out. */
       .ask { position: relative; margin: 0 0 16px; padding: 16px 16px 18px; overflow: hidden; border-radius: 17px; background: var(--gold); color: var(--night); animation: arrive .42s var(--ease) both; }
@@ -184,7 +201,9 @@
         <h2 id="access-line">Can’t see your work.</h2>
         <button class="fix" type="button" id="fix-access">Fix access</button>
       </section>
+      <div class="aims" id="aims"></div>
       <div class="bigs" id="bigs"></div>
+      <p class="said" id="said"></p>
     </div>
     <script type="module">
       import { canDictate, dictate, drawLevels, hearing } from "/voice.js";
@@ -487,16 +506,34 @@
         who.querySelector("b").textContent = locked ? statusWord(state) : project || statusWord(state);
         naming.label = null;
         // The very first time there is nothing to show yet: say what happens next.
-        $("#headline").textContent = memory?.headline || (!activity.totalSeconds && !locked ? "Work as usual. I am watching." : "");
+        // While the day has no aim, the question of what it is for is the one
+        // thing in large type; where the last project was left gives way to it.
+        const asking = !state.aim.aim && !locked && state.aim.proposals.length > 0;
+        $("#headline").textContent = asking ? "" : memory?.headline || (!activity.totalSeconds && !locked ? "Work as usual. I am watching." : "");
         const ready = runtime.debriefReady && state.voice.elevenLabs;
         $("#tools").innerHTML = `
           ${memory?.spoken ? `<button class="round play" type="button" id="memory-play" data-project="${esc(project)}" data-state="${playing === project ? "playing" : "idle"}" aria-label="${playing === project ? "Stop" : "Hear where you left off"}">${playing === project ? ICON.halt : ICON.play}</button>` : ""}
           ${state.voice.elevenLabs && memory?.left_off ? `<button class="round" type="button" id="recall" data-project="${esc(project)}" aria-label="Quiz me on this">${ICON.quiz}</button>` : ""}
           ${state.voice.elevenLabs ? `<button class="round ring" type="button" id="debrief" ${ready ? "data-ready" : ""} aria-label="${ready ? "Debrief is ready" : "Debrief call"}">${ICON.phone}</button>` : ""}`;
 
+        // With an aim the day splits into the aim, social and elsewhere; without
+        // one it asks what the day is for and shows work, social and other.
+        const { aim } = state;
+        const picks = !aim.aim && !locked ? aim.proposals : [];
+        const asked = JSON.stringify(picks);
+        if ($("#aims").dataset.sig !== asked) {
+          $("#aims").dataset.sig = asked;
+          $("#aims").innerHTML = picks.length ? `<p>What is today for?</p>${picks.map((item) => `<button type="button" data-aim="${esc(item.project)}" data-text="${esc(item.text)}"><b>${esc(item.project)}</b><span>${esc(item.text || item.headline)}</span></button>`).join("")}` : "";
+        }
+        const split = aim.aim
+          ? [["on", aim.onPercent, aim.aim.project], ["social", aim.socialPercent, "social"], ["elsewhere", aim.elsewherePercent, "elsewhere"]]
+          : ["work", "social", "other"].map((name) => [name, activity.groups[name].percent, name]);
         $("#bigs").innerHTML = activity.totalSeconds
-          ? ["work", "social", "other"].map((name, index) => `<button class="big" type="button" data-group="${name}" style="--i:${index}"><b>${activity.groups[name].percent}<i>%</i></b><span>${name}</span></button>`).join("")
+          ? split.map(([name, percent, word], index) => `<button class="big" type="button" data-group="${name}" style="--i:${index}"><b>${percent}<i>%</i></b><span>${esc(word)}</span></button>`).join("")
           : "";
+        const answered = [...new Set(aim.ready.map((answer) => answer.project))];
+        $("#said").dataset.tone = answered.length ? "ready" : aim.sentence?.tone || "plain";
+        $("#said").textContent = answered.length ? `Answer ready · ${answered.join(", ")}` : aim.sentence?.text || "";
         reportHeight();
       }
 
@@ -575,9 +612,11 @@
           if ($("#call").dataset.ear === "silent") return post("/api/access", { action: "sound" });
           return call?.cutIn();
         }
+        const pick = event.target.closest("[data-aim]");
+        if (pick) { await post("/api/aim", { action: "pick", project: pick.dataset.aim, text: pick.dataset.text }); return load(); }
         const big = event.target.closest(".big");
-        if (big) return open(`capture/${big.dataset.group}`);
-        if (event.target.closest(".headline, .who") && state.presence !== "permission") return open("capture");
+        if (big) return open(`today/${big.dataset.group}`);
+        if (event.target.closest(".headline, .who, .said") && state.presence !== "permission") return open("today");
       });
       document.addEventListener("submit", (event) => {
         event.preventDefault();

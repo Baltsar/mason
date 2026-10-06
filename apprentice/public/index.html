@@ -13,35 +13,32 @@
   <body>
     <a class="skip" href="#main">Skip to content</a>
     <header class="topbar">
-      <a class="brand" href="#capture" aria-label="Mason">
+      <a class="brand" href="#today" aria-label="Mason">
         <img src="/brand/mason-mark.png" alt="" />
         <span>MASON</span>
       </a>
       <nav class="stages" aria-label="Stages">
-        <button type="button" data-view="capture" aria-current="page"><span>Capture</span><b id="nav-capture">–</b></button>
+        <button type="button" data-view="today" aria-current="page"><span>Today</span><b id="nav-today">–</b></button>
         <button type="button" data-view="flow"><span>Flow</span><b id="nav-flow">–</b></button>
         <button type="button" data-view="days"><span>Days</span><b id="nav-days">–</b></button>
-        <button type="button" data-view="map"><span>Map</span><b id="nav-map">–</b></button>
-        <button type="button" data-view="teach"><span>Teach</span><b id="nav-teach">–</b></button>
       </nav>
       <div class="top-actions">
-        <button class="link" type="button" data-view="recap">Recap</button>
-        <button class="link" type="button" data-view="agents">Agents</button>
+        <button class="link more" type="button" data-view="more">More</button>
         <button class="link gear" type="button" data-view="settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z" /></svg></button>
         <button class="pill presence" id="presence" type="button"><i></i><span>Starting</span></button>
       </div>
     </header>
 
     <main id="main" tabindex="-1">
-      <section class="view" data-page="capture">
-        <p class="eyebrow"><span id="capture-meta"></span></p>
-        <div class="bigs" id="capture-bigs"></div>
-        <div class="drill" id="capture-drill" hidden></div>
+      <section class="view" data-page="today">
+        <p class="eyebrow"><span id="today-meta"></span><button class="quiet" type="button" id="aim-change" hidden>Change</button></p>
+        <div class="aim" id="aim"></div>
+        <div class="bigs" id="today-bigs"></div>
+        <div class="drill" id="today-drill" hidden></div>
+        <p class="said" id="today-said" hidden></p>
+        <section class="propose" id="propose" aria-live="polite" hidden></section>
         <section class="projects" id="projects-card" aria-live="polite" hidden></section>
-        <div class="pair">
-          <section class="card session" id="session-card" aria-live="polite"></section>
-          <section class="card ask" id="question-card" aria-live="polite" hidden></section>
-        </div>
+        <section class="card ask" id="question-card" aria-live="polite" hidden></section>
         <details class="log">
           <summary>Log<span id="trust-line"></span></summary>
           <ol id="signals"></ol>
@@ -65,8 +62,13 @@
         <section class="lanes" id="days-lanes" aria-label="Projects this month"></section>
       </section>
 
+      <section class="view" data-page="more" hidden>
+        <div class="doors" id="doors"></div>
+      </section>
+
       <section class="view" data-page="map" hidden>
         <div class="bigs" id="map-bigs"></div>
+        <section class="card session" id="session-card" aria-live="polite"></section>
         <section class="card debrief" id="debrief-card" aria-live="polite"></section>
         <section class="timeline" aria-label="Work Map">
           <div id="steps"></div>
