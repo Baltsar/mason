@@ -31,11 +31,12 @@
 
     <main id="main" tabindex="-1">
       <section class="view" data-page="today">
-        <p class="eyebrow"><span id="today-meta"></span><button class="quiet" type="button" id="aim-change" hidden>Change</button></p>
-        <div class="aim" id="aim"></div>
+        <p class="eyebrow"><span id="today-meta"></span></p>
         <div class="bigs" id="today-bigs"></div>
         <div class="drill" id="today-drill" hidden></div>
-        <p class="said" id="today-said" hidden></p>
+        <button class="said" type="button" id="today-said" hidden></button>
+        <div class="drill" id="today-waited" hidden></div>
+        <section class="lookback" id="lookback" aria-live="polite" hidden></section>
         <section class="propose" id="propose" aria-live="polite" hidden></section>
         <section class="projects" id="projects-card" aria-live="polite" hidden></section>
         <section class="card ask" id="question-card" aria-live="polite" hidden></section>

@@ -118,56 +118,50 @@ const MIC = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 // An answer field that can be spoken into: the words appear as they are heard.
 const answerField = (id, placeholder) => `<div class="composer"><textarea id="${id}" rows="2" placeholder="${placeholder}"></textarea>${canVoice() ? `<button class="mic" type="button" data-mic="${id}" aria-pressed="false" aria-label="Answer by voice" title="Answer by voice">${MIC}</button>` : ""}</div>`;
 
-/* Today: the day against what it is for */
+/* Today: the mirror, and after a few days how the work was done */
 
 // Every view is read in a second or three: figures in large type, a few words,
 // and the detail one press away.
 let openProject = null;
-// The list of every recent project, opened from "Another project".
-let aimOthers = false;
+// Whether the line about waiting answers, and the look back, show their numbers.
+let waitedOpen = false;
+let lookbackOpen = false;
+
+const barsOf = (items, label, value, tone, shown) => {
+  const longest = Math.max(1, ...items.map(value));
+  return items.length ? `<ul class="bars wide">${items.map((item) => `<li style="--w:${Math.round((value(item) / longest) * 100)}%;--tone:${tone}"><span><em>${esc(label(item))}</em></span><i></i><b>${shown(item)}</b></li>`).join("")}</ul>` : "";
+};
+const dates = (from, to) => {
+  const [first, last] = [dateOf(from), dateOf(to)];
+  const month = (date) => date.toLocaleDateString("en-GB", { month: "short" });
+  return from === to ? `${first.getDate()} ${month(first)}` : first.getMonth() === last.getMonth() ? `${first.getDate()}–${last.getDate()} ${month(last)}` : `${first.getDate()} ${month(first)} – ${last.getDate()} ${month(last)}`;
+};
 
 function renderToday() {
-  const { activity, aim } = snapshot;
+  const { activity, waiting } = snapshot;
   const measured = activity.totalSeconds > 0;
-  const day = new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-  $("#today-meta").textContent = measured ? `${day} · ${minutes(activity.totalSeconds)}` : "Work as usual. Mason is watching.";
-  $("#aim-change").hidden = !aim.aim;
-
-  // The aim, or the question of what it is: three things left open, one press.
-  const node = $("#aim");
-  if (aim.aim) {
-    paint(node, JSON.stringify(aim.aim), `<h1 class="statement">${esc(aim.aim.project)}</h1>${aim.aim.text ? `<p class="lede">${esc(aim.aim.text)}</p>` : ""}`);
-  } else if (aim.proposals.length) {
-    const others = aimOthers ? aim.others.filter((name) => !aim.proposals.some((item) => item.project === name)) : [];
-    paint(node, JSON.stringify([aim.proposals, aimOthers, others]), `<h1 class="statement">What is today for?</h1>
-      <ol class="aims">${aim.proposals.map((item) => `<li><button type="button" data-aim="${esc(item.project)}" data-text="${esc(item.text)}"><b>${esc(item.project)}</b><span>${esc(item.text || item.headline)}</span></button></li>`).join("")}
-      ${others.map((name) => `<li><button type="button" data-aim="${esc(name)}" data-text=""><b>${esc(name)}</b><span></span></button></li>`).join("")}</ol>
-      ${aim.others.length > aim.proposals.length && !aimOthers ? `<button class="quiet" type="button" data-aim-others>Another project</button>` : ""}`);
-  } else {
-    paint(node, "none", "");
-  }
-
-  // Against an aim the day splits into on it, social and elsewhere; without
-  // one it is work, social and other, as before.
-  const rows = aim.aim
-    ? [
-      { key: "on", number: measured ? aim.onPercent : "–", unit: measured ? "%" : "", word: "on it", meta: aim.longestOn ? `longest ${minutes(aim.longestOn.seconds)}` : "", tone: "var(--lime)" },
-      { key: "social", number: measured ? aim.socialPercent : "–", unit: measured ? "%" : "", word: "social", meta: "", tone: TONES.social },
-      { key: "elsewhere", number: measured ? aim.elsewherePercent : "–", unit: measured ? "%" : "", word: "elsewhere", meta: aim.away.count ? `left ${aim.away.count} ${aim.away.count === 1 ? "time" : "times"}` : "", tone: TONES.other },
-    ]
-    : ["work", "social", "other"].map((name) => ({ key: name, number: measured ? activity.groups[name].percent : "–", unit: measured ? "%" : "", word: name, meta: "", tone: TONES[name] }));
-  if (drill.today && !rows.some((row) => row.key === drill.today)) drill.today = null;
-  renderBigs($("#today-bigs"), rows, drill.today);
+  // Before anything is measured the page says what happens next.
+  $("#today-meta").textContent = measured ? `${new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} · ${minutes(activity.totalSeconds)}` : "Work as usual. Mason is watching.";
+  renderBigs($("#today-bigs"), ["work", "social", "other"].map((name) => ({
+    key: name, number: measured ? activity.groups[name].percent : "–", unit: measured ? "%" : "", word: name, meta: "", tone: TONES[name],
+  })), drill.today);
   renderDrill();
 
-  // The one thing worth saying about the day, and what is waiting right now.
+  // The one thing worth saying about today: an answer that is ready now, or
+  // how long finished answers were left. Pressed, it shows where the time went.
   const said = $("#today-said");
-  const ready = aim.ready.map((answer) => answer.project).filter((name, index, all) => all.indexOf(name) === index);
-  const line = ready.length ? `${ready.length === 1 ? "An answer is" : `${ready.length} answers are`} ready: ${ready.join(", ")}.` : aim.sentence?.text || "";
+  const ready = [...new Set(waiting.ready.map((answer) => answer.project))];
+  const line = ready.length ? `${ready.length === 1 ? "An answer is" : `${ready.length} answers are`} ready: ${ready.join(", ")}.` : waiting.sentence?.text || "";
   said.hidden = !line;
-  said.dataset.tone = ready.length ? "ready" : aim.sentence?.tone || "plain";
+  said.dataset.tone = ready.length ? "ready" : waiting.sentence?.tone || "plain";
   said.textContent = line;
+  said.setAttribute("aria-expanded", String(waitedOpen));
+  const where = $("#today-waited");
+  where.hidden = !line || !waitedOpen || !waiting.waited.where.length;
+  if (where.hidden) delete where.dataset.sig;
+  else paint(where, JSON.stringify(waiting.waited), `<header><h2>Answers waited ${minutes(waiting.waited.seconds)}</h2><p>${waiting.waited.answers} finished while you were somewhere else</p></header>${barsOf(waiting.waited.where, (item) => item.tool, (item) => item.seconds, "var(--gold)", (item) => minutes(item.seconds))}`);
 
+  renderLookback();
   renderPropose();
   renderProjects();
   renderQuestion();
@@ -179,20 +173,6 @@ function renderDrill() {
   const name = drill.today;
   node.hidden = !name;
   if (!name) { delete node.dataset.sig; return; }
-  const { aim } = snapshot;
-  const bars = (items, label, value, tone) => {
-    const longest = Math.max(1, ...items.map(value));
-    return items.length ? `<ul class="bars wide">${items.map((item) => `<li style="--w:${Math.round((value(item) / longest) * 100)}%;--tone:${tone}"><span><em>${esc(label(item))}</em></span><i></i><b>${item.count ?? minutes(item.seconds)}</b></li>`).join("")}</ul>` : `<p class="empty">Nothing.</p>`;
-  };
-  if (name === "on") {
-    // When it was begun, the longest stretch, and what it was left for.
-    const facts = [aim.startedOnAt ? `Begun ${clock(aim.startedOnAt)}` : "Not begun", aim.longestOn ? `longest ${minutes(aim.longestOn.seconds)} at ${clock(aim.longestOn.startedAt)}` : null, aim.away.count ? `left ${aim.away.count} times` : null].filter(Boolean).join(" · ");
-    return paint(node, JSON.stringify(["on", facts, aim.away.to]), `<header><h2>${esc(aim.aim.project)}</h2><p>${esc(facts)}</p></header>${aim.away.to.length ? bars(aim.away.to, (item) => item.name, (item) => item.count, "var(--lime)") : ""}`);
-  }
-  if (name === "elsewhere") {
-    const waited = aim.waited.seconds >= 60 ? `<header><h2>Answers waited ${minutes(aim.waited.seconds)}</h2><p>${aim.waited.answers} finished while you were elsewhere</p></header>${bars(aim.waited.where, (item) => item.tool, (item) => item.seconds, "var(--gold)")}` : "";
-    return paint(node, JSON.stringify(["elsewhere", aim.elsewhere, aim.waited]), `${bars(aim.elsewhere, (item) => item.tool, (item) => item.seconds, TONES.other)}${waited}`);
-  }
   const group = snapshot.activity.groups[name];
   const longest = Math.max(1, ...group.apps.map((item) => item.seconds));
   paint(node, JSON.stringify([name, group.seconds, group.apps.length]), `
@@ -200,6 +180,25 @@ function renderDrill() {
       <div>${group.apps.length ? `<ul class="bars">${group.apps.map((item) => `<li style="--w:${Math.round((item.seconds / longest) * 100)}%;--tone:${item.color}"><span>${esc(item.app)}</span><i></i><b>${minutes(item.seconds)}</b></li>`).join("")}</ul>` : `<p class="empty">Nothing.</p>`}</div>
       <div>${group.windows.length ? `<ul class="windows">${group.windows.slice(0, 5).map((item) => `<li><span>${esc(item.window || item.app)}</span><b>${minutes(item.seconds)}</b></li>`).join("")}</ul>` : ""}</div>
     </div>`);
+}
+
+// After a few days of work Mason says how it was done: up to three plain
+// sentences, written once and left as they were. The numbers are one press away.
+function renderLookback() {
+  const node = $("#lookback");
+  const back = snapshot.lookback;
+  node.hidden = !back?.lines.length;
+  if (node.hidden) { delete node.dataset.sig; return; }
+  const numbers = lookbackOpen ? `
+    <p class="stats"><b>${back.perHour}</b> changes of tool an hour<b>${Math.max(1, Math.round((back.longest?.seconds || 0) / 60))} min</b> longest in one<b>${back.prompts}</b> prompts<b>${Math.round(back.changes / back.days)}</b> changes of project a day</p>
+    <div class="drill-grid">
+      <div><h3>Where the time went</h3>${barsOf(back.projects, (item) => item.name, (item) => item.seconds, "var(--lime)", (item) => `${item.share}%`)}</div>
+      <div>${back.left.to.length ? `<h3>Right after a prompt</h3>${barsOf(back.left.to, (item) => item.tool, (item) => item.count, "var(--paper)", (item) => item.count)}` : ""}${back.waited.where.length ? `<h3>While answers waited</h3>${barsOf(back.waited.where.slice(0, 4), (item) => item.tool, (item) => item.seconds, "var(--gold)", (item) => minutes(item.seconds))}` : ""}</div>
+    </div>` : "";
+  paint(node, JSON.stringify([back.from, back.to, back.lines, lookbackOpen]), `<p class="label">${dates(back.from, back.to)} · how you worked</p>
+    ${back.lines.map((line) => `<p class="line">${esc(line)}</p>`).join("")}
+    ${numbers}
+    <button class="quiet" type="button" data-lookback-open>${lookbackOpen ? "Less" : "The numbers"}</button>`);
 }
 
 // Something Mason has seen often enough to propose a change. One at a time,
@@ -749,7 +748,7 @@ function renderSettings() {
   paint(node, JSON.stringify([prefs, applied]), `
     <label class="set"><span>Name</span><input id="set-name" type="text" value="${esc(settings.name || name)}" maxlength="40" autocomplete="off" spellcheck="false" /></label>
     ${row("speech", "Sound")}
-    ${row("cues", "A word on the island", settings.cues ? on("Answer ready, time away") : off("Silent"))}
+    ${row("cues", "A word on the island", settings.cues ? on("When an answer is ready") : off("Silent"))}
     <p class="group">Reads</p>
     <div class="set"><span>Screen: app, window, prompt</span>${status.access === "on" ? on("On") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
     ${row("logs", "Agent logs", settings.logs ? on(`Claude Code · ${logs.claude} ${logs.claude === 1 ? "project" : "projects"}`) : off("Not read"))}
@@ -775,8 +774,7 @@ async function loadPrefs() {
 
 function renderShell() {
   const { activity, runtime, presence } = snapshot;
-  // With an aim the figure is how much of the day went to it; without one, the share that was work.
-  $("#nav-today").textContent = activity.totalSeconds ? `${snapshot.aim.aim ? snapshot.aim.onPercent : activity.workPercent}%` : "–";
+  $("#nav-today").textContent = activity.totalSeconds ? `${activity.workPercent}%` : "–";
   $("#nav-flow").textContent = activity.totalSeconds ? snapshot.flow.jumps : "–";
   $("#nav-days").textContent = snapshot.days || "–";
   const pill = $("#presence");
@@ -911,15 +909,8 @@ async function act(event) {
   const nav = target.closest("[data-view]");
   if (nav) return show(nav.dataset.view);
 
-  const pick = target.closest("[data-aim]");
-  if (pick) {
-    snapshot.aim = await post("/api/aim", { action: "pick", project: pick.dataset.aim, text: pick.dataset.text });
-    aimOthers = false;
-    drill.today = null;
-    return load();
-  }
-  if (target.closest("[data-aim-others]")) { aimOthers = true; return render(); }
-  if (target.closest("#aim-change")) { snapshot.aim = await post("/api/aim", { action: "clear" }); drill.today = null; return load(); }
+  if (target.closest("#today-said")) { waitedOpen = !waitedOpen; return render(); }
+  if (target.closest("[data-lookback-open]")) { lookbackOpen = !lookbackOpen; return render(); }
   if (target.closest("[data-propose-open]")) { proposeOpen = !proposeOpen; return render(); }
   const proposed = target.closest("[data-propose]");
   if (proposed) {

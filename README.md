@@ -24,7 +24,7 @@ Live page with the pitch film: https://mason-demo-eight.vercel.app
 | **Talks, when you take the call** | Three ElevenLabs agents: a debrief about today, a recall call that asks what you still know about your own project, and a tutor that stops a new person before they break a rule. |
 | **Keeps it as files you own** | The memory is also a folder of plain Markdown notes with links between them: projects, rules and the Work Map. Open `apprentice/wiki/` in Obsidian or any editor. |
 | **Hands it to every agent** | The same memory is an MCP server: `how_was_it_built`, `guardrails_for_agents`, `check_decision`. |
-| **Holds the day up against its aim** | Today asks one thing, "What is today for?", and offers three things you left open; one press. From then on the figure in the menu bar is how much of the day went there, with how often you left it and for what, and how long finished answers from your agents were left waiting. A word on the island says when an answer is ready and you are somewhere else. |
+| **Looks back, unasked** | Mason is a mirror: it is never told what a day is for. After three days of work it says how the work was done, in at most three plain sentences: where you went right after sending a prompt, how long finished answers from your agents waited, how often you changed tool. Written once, left as it was, with the numbers one press away. A word on the island says when an answer is ready and you are somewhere else. |
 | **Proposes, and says why** | What you told your agents again and again in several projects is proposed as one line in the file every agent reads, shown with the words it rests on. Nothing is written without a press, the wording can be changed first, and a line can be taken out again. A rule that would let agents publish or delete without asking is never proposed. |
 | **Shows how you move** | Flow: the tools of the day with their own icons, and a line between two of them as thick as the jumps between them. Five tools, three habits, one band for the day; the rest is one press away. |
 | **Keeps the long view** | Days: a calendar of every day worked, back to the first day of each project, and each project's month as a strip. |
@@ -74,7 +74,7 @@ flowchart LR
 
 Nothing leaves the Mac until a voice is used: then the words to be spoken, the audio of an answer, and for a call a summary of the day. Summaries go through your own Claude login, the same place the prompts already went, or through any other model you point Mason at, one on the Mac included.
 
-A model is needed for three things only: the summary of a project, the script of the weekly recap, and saying which of your repeated rules mean the same. Watching, counting, Today, Flow, Days, the questions in a session and the written check in Teach are plain code.
+A model is needed for three things only: the summary of a project, the script of the weekly recap, and saying which of your repeated rules mean the same. Watching, counting, the look back, Flow, Days, the questions in a session and the written check in Teach are plain code.
 
 ## Where things are
 
@@ -98,7 +98,7 @@ macOS 13 or later, Node 18 or later, Xcode command line tools. No packages to in
 Press the island in the menu bar. The first time it asks for Accessibility, which is how it sees which app and window you are in. Name, sound and the rest are under the gear in the app window.
 
 ```bash
-npm test                           # 52 tests, no network, no data of yours needed
+npm test                           # 51 tests, no network, no data of yours needed
 ```
 
 ## Limits
@@ -112,7 +112,7 @@ npm test                           # 52 tests, no network, no data of yours need
 
 ## After the hackathon
 
-What was submitted to Hack-Nation 7 on 4 October 2026 is the tag `hack-nation-7`. Added after the deadline: Today with an aim for the day, the proposals, Flow, Days, the switches for ElevenLabs, the agent logs and naming chat and mail, and the choice of model for summaries. Map, Teach, Recap and Agents, built for the challenge, are under More.
+What was submitted to Hack-Nation 7 on 4 October 2026 is the tag `hack-nation-7`. Added after the deadline: the look back, the proposals, Flow, Days, the switches for ElevenLabs, the agent logs and naming chat and mail, and the choice of model for summaries. Map, Teach, Recap and Agents, built for the challenge, are under More.
 
 ## What is not in this repository
 

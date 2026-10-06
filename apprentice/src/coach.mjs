@@ -1,16 +1,15 @@
-import { percentages } from "./activity.mjs";
-import { NOT_A_TOOL, toolOf } from "./flow.mjs";
+import { buildFlow, NOT_A_TOOL, toolOf } from "./flow.mjs";
 
-// Knowing where a day went does not change it. For that the day has to be held
-// up against what it was meant to be for. So there is one aim a day, a project,
-// picked with one press from what was left open, and the day is measured
-// against it: how much went to it, how often it was left and for what, and how
-// long finished answers from the agents were left waiting.
+// Mason is a mirror. It is never told what a day is for: an aim that has to be
+// declared changes by the quarter of an hour and turns into a card to keep up
+// to date. What it can do without being told anything is look back. After a few
+// days it says how the work was done: how many things it was spread over, how
+// often the tool changed, where its owner went after sending a prompt, and how
+// long finished answers from the agents were left waiting. Facts, in the order
+// they stand out. No praise and no advice.
 
 // Under five seconds somewhere else is a glance, not leaving.
 const GLANCE_SECONDS = 5;
-// A longer gap than this is a break: what comes after it was not left for.
-const BREAK_MS = 15 * 60_000;
 // Where an agent's answer is read. With one of these in front, nothing waits.
 const AGENT_SURFACE = /^(claude|cursor|terminal|iterm2?|warp|ghostty|visual studio code|code|windsurf|zed)$/i;
 // An answer has to be left for this long before it counts as waiting.
@@ -19,6 +18,8 @@ const WAITING_MS = 30_000;
 const STALE_MS = 3 * 3_600_000;
 // Less of a day than this says nothing worth a sentence.
 const WORTH_A_SENTENCE_SECONDS = 30 * 60;
+// Leaving within this long of sending a prompt is leaving because of it.
+const AFTER_PROMPT_MS = 60_000;
 
 export const readsAnswers = (tool) => AGENT_SURFACE.test(String(tool || "").trim());
 
@@ -32,19 +33,22 @@ function spansOf(events, projectOf) {
     const tool = toolOf(event);
     if (!(seconds > 0) || !Number.isFinite(start) || !tool || NOT_A_TOOL.test(tool)) continue;
     const named = event.type === "private";
-    spans.push({ start, end: start + seconds * 1000, seconds, tool, project: named ? null : projectOf(event) || null, group: named ? "chat" : event.group || "other" });
+    const project = named ? null : projectOf(event) || null;
+    // Time inside a project is work, whatever its window is called.
+    spans.push({ start, end: start + seconds * 1000, seconds, tool, project, group: named ? "chat" : project ? "work" : event.group || "other" });
   }
   return spans.sort((a, b) => a.start - b.start);
 }
 
 const ranked = (seconds) => Object.entries(seconds).sort((a, b) => b[1] - a[1]).map(([tool, value]) => ({ tool, seconds: Math.round(value) }));
+const minutesOf = (seconds) => Math.max(1, Math.round(seconds / 60));
 
 // Active time somewhere else while a finished answer was waiting. Two answers
 // waiting at once count once. `turns` come from the agents' logs.
 function waitedOf(spans, turns, from, now) {
   const stretches = [];
   let answers = 0;
-  for (const turn of turns.filter((item) => item.ended && item.done >= from).sort((a, b) => a.done - b.done)) {
+  for (const turn of turns.filter((item) => item.ended && item.done >= from && item.done <= now).sort((a, b) => a.done - b.done)) {
     const back = spans.find((span) => readsAnswers(span.tool) && span.end > turn.done);
     const until = Math.min(back ? Math.max(back.start, turn.done) : now, turn.next ?? now, now);
     if (until - turn.done <= WAITING_MS) continue;
@@ -73,100 +77,95 @@ function readyOf(spans, turns, now) {
     .map((turn) => ({ project: turn.project, since: new Date(turn.done).toISOString() }));
 }
 
-// A day against its aim. `aim` is { project, text } or nothing; `projectOf`
-// says which project a moment on screen belonged to.
-export function measureDay(events, { aim = null, projectOf = (event) => event.project || null, turns = [], now = Date.now() } = {}) {
+// Today so far: how long finished answers were left waiting, and which are
+// waiting now. `projectOf` says which project a moment on screen belonged to.
+export function measureDay(events, { projectOf = (event) => event.project || null, turns = [], now = Date.now() } = {}) {
   const spans = spansOf(events, projectOf);
-  const on = (span) => Boolean(aim) && span.project === aim.project;
-  const totalSeconds = spans.reduce((sum, span) => sum + span.seconds, 0);
-  const elsewhere = {};
-  const projects = new Set();
-  let onSeconds = 0;
-  let socialSeconds = 0;
-  for (const span of spans) {
-    if (span.project) projects.add(span.project);
-    if (on(span)) onSeconds += span.seconds;
-    else {
-      if (span.group === "social") socialSeconds += span.seconds;
-      elsewhere[span.tool] = (elsewhere[span.tool] || 0) + span.seconds;
-    }
-  }
-  const [onPercent, socialPercent, elsewherePercent] = percentages([onSeconds, socialSeconds, totalSeconds - onSeconds - socialSeconds]);
-
-  // Stretches on the aim and away from it. A glance away does not end one.
-  const runs = [];
-  for (const span of spans) {
-    const last = runs.at(-1);
-    const state = on(span);
-    if (!state && span.seconds < GLANCE_SECONDS && last?.on) continue;
-    if (last && last.on === state && span.start - last.end < BREAK_MS) {
-      last.end = Math.max(last.end, span.end);
-      last.seconds += span.seconds;
-    } else {
-      // What a stretch away began with is what the aim was left for: another
-      // project by its name, anything else by its tool.
-      runs.push({ on: state, start: span.start, end: span.end, seconds: span.seconds, first: span.project || span.tool, left: Boolean(last?.on) && !state && span.start - last.end < BREAK_MS });
-    }
-  }
-  const leaves = runs.filter((run) => run.left);
-  const to = {};
-  for (const run of leaves) to[run.first] = (to[run.first] || 0) + 1;
-  const longest = runs.filter((run) => run.on).sort((a, b) => b.seconds - a.seconds)[0] || null;
-  const first = spans.find(on) || null;
-  const lastOn = spans.findLast(on) || null;
-  // How long it has been, in active time, since the aim was last in front.
-  const since = lastOn ? spans.filter((span) => span.start >= lastOn.end) : spans;
-
-  const from = spans[0]?.start ?? now;
   return {
-    totalSeconds: Math.round(totalSeconds),
-    aim: aim ? { project: aim.project, text: aim.text || "" } : null,
-    onSeconds: Math.round(onSeconds),
-    socialSeconds: Math.round(socialSeconds),
-    onPercent,
-    socialPercent,
-    elsewherePercent,
-    projects: projects.size,
-    away: { count: leaves.length, to: Object.entries(to).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count })).slice(0, 6) },
-    elsewhere: ranked(elsewhere).slice(0, 6),
-    longestOn: longest ? { seconds: Math.round(longest.seconds), startedAt: new Date(longest.start).toISOString() } : null,
-    startedOnAt: first ? new Date(first.start).toISOString() : null,
-    awayNowSeconds: aim ? Math.round(since.reduce((sum, span) => sum + span.seconds, 0)) : 0,
-    waited: waitedOf(spans, turns, from, now),
+    totalSeconds: Math.round(spans.reduce((sum, span) => sum + span.seconds, 0)),
+    waited: waitedOf(spans, turns, spans[0]?.start ?? now, now),
     ready: readyOf(spans, turns, now),
   };
 }
 
-// What today could be about: the projects worked on most over the last three
-// days that had any work, each with the first thing that was left open in it.
-// `days` is the ledger of the long view; `memories` what is remembered of each
-// project. Nothing has to be typed: one of them is pressed.
-export function proposeAims({ days = {}, memories = {}, today, limit = 3 } = {}) {
-  const minutes = new Map();
-  for (const day of Object.keys(days).filter((key) => key <= today).sort().slice(-3)) {
-    for (const [name, work] of Object.entries(days[day])) minutes.set(name, (minutes.get(name) || 0) + work.minutes);
-  }
-  // What is already being worked on today comes before what was worked on most.
-  const begun = (name) => days[today]?.[name]?.minutes || 0;
-  return [...minutes].sort((a, b) => begun(b[0]) - begun(a[0]) || b[1] - a[1]).slice(0, limit).map(([project]) => {
-    const memory = memories[project];
-    return { project, text: memory?.open?.[0] || memory?.left_off || "", headline: memory?.headline || "" };
-  });
+// The one thing worth saying about today, and nothing on an ordinary day.
+export function sentenceOf(measure) {
+  if (!measure || measure.totalSeconds < WORTH_A_SENTENCE_SECONDS || measure.waited.seconds < 20 * 60) return null;
+  const { waited } = measure;
+  return { tone: "off", text: `Finished answers waited ${minutesOf(waited.seconds)} minutes for you${waited.where[0] ? `, mostly while you were in ${waited.where[0].tool}` : ""}.` };
 }
 
-const minutesOf = (seconds) => Math.max(1, Math.round(seconds / 60));
+// How the work was done over a few days, said afterwards. `days` are the days
+// looked back on, oldest first, each with its events: [{ day, events }].
+export function lookBack(days, { projectOf = (event) => event.project || null, turns = [] } = {}) {
+  const worked = days.filter((day) => day.events.length);
+  if (!worked.length) return null;
+  const spans = spansOf(worked.flatMap((day) => day.events), projectOf);
+  if (!spans.length) return null;
+  const activeSeconds = spans.reduce((sum, span) => sum + span.seconds, 0);
+  const from = spans[0].start;
+  const to = Math.max(...spans.map((span) => span.end));
+  const share = (seconds) => Math.round((seconds / activeSeconds) * 100);
 
-// The one thing worth saying about a day: the first of these that is true, and
-// nothing at all when none is. A sentence that only repeats the figure above
-// it, or praises an ordinary day, is not said.
-// `tone` is "off" for something to change, "on" for something that went well.
-export function sentenceOf(measure) {
-  if (!measure || measure.totalSeconds < WORTH_A_SENTENCE_SECONDS) return null;
-  const { aim, waited, away } = measure;
-  if (aim && measure.onSeconds === 0) return { tone: "off", text: `${aim.project} was today's aim. It never came up.` };
-  if (aim && measure.onPercent < 25 && measure.totalSeconds >= 2 * 3600) return { tone: "off", text: `${aim.project} was today's aim. It got ${measure.onPercent}% of the day.` };
-  if (waited.seconds >= 20 * 60) return { tone: "off", text: `Finished answers waited ${minutesOf(waited.seconds)} minutes for you${waited.where[0] ? `, mostly while you were in ${waited.where[0].tool}` : ""}.` };
-  if (aim && away.count >= 15) return { tone: "off", text: `You left ${aim.project} ${away.count} times${away.to[0] ? `, most often for ${away.to[0].name}` : ""}.` };
-  if (aim && measure.longestOn && measure.longestOn.seconds >= 25 * 60) return { tone: "on", text: `${minutesOf(measure.longestOn.seconds)} minutes unbroken on ${aim.project}.` };
-  return null;
+  // What the time went to.
+  const perProject = {};
+  const perGroup = { work: 0, social: 0, chat: 0, other: 0 };
+  for (const span of spans) {
+    if (span.project) perProject[span.project] = (perProject[span.project] || 0) + span.seconds;
+    perGroup[span.group] = (perGroup[span.group] || 0) + span.seconds;
+  }
+  const projects = Object.entries(perProject).filter(([, seconds]) => seconds >= 600).sort((a, b) => b[1] - a[1]).map(([name, seconds]) => ({ name, seconds: Math.round(seconds), share: share(seconds) }));
+
+  // How it moved: the changes of tool, and the longest stay in one.
+  let jumps = 0;
+  let longest = null;
+  for (const day of worked) {
+    const flow = buildFlow(day.events);
+    jumps += flow.jumps;
+    if (flow.longest && (!longest || flow.longest.seconds > longest.seconds)) longest = { ...flow.longest, day: day.day };
+  }
+
+  // What was said to the agents, and what happened right after.
+  const said = turns.filter((turn) => turn.prompt >= from && turn.prompt <= to).sort((a, b) => a.prompt - b.prompt);
+  let changes = 0;
+  said.forEach((turn, index) => { if (index && said[index - 1].project !== turn.project) changes += 1; });
+  const went = {};
+  let left = 0;
+  for (const turn of said) {
+    const next = spans.find((span) => !readsAnswers(span.tool) && span.seconds >= GLANCE_SECONDS && span.start >= turn.prompt && span.start <= turn.prompt + AFTER_PROMPT_MS);
+    if (!next) continue;
+    left += 1;
+    went[next.tool] = (went[next.tool] || 0) + 1;
+  }
+  const waited = waitedOf(spans, turns, from, to);
+
+  const count = worked.length;
+  const perHour = activeSeconds >= 600 ? Math.round(jumps / (activeSeconds / 3600)) : 0;
+  const facts = {
+    from: worked[0].day,
+    to: worked.at(-1).day,
+    days: count,
+    activeSeconds: Math.round(activeSeconds),
+    projects: projects.slice(0, 6),
+    split: { work: share(perGroup.work), social: share(perGroup.social), chat: share(perGroup.chat), other: share(perGroup.other) },
+    jumps,
+    perHour,
+    longest,
+    prompts: said.length,
+    changes,
+    left: { count: left, share: said.length ? Math.round((left / said.length) * 100) : 0, to: Object.entries(went).sort((a, b) => b[1] - a[1]).map(([tool, times]) => ({ tool, count: times })).slice(0, 5) },
+    waited: { ...waited, perDay: Math.round(waited.seconds / count) },
+  };
+
+  // What stands out, as plain sentences, at most three. What can be seen
+  // nowhere else comes first: what happens around a prompt. Then the pace,
+  // and last what the other views already show a day at a time.
+  const lines = [];
+  if (said.length >= 10 && facts.left.share >= 30 && facts.left.to[0]) lines.push(`After ${facts.left.share}% of your prompts you were somewhere else within a minute, most often in ${facts.left.to[0].tool}.`);
+  if (facts.waited.perDay >= 10 * 60) lines.push(`Finished answers waited ${minutesOf(facts.waited.perDay)} minutes a day${waited.where[0] ? `, mostly while you were in ${waited.where[0].tool}` : ""}.`);
+  if (perHour >= 20 && longest) lines.push(`You changed tool ${perHour} times an hour. The longest you stayed in one was ${minutesOf(longest.seconds)} minutes, in ${longest.tool}.`);
+  if (said.length >= 10 && changes / count >= 8) lines.push(`You changed project ${Math.round(changes / count)} times a day between your prompts.`);
+  if (projects.length) lines.push(`${projects.length} ${projects.length === 1 ? "project" : "projects"} in ${count} ${count === 1 ? "day" : "days"}. ${projects[0].name} got the most: ${projects[0].share}% of the time.`);
+  if (facts.split.social + facts.split.chat >= 25) lines.push(`${facts.split.social}% went to social and ${facts.split.chat}% to chat.`);
+  return { ...facts, lines: lines.slice(0, 3) };
 }

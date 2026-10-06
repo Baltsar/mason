@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { dayKey, daysOf, movesOf } from "../src/days.mjs";
+import { dayKey, daysOf, dueDays, movesOf } from "../src/days.mjs";
 
 // Local times, as the day is the owner's day and not the UTC one.
 const at = (day, hour, minute = 0) => new Date(2026, 9, day, hour, minute).getTime();
@@ -31,4 +31,14 @@ test("how a day moved is kept with it: the time in front and the jumps", () => {
   const spent = (app, start, seconds) => ({ type: "activity", app, window: "", group: "work", durationSec: seconds, startedAt: new Date(start).toISOString(), at: new Date(start).toISOString() });
   const moves = movesOf([spent("Claude", at(4, 9), 300), spent("Cursor", at(4, 9, 6), 200), spent("Claude", at(4, 9, 10), 100), spent("Claude", at(5, 9), 20)]);
   assert.deepEqual(moves, { "2026-10-04": { seconds: 600, jumps: 2, tools: 2 } });
+});
+
+test("a look back is due after three finished days of real work, and never covers today", () => {
+  const worked = { seconds: 4 * 3600, jumps: 90, tools: 6 };
+  const moves = { "2026-10-01": worked, "2026-10-02": { seconds: 900, jumps: 4, tools: 2 }, "2026-10-03": worked, "2026-10-04": worked, "2026-10-05": worked, "2026-10-06": worked };
+  // Two real days are not enough; the short one does not count.
+  assert.deepEqual(dueDays(moves, [], "2026-10-04"), []);
+  assert.deepEqual(dueDays(moves, [], "2026-10-06"), ["2026-10-01", "2026-10-03", "2026-10-04", "2026-10-05"]);
+  // Once written, the same days are not looked back on again.
+  assert.deepEqual(dueDays(moves, [{ from: "2026-10-01", to: "2026-10-05" }], "2026-10-07"), []);
 });

@@ -13,8 +13,7 @@ import { aggregateActivity, classifyActivity, dayStart } from "./activity.mjs";
 import { buildFlow } from "./flow.mjs";
 import { ICON_FILE, iconFolder, iconsFor } from "./icons.mjs";
 import { dayKey, daysPayload, loadDays, refreshDays } from "./days.mjs";
-import { measureDay, proposeAims, readsAnswers, sentenceOf } from "./coach.mjs";
-import { aimOf, setAim } from "./aims.mjs";
+import { measureDay, readsAnswers, sentenceOf } from "./coach.mjs";
 import { applySuggestion, dismissSuggestion, refreshSuggestions, removeRule, suggestionsPayload } from "./suggest.mjs";
 import { mastery, reviewDecision } from "./teach-engine.mjs";
 import { buildGaps, buildTeachBack, confirmation, debriefProgress } from "./debrief.mjs";
@@ -31,7 +30,7 @@ await ensureStore();
 await loadSettings();
 let clients = new Set();
 // Changes the island should show at once, rather than at its next poll.
-const NUDGES = new Set(["question", "answer", "control", "session", "intervention", "call", "window", "prompt", "presence", "podcast", "memory", "aim"]);
+const NUDGES = new Set(["question", "answer", "control", "session", "intervention", "call", "window", "prompt", "presence", "podcast", "memory"]);
 const broadcast = (kind = "update") => {
   for (const response of clients) response.write(`event: update\ndata: ${JSON.stringify({ kind, at: new Date().toISOString() })}\n\n`);
   // The desktop app ignores USR1 only once it has started; before that the signal would end it.
@@ -102,63 +101,34 @@ async function flowPayload(asked) {
   return { ...flow, day, today: current, days: [...new Set([...Object.keys(known.moves), current])].sort(), tools: flow.tools.map((tool) => ({ ...tool, icon: icons[tool.name] || null })) };
 }
 
-// Today against its aim: how much of it went there, how often it was left and
-// for what, and the answers that waited. Asked for every few seconds by the
-// island, so it is worked out again only when something was written or a
-// moment has passed.
-let aimMemo = { key: "", at: 0, value: null };
-async function aimPayload() {
-  const day = dayKey(Date.now());
-  const [memo, index, aim, known] = await Promise.all([today(), projectIndex(dayStart()), aimOf(day), loadDays()]);
-  const key = `${day}|${eventsVersion()}|${aim?.project || ""}|${aim?.pickedAt || ""}`;
-  if (aimMemo.value && aimMemo.key === key && Date.now() - aimMemo.at < 10_000) return aimMemo.value;
-  const measure = measureDay(await readEventsSince(dayStart()), { aim, projectOf: (sample) => index.of(sample), turns: index.turns(), now: Date.now() });
-  // What is remembered of the projects worked on lately, as it is on disk:
-  // proposing an aim asks no model anything.
-  const recent = [...new Set(Object.keys(known.days).filter((key) => key <= day).sort().slice(-3).flatMap((key) => Object.keys(known.days[key])))];
-  const remembered = Object.fromEntries(await Promise.all(recent.map(async (name) => [name, memories.get(name) || await savedMemory(name)])));
-  const value = {
-    day,
-    aim,
-    ...measure,
-    work: memo.value.workPercent,
-    proposals: aim ? [] : proposeAims({ days: known.days, memories: remembered, today: day }),
-    // Every project of the last two weeks, for an aim that is none of the three.
-    others: aim ? [] : [...new Set(Object.keys(known.days).filter((key) => key <= day).sort().slice(-14).reverse().flatMap((key) => Object.keys(known.days[key])))],
-    sentence: sentenceOf(measure),
-    // The thing to begin with next time: what is still open in the aim's project.
-    next: aim ? (remembered[aim.project]?.open || []).find((line) => line !== aim.text) || null : null,
-  };
-  aimMemo = { key, at: Date.now(), value };
+// Today's answers from the agents: how long finished ones were left waiting,
+// and which are waiting now. Asked for every few seconds by the island, so it
+// is worked out again only when something was written or a moment has passed.
+let waitingMemo = { key: "", at: 0, value: null };
+async function waitingPayload() {
+  const key = `${dayStart()}|${eventsVersion()}`;
+  if (waitingMemo.value && waitingMemo.key === key && Date.now() - waitingMemo.at < 10_000) return waitingMemo.value;
+  const index = await projectIndex(dayStart());
+  const measure = measureDay(await readEventsSince(dayStart()), { projectOf: (sample) => index.of(sample), turns: index.turns(), now: Date.now() });
+  const value = { ...measure, sentence: sentenceOf(measure) };
+  waitingMemo = { key, at: Date.now(), value };
   return value;
 }
 
-// A word on the island, there for a moment and gone: an answer that is ready
-// while its owner is somewhere else, and a long stretch away from today's aim.
-// Never a panel, never a sound.
-const AWAY_CUE_SECONDS = 15 * 60;
-const AWAY_CUE_EVERY_MS = 30 * 60_000;
+// A word on the island, there for a moment and gone: an answer that has just
+// come while its owner is somewhere else. Never a panel, never a sound.
 const JUST_NOW_MS = 2 * 60_000;
 const cued = new Set();
-let awayCueAt = 0;
-const brief = (name) => short(name, 20);
-function cueFor(measure, runtime, project) {
+function cueFor(measure, runtime) {
   if (!settings().cues || runtime.session?.active) return null;
   const state = presence(runtime);
   // Only someone who is at the Mac, and not already where answers are read.
   if (!(state === "private-surface" || state === "watching" && !readsAnswers(runtime.currentApp))) return null;
-  // Only an answer that has just come: an old one is on the panel, not announced.
+  // An old answer is on the panel, not announced.
   const ready = measure.ready.find((answer) => !cued.has(`${answer.project}|${answer.since}`) && Date.now() - Date.parse(answer.since) < JUST_NOW_MS);
-  if (ready) {
-    cued.add(`${ready.project}|${ready.since}`);
-    return `Answer ready · ${brief(ready.project)}`;
-  }
-  const { aim } = measure;
-  if (aim && project !== aim.project && measure.awayNowSeconds >= AWAY_CUE_SECONDS && Date.now() - awayCueAt > AWAY_CUE_EVERY_MS) {
-    awayCueAt = Date.now();
-    return measure.startedOnAt ? `${Math.round(measure.awayNowSeconds / 60)} min away · ${brief(aim.project)}` : `Not on it yet · ${brief(aim.project)}`;
-  }
-  return null;
+  if (!ready) return null;
+  cued.add(`${ready.project}|${ready.since}`);
+  return `Answer ready · ${short(ready.project, 20)}`;
 }
 
 // The days are brought up to date in the background, at most every few minutes.
@@ -313,7 +283,7 @@ async function confirmTeachBack(map, source) {
 }
 
 async function statePayload() {
-  const [map, runtime, events, activity, projects, sinceMorning, index, podcast, days, aim, suggestions] = await Promise.all([loadMap(), loadRuntime(), readEvents(60), todayActivity(), todayProjects(), readEventsSince(dayStart()), projectIndex(dayStart()), podcastState(), loadDays(), aimPayload(), suggestionsPayload()]);
+  const [map, runtime, events, activity, projects, sinceMorning, index, podcast, days, waiting, suggestions] = await Promise.all([loadMap(), loadRuntime(), readEvents(60), todayActivity(), todayProjects(), readEventsSince(dayStart()), projectIndex(dayStart()), podcastState(), loadDays(), waitingPayload(), suggestionsPayload()]);
   // The project in front right now (often none: a feed, a video), and the last
   // project that has something remembered about it.
   const inFront = runtime.currentApp && !runtime.currentPrivate ? index.resolve({ app: runtime.currentApp, window: runtime.currentWindow || "", at: new Date().toISOString() }) : null;
@@ -329,7 +299,9 @@ async function statePayload() {
     projects,
     memories: Object.fromEntries(memories),
     podcast,
-    aim,
+    waiting,
+    // How the last few days of work were done, as it was written down then.
+    lookback: days.lookbacks.at(-1) || null,
     suggestions,
     // The figures the top bar shows for the two views that load by themselves.
     flow: { jumps: (await today()).flow.jumps },
@@ -352,21 +324,19 @@ async function statePayload() {
 }
 
 async function islandPayload() {
-  const [map, runtime, activity, index, measure] = await Promise.all([loadMap(), loadRuntime(), todayActivity(), projectIndex(dayStart()), aimPayload()]);
+  const [map, runtime, activity, index, waiting] = await Promise.all([loadMap(), loadRuntime(), todayActivity(), projectIndex(dayStart()), waitingPayload()]);
   const question = map.questions.find((item) => item.status === "open");
   const project = runtime.currentApp ? index.resolve({ app: runtime.currentApp, window: runtime.currentWindow || "", at: new Date().toISOString() }) : null;
   return {
     status: presence(runtime),
     app: runtime.currentApp,
     project,
-    returning: returningTo(runtime, project) || cueFor(measure, runtime, project),
+    returning: returningTo(runtime, project) || cueFor(waiting, runtime),
     category: runtime.currentCategory,
     group: runtime.currentGroup,
-    // With an aim for the day, the figure on the island is how much of the day
-    // went to it; without one it is the share that was work.
-    work: measure.aim ? measure.onPercent : activity.workPercent,
-    social: measure.aim ? measure.socialPercent : activity.socialPercent,
-    other: measure.aim ? measure.elsewherePercent : activity.otherPercent,
+    work: activity.workPercent,
+    social: activity.socialPercent,
+    other: activity.otherPercent,
     totalSeconds: activity.totalSeconds,
     question: question ? { id: question.id, kind: question.kind, text: question.text, evidence: question.evidence } : null,
     session: runtime.session?.active ? { startedAt: runtime.session.startedAt, questions: runtime.session.questions || 0 } : null,
@@ -395,21 +365,6 @@ const server = http.createServer(async (request, response) => {
     const post = request.method === "POST";
     if (url.pathname === "/api/island" && request.method === "GET") return json(response, 200, await islandPayload());
     if (url.pathname === "/api/state" && request.method === "GET") return json(response, 200, await statePayload());
-    if (url.pathname === "/api/aim") {
-      if (post) {
-        const input = await body(request);
-        // An aim is a project that is really there; anything else is no aim.
-        const known = await loadDays();
-        const names = new Set([...Object.values(known.days).flatMap((worked) => Object.keys(worked)), ...(await projectIndex(dayStart())).list.map((project) => project.name)]);
-        const picked = input.action === "pick" && names.has(String(input.project || "")) ? { project: String(input.project), text: input.text } : null;
-        if (input.action === "pick" && !picked) return json(response, 400, { error: "No such project" });
-        await setAim(dayKey(Date.now()), picked);
-        aimMemo.at = 0;
-        awayCueAt = Date.now();
-        broadcast("aim");
-      }
-      return json(response, 200, await aimPayload());
-    }
     if (url.pathname === "/api/suggestions") {
       if (post) {
         const input = await body(request);
