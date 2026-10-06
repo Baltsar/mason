@@ -107,7 +107,7 @@ npm test                           # 53 tests, no network, no data of yours need
 - The memory is stored on the Mac, but the voice is not: speech, calls and dictation go through ElevenLabs, and summaries through your Claude login or the model you chose. Both have a switch in Settings. With ElevenLabs and summaries switched off, nothing leaves the Mac: Mason then speaks with the Mac's own voice, there are no calls, and the memory is your own words.
 - macOS only. The memory is built from Claude Code logs; chats in ChatGPT or on claude.ai are not on disk and are not read.
 - Flow knows a site by its window title, so Grok, X or YouTube in a browser are told apart, and a site that does not name itself counts as the browser. Chat and mail are left out unless you switch on naming them; then their name and the time are kept, never a title.
-- "How it is put together" comes from what the agents reported and the names of the files they changed. File contents are never read, and a line can be wrong where an agent was.
+- "How it is put together" and "what was decided" come from your prompts, what the agents reported and the names of the files they changed. File contents are never read, and a line can be wrong where an agent was, or where a model read a wish as a decision.
 - Live questions in a session and the written check in Teach are deterministic. The calls judge by meaning.
 - More in the app's [README](apprentice/README.md#boundaries-of-this-slice).
 

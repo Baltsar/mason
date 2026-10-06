@@ -14,6 +14,7 @@ const DAYS = 21;
 const MAX_PROMPTS = 70;
 // Raised when the shape of a memory changes, so saved ones are written again.
 const VERSION = 5;
+export const MEMORY_VERSION = VERSION;
 const words = (text, count) => String(text ?? "").replace(/\s+/g, " ").trim().split(" ").slice(0, count).join(" ").replace(/[.,;:]+$/, "");
 // A silence this long between two prompts is a new visit to the project.
 const VISIT_GAP_MS = 6 * 3_600_000;

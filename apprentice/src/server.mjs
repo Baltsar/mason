@@ -20,7 +20,7 @@ import { mastery, reviewDecision } from "./teach-engine.mjs";
 import { buildGaps, buildTeachBack, confirmation, debriefProgress } from "./debrief.mjs";
 import { logSources, projectIndex, summarizeProjects } from "./projects.mjs";
 import { callContext, ensureAgent, recallContext, signedUrl, tutorContext } from "./agent.mjs";
-import { mergeInferred, projectMemory, savedMemory } from "./memory.mjs";
+import { MEMORY_VERSION, mergeInferred, projectMemory, savedMemory } from "./memory.mjs";
 import { makeEpisode, playEpisode, podcastBusy, podcastState } from "./podcast.mjs";
 import { hasElevenLabsKey, loadSettings, ownerName, saveSettings, settings } from "./settings.mjs";
 import { modelStatus } from "./llm.mjs";
@@ -186,7 +186,33 @@ async function refreshMemories() {
     const names = [...new Set(Object.keys(known.days).sort().slice(-21).flatMap((day) => Object.keys(known.days[day])))];
     const remembered = Object.fromEntries(await Promise.all(names.map(async (name) => [name, memories.get(name) || await savedMemory(name)])));
     if (await refreshSuggestions(remembered)) broadcast("suggestions");
+    await rememberOlder();
   } catch {} finally { refreshing = false; summarising = false; }
+}
+
+// The projects of the last three weeks that were not worked on today are
+// remembered too, one a round: the ones not touched for a while are the ones
+// their owner has forgotten most about. A memory written before something new
+// was kept in it is written again the same way.
+let olderDone = false;
+async function rememberOlder() {
+  if (olderDone || !settings().summaries) return;
+  const wide = await projectIndex(dayStart() - 21 * 86_400_000, { maxAgeMs: 10 * 60_000 });
+  const recent = wide.list.filter((project) => project.prompts.length && !memories.has(project.name)).sort((a, b) => b.prompts.at(-1).at - a.prompts.at(-1).at);
+  for (const project of recent) {
+    const saved = await savedMemory(project.name);
+    if (saved?.version === MEMORY_VERSION) continue;
+    summarising = true;
+    broadcast("memory");
+    await projectMemory(project, { wait: true });
+    summarising = false;
+    builtMemo.at = 0;
+    // Without an answer from a model there is nothing to go on with, until Mason is started again.
+    if ((await savedMemory(project.name))?.version !== MEMORY_VERSION) olderDone = true;
+    broadcast("memory");
+    return;
+  }
+  olderDone = true;
 }
 
 // Coming back to a project after hours or days is the moment its memory is
