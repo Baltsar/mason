@@ -39,6 +39,16 @@ const NAMED_TITLE_WORDS = [
   ["telegram web", "Telegram"], ["telegram", "Telegram"], ["signal", "Signal"], ["messages", "Messages"],
   ["meddelanden", "Messages"], ["mail", "Mail"],
 ];
+// The same services by the address of their site, which says it more surely
+// than a title does.
+const NAMED_HOSTS = [
+  ["discord.com", "Discord"], ["slack.com", "Slack"], ["mail.google.com", "Gmail"], ["outlook.live.com", "Outlook"],
+  ["outlook.office.com", "Outlook"], ["web.whatsapp.com", "WhatsApp"], ["web.telegram.org", "Telegram"],
+  ["messages.google.com", "Messages"],
+];
+// The site in a browser's front tab as it may be kept: its host and nothing
+// else. Whatever does not look like one is dropped.
+export const safeHost = (host) => /^[a-z0-9]([a-z0-9.-]{0,110}[a-z0-9])?(:\d{1,5})?$/.test(String(host || "")) ? String(host) : "";
 // The name a refused surface may be kept under, or null when it stays unnamed.
 export function namedSurface(snapshot, allowed = settings().chats) {
   if (!allowed || snapshot?.status !== "excluded") return null;
@@ -70,8 +80,8 @@ function runReader({ prompt = false, enhance = false } = {}) {
     });
     child.stdin.on("error", () => {});
     // The reader names a chat or mail tab only when it is asked to.
-    const namedTitleWords = settings().chats ? NAMED_TITLE_WORDS : [];
-    child.stdin.end(`${JSON.stringify({ prompt, enhance, excludedApps: EXCLUDED_APPS, privateTitleWords: PRIVATE_TITLE_WORDS, namedTitleWords })}\n`);
+    const [namedTitleWords, namedHosts] = settings().chats ? [NAMED_TITLE_WORDS, NAMED_HOSTS] : [[], []];
+    child.stdin.end(`${JSON.stringify({ prompt, enhance, excludedApps: EXCLUDED_APPS, privateTitleWords: PRIVATE_TITLE_WORDS, namedTitleWords, namedHosts })}\n`);
   });
 }
 
@@ -131,6 +141,7 @@ export class Collector {
       type: "activity",
       app: segment.app,
       window: segment.window,
+      ...(segment.host ? { host: segment.host } : {}),
       project: index?.resolve({ app: segment.app, window: segment.window, startedAt: segment.startedAt }) || null,
       group: segment.classification.group,
       category: segment.classification.category,
@@ -142,15 +153,15 @@ export class Collector {
     this.onChange("activity");
   }
 
-  async observeActivity(snapshot, app, window, named = false) {
+  async observeActivity(snapshot, app, window, named = false, host = "") {
     const now = Date.now();
-    const classification = named ? null : classifyActivity({ app, window });
+    const classification = named ? null : classifyActivity({ app, window, host });
     const active = (named || classification) && Number(snapshot.idleSeconds ?? 0) < 60;
-    const key = active ? fingerprint(named ? `named:${app}` : `${app}:${window}:${classification.category}`) : null;
+    const key = active ? fingerprint(named ? `named:${app}` : `${app}:${window}:${host}:${classification.category}`) : null;
     if (!active) { await this.flushActivity(); return; }
     if (!this.activity || this.activity.key !== key) {
       await this.flushActivity();
-      this.activity = { key, app, window, classification, named, startedAt: new Date(now).toISOString(), lastAt: now, seconds: 0 };
+      this.activity = { key, app, window, host, classification, named, startedAt: new Date(now).toISOString(), lastAt: now, seconds: 0 };
       return;
     }
     const elapsed = Math.max(0, Math.min((now - this.activity.lastAt) / 1000, 5));
@@ -228,7 +239,9 @@ export class Collector {
       if (snapshot.status === "reading") {
         const app = redact(snapshot.app, 80);
         const window = safeTitle(snapshot.window);
-        const classification = classifyActivity({ app, window });
+        // In a browser, which site the front tab is on: its host, never more.
+        const host = safeHost(snapshot.host);
+        const classification = classifyActivity({ app, window, host });
         runtime.currentApp = app;
         runtime.currentWindow = window;
         runtime.currentCategory = classification?.category || null;
@@ -243,15 +256,15 @@ export class Collector {
           this.enhanced.add(snapshot.pid);
           this.enhanceNext = true;
         }
-        await this.observeActivity(snapshot, app, window);
-        const windowKey = fingerprint(`${snapshot.bundle}:${window}`);
+        await this.observeActivity(snapshot, app, window, false, host);
+        const windowKey = fingerprint(`${snapshot.bundle}:${window}:${host}`);
         if (classification && windowKey !== this.lastWindowKey) {
           this.lastWindowKey = windowKey;
           const from = this.recentApps.at(-1);
           if (from && from !== app) this.lastSwitch = { from, to: app, window, at: Date.now(), asked: false };
           this.recentApps.push(app);
           this.recentApps = this.recentApps.slice(-8);
-          await appendEvent({ type: "window", app, window, source: "macOS Accessibility", stored: "event-not-image" });
+          await appendEvent({ type: "window", app, window, ...(host ? { host } : {}), source: "macOS Accessibility", stored: "event-not-image" });
           runtime.lastEventAt = new Date().toISOString();
           this.onChange("window");
         }

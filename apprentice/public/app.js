@@ -783,7 +783,7 @@ function renderSettings() {
     ${row("speech", "Sound")}
     ${row("cues", "A word on the island", settings.cues ? on("When an answer is ready") : off("Silent"))}
     <p class="group">Reads</p>
-    <div class="set"><span>Screen: app, window, prompt</span>${status.access === "on" ? on("On") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
+    <div class="set"><span>Screen: app, window, site, prompt</span>${status.access === "on" ? on("On") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
     ${row("logs", "Agent logs", settings.logs ? on(`Claude Code · ${logs.claude} ${logs.claude === 1 ? "project" : "projects"}`) : off("Not read"))}
     ${row("chats", "Chat and mail by name", settings.chats ? on("Name and time") : off("Counted, not named"))}
     <p class="group">Sends</p>
@@ -795,7 +795,7 @@ function renderSettings() {
     <p class="group">Keeps</p>
     <div class="set"><span>Memory</span><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Show in Finder</button></div>
     <div class="set"><span>Notes for Obsidian</span><button class="secondary" type="button" data-reveal="notes">Show in Finder</button></div>
-    <p class="fine">No screenshots, no keystrokes. The agent logs are the files Claude Code already writes on this Mac; Mason keeps short, redacted excerpts. With Summaries and ElevenLabs switched off, nothing leaves this Mac.</p>`);
+    <p class="fine">No screenshots, no keystrokes. Of a page in a browser only the site is kept, never its address. The agent logs are the files Claude Code already writes on this Mac; Mason keeps short, redacted excerpts. With Summaries and ElevenLabs switched off, nothing leaves this Mac.</p>`);
 }
 
 async function loadPrefs() {

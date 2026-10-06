@@ -7,7 +7,9 @@ import path from "node:path";
 // The store fixes its folder when it is first loaded, so this file runs in its
 // own process with its own folder, like the settings test.
 process.env.APPRENTICE_DATA = await mkdtemp(path.join(os.tmpdir(), "mason-chats-"));
-const { Collector, namedSurface } = await import("../src/collector.mjs");
+// No agent logs are read here: the folder they are looked for in is empty.
+process.env.APPRENTICE_CLAUDE_DIR = await mkdtemp(path.join(os.tmpdir(), "mason-chats-logs-"));
+const { Collector, namedSurface, safeHost } = await import("../src/collector.mjs");
 const { loadSettings, saveSettings } = await import("../src/settings.mjs");
 const { readEvents } = await import("../src/store.mjs");
 
@@ -49,4 +51,27 @@ test("a named visit is kept as a name and a time, never a window title", async (
   assert.equal(kept.stored, "name-and-time-only");
   assert.equal("window" in kept, false);
   assert.equal("project" in kept, false);
+});
+
+test("a browser tab is kept with the host of its site and nothing more of its address", async () => {
+  assert.equal(safeHost("figma.com"), "figma.com");
+  assert.equal(safeHost("localhost:8787"), "localhost:8787");
+  // Anything that is more than a host, or not one, is dropped.
+  for (const more of ["figma.com/file/secret", "https://figma.com", "figma.com?q=1", "a b.com", "", undefined]) assert.equal(safeHost(more), "");
+
+  const collector = new Collector();
+  const clock = Date.now;
+  let now = clock();
+  Date.now = () => now;
+  try {
+    for (let tick = 0; tick < 4; tick += 1) {
+      await collector.observeActivity({ idleSeconds: 0 }, "Comet", "Untitled", false, "figma.com");
+      now += 2000;
+    }
+    await collector.flushActivity();
+  } finally {
+    Date.now = clock;
+  }
+  const kept = (await readEvents(Infinity)).at(-1);
+  assert.deepEqual([kept.type, kept.app, kept.window, kept.host, kept.durationSec], ["activity", "Comet", "Untitled", "figma.com", 6]);
 });

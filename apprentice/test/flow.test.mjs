@@ -22,6 +22,24 @@ test("a tool is the app, or in a browser the site its window title names", () =>
   assert.equal(tileOf("Cursor"), null);
 });
 
+test("in a browser the address of the tab says which tool it is, whatever the page is called", () => {
+  assert.equal(toolOf({ app: "Comet", window: "Untitled", host: "www.figma.com" }), "Figma");
+  assert.equal(toolOf({ app: "Comet", window: "Board 3", host: "miro.com" }), "Miro");
+  assert.equal(toolOf({ app: "Safari", window: "Inbox", host: "calendar.google.com" }), "Google Calendar");
+  // A site with no name of its own is known by its address, without what is in front of it.
+  assert.equal(toolOf({ app: "Comet", window: "FLORA - Home", host: "app.flora.ai" }), "flora.ai");
+  assert.equal(toolOf({ app: "Comet", window: "Why Grok and Claude disagree - YouTube", host: "techembassy.org" }), "techembassy.org");
+  // A page served from this Mac is the thing being built.
+  assert.equal(toolOf({ app: "Comet", window: "Kubb & Blood", host: "localhost:8787" }), "Localhost");
+  // Without an address the title still says it, as before.
+  assert.equal(toolOf({ app: "Comet", window: "Feed | LinkedIn" }), "LinkedIn");
+  assert.deepEqual(tileOf("Localhost"), { text: "~", color: "#d7ff42" });
+  assert.equal(tileOf("flora.ai").text, "F");
+  assert.deepEqual(tileOf("flora.ai"), tileOf("flora.ai"));
+  const flow = buildFlow([spent("Comet", "Untitled", 0, 120, { host: "www.figma.com" }), spent("Comet", "Kubb", 3, 60, { host: "localhost:8787" }), spent("Cursor", "flow.mjs", 5, 60)]);
+  assert.deepEqual(flow.tools.map((tool) => [tool.name, tool.host]), [["Figma", "www.figma.com"], ["Localhost", ""], ["Cursor", ""]]);
+});
+
 test("jumps are counted between tools: a glance, a pause and a break are not jumps", () => {
   const flow = buildFlow([
     spent("Claude", "Mason", 0, 300),
