@@ -475,14 +475,20 @@ async function loadFlow() {
 
 // The tools as a picture, and only what is read at a glance: the five tools
 // with the most time, each as large as its time, and the three habits between
-// them as lines as thick as their jumps. The two biggest sit left and right, so
-// the main loop lies flat, and the others go round them. Pressing a tool shows
-// its own lines; the rest of the tools are one press away.
+// them as lines as thick as their jumps. Pressing a tool shows its own lines;
+// the rest of the tools are one press away.
 const FLOW_FEW = 5;
 const FLOW_ALL = 10;
 
-function flowMap(tools, total) {
-  const width = 1000, height = flowAll ? 470 : 410, cx = width / 2, cy = flowAll ? 225 : 200, rx = 372, ry = flowAll ? 150 : 112;
+// Where everything in the picture goes. The window draws it as it is; the
+// picture to share draws the same thing larger. `picked` is a tool whose own
+// lines are shown, `all` shows every habit instead of the three strongest.
+function flowLayout(used, pairs, { width, height, cx, cy, rx, ry, small, grow, all = false, picked = null }) {
+  // The two tools with the most jumps between them sit left and right, so the
+  // main loop lies flat across the middle; the others go round them by time.
+  const loop = pairs.find((pair) => used.some((tool) => tool.name === pair.a) && used.some((tool) => tool.name === pair.b));
+  const ends = loop ? used.filter((tool) => tool.name === loop.a || tool.name === loop.b) : [];
+  const tools = ends.length === 2 ? [...ends, ...used.filter((tool) => !ends.includes(tool))] : used;
   const count = tools.length;
   const above = Math.ceil((count - 2) / 2);
   const below = count - 2 - above;
@@ -494,50 +500,68 @@ function flowMap(tools, total) {
     const turn = Math.floor((rank - 2) / 2);
     return (rank - 2) % 2 === 0 ? 180 - ((upper[turn] + 1) * 180) / (above + 1) : 180 + ((lower[turn] + 1) * 180) / (below + 1);
   };
-  const most = tools[0].seconds;
+  const most = Math.max(...tools.map((tool) => tool.seconds));
   const at = new Map(tools.map((tool, rank) => {
     const angle = (angleOf(rank) * Math.PI) / 180;
     const place = count === 1 ? [cx, cy] : [cx + rx * Math.cos(angle), cy - ry * Math.sin(angle)];
-    return [tool.name, { x: Math.round(place[0]), y: Math.round(place[1]), r: Math.round((flowAll ? 20 : 30) + (flowAll ? 30 : 34) * Math.sqrt(tool.seconds / most)) }];
+    return [tool.name, { x: Math.round(place[0]), y: Math.round(place[1]), r: Math.round(small + grow * Math.sqrt(tool.seconds / most)) }];
   }));
-  const between = flow.pairs.filter((pair) => at.has(pair.a) && at.has(pair.b));
-  const touches = (pair) => pair.a === flowTool || pair.b === flowTool;
+  const between = pairs.filter((pair) => at.has(pair.a) && at.has(pair.b));
+  const touches = (pair) => pair.a === picked || pair.b === picked;
   // A single jump between two tools is not a habit.
-  const habits = flowTool ? between.filter(touches) : flowAll ? between.filter((pair) => pair.count > 1).slice(0, 14) : between.slice(0, 3);
+  const habits = picked ? between.filter(touches) : all ? between.filter((pair) => pair.count > 1).slice(0, 14) : between.slice(0, 3);
   // A tool none of the habits reaches is still tied to the one it trades places with most, by a quiet line.
   const reached = new Set(habits.flatMap((pair) => [pair.a, pair.b]));
-  const ties = flowTool ? [] : tools.filter((tool) => !reached.has(tool.name)).map((tool) => between.find((pair) => pair.a === tool.name || pair.b === tool.name)).filter(Boolean);
-  const lines = [...habits, ...ties.filter((pair, index) => ties.indexOf(pair) === index)];
-  const strongest = lines[0]?.count || 1;
-  const linked = new Set(lines.flatMap((pair) => [pair.a, pair.b]));
-  const edges = [...lines].reverse().map((pair) => {
+  const ties = picked ? [] : tools.filter((tool) => !reached.has(tool.name)).map((tool) => between.find((pair) => pair.a === tool.name || pair.b === tool.name)).filter(Boolean);
+  const shown = [...habits, ...ties.filter((pair, index) => ties.indexOf(pair) === index)];
+  const strongest = shown[0]?.count || 1;
+  const linked = new Set(shown.flatMap((pair) => [pair.a, pair.b]));
+  const lines = shown.map((pair, index) => {
     const a = at.get(pair.a), b = at.get(pair.b);
     // The line bows towards the middle, so neighbours do not hide behind each other.
-    const bend = [(a.x + b.x) / 2 + (cx - (a.x + b.x) / 2) * .28, (a.y + b.y) / 2 + (cy - (a.y + b.y) / 2) * .28];
+    const bend = [Math.round((a.x + b.x) / 2 + (cx - (a.x + b.x) / 2) * .28), Math.round((a.y + b.y) / 2 + (cy - (a.y + b.y) / 2) * .28)];
     const share = pair.count / strongest;
-    const main = pair === lines[0];
-    const lit = main || Boolean(flowTool);
+    const main = index === 0;
+    const lit = main || Boolean(picked);
     const quiet = !habits.includes(pair);
-    const numbered = !quiet && (!flowAll || lit || lines.indexOf(pair) < 3);
+    // The number sits in the middle of the part of the line that shows between the two tools.
+    const far = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const t = Math.min(.75, Math.max(.25, (a.r / far + 1 - b.r / far) / 2));
+    const along = (from, by, to) => Math.round((1 - t) ** 2 * from + 2 * (1 - t) * t * by + t ** 2 * to);
     return {
-      line: `<path class="edge ${lit ? "on" : ""}" d="M${a.x} ${a.y} Q${Math.round(bend[0])} ${Math.round(bend[1])} ${b.x} ${b.y}" style="stroke-width:${quiet ? 2 : (3 + 15 * share).toFixed(1)};opacity:${(quiet ? .16 : main ? .95 : flowTool ? .4 + .5 * share : .16 + .34 * share).toFixed(2)}" />`,
-      label: numbered ? `<g class="count ${main ? "main" : ""} ${lit ? "on" : ""}" transform="translate(${Math.round(.25 * a.x + .5 * bend[0] + .25 * b.x)} ${Math.round(.25 * a.y + .5 * bend[1] + .25 * b.y)})"><circle r="${main ? 31 : 20}" /><text>${pair.count}</text></g>` : "",
+      a, b, bend, count: pair.count, main, lit, quiet,
+      label: [along(a.x, bend[0], b.x), along(a.y, bend[1], b.y)],
+      numbered: !quiet && (!all || lit || index < 3),
+      thick: quiet ? 2 : 3 + 15 * share,
+      opacity: quiet ? .16 : main ? .95 : picked ? .4 + .5 * share : .16 + .34 * share,
     };
   });
   const nodes = tools.map((tool) => {
     const { x, y, r } = at.get(tool.name);
+    // A name never stands between its tool and the middle of the picture.
+    return { tool, x, y, r, nameAt: y < cy - 10 ? y - r - 16 : y + r + 30, faded: Boolean(picked) && tool.name !== picked && !linked.has(tool.name) };
+  });
+  return { width, height, nodes, lines };
+}
+
+function flowMap(tools, total) {
+  const { width, height, nodes, lines } = flowLayout(tools, flow.pairs, flowAll
+    ? { width: 1000, height: 470, cx: 500, cy: 225, rx: 372, ry: 150, small: 20, grow: 30, all: true, picked: flowTool }
+    : { width: 1000, height: 410, cx: 500, cy: 200, rx: 372, ry: 112, small: 30, grow: 34, picked: flowTool });
+  // The weakest line is drawn first, so the strongest lies on top.
+  const drawn = [...lines].reverse();
+  const edges = drawn.map((line) => `<path class="edge ${line.lit ? "on" : ""}" d="M${line.a.x} ${line.a.y} Q${line.bend[0]} ${line.bend[1]} ${line.b.x} ${line.b.y}" style="stroke-width:${line.thick.toFixed(1)};opacity:${line.opacity.toFixed(2)}" />`);
+  const labels = drawn.filter((line) => line.numbered).map((line) => `<g class="count ${line.main ? "main" : ""} ${line.lit ? "on" : ""}" transform="translate(${line.label[0]} ${line.label[1]})"><circle r="${line.main ? 31 : 20}" /><text>${line.count}</text></g>`);
+  const marks = nodes.map(({ tool, x, y, r, nameAt, faded }) => {
     const tile = tileFor(tool);
     const side = r * 1.8;
     const mark = tool.icon
       ? `<image href="${tool.icon}" x="${x - r * 1.1}" y="${y - r * 1.1}" width="${r * 2.2}" height="${r * 2.2}" />`
       : `<rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" fill="${tile.color}" stroke="rgba(255,255,255,.16)" /><text class="letters" x="${x}" y="${y}" fill="${inkOn(tile.color)}" font-size="${Math.round(side * .42)}">${esc(tile.text)}</text>`;
-    const faded = flowTool && tool.name !== flowTool && !linked.has(tool.name);
-    // A name never stands between its tool and the middle of the picture.
-    const nameAt = y < cy - 10 ? y - r - 16 : y + r + 30;
     return `<g class="node" data-tool="${esc(tool.name)}" role="button" tabindex="0" aria-pressed="${tool.name === flowTool}" aria-label="${esc(tool.name)}, ${minutes(tool.seconds)}" ${faded ? "data-faded" : ""}><circle cx="${x}" cy="${y}" r="${r + 12}" />${mark}<text class="name" x="${x}" y="${nameAt}">${esc(short(tool.name, 20))}</text></g>`;
   });
   const more = total > FLOW_FEW ? `<button class="all" type="button" data-flow-all aria-pressed="${flowAll}">${flowAll ? "Fewer" : `All ${Math.min(total, FLOW_ALL)}`}</button>` : "";
-  return `<svg viewBox="0 0 ${width} ${height}" role="img">${edges.map((edge) => edge.line).join("")}${nodes.join("")}${edges.map((edge) => edge.label).join("")}</svg>${more}`;
+  return `<svg viewBox="0 0 ${width} ${height}" role="img">${edges.join("")}${marks.join("")}${labels.join("")}</svg>${more}`;
 }
 
 // The day in order, as one band: work, social, other and chat by colour. With a
@@ -621,6 +645,123 @@ function renderFlow() {
   const most = Math.max(1, ways[0]?.count || 1);
   paint(detail, JSON.stringify([flowTool, picked.seconds, ways]), `<header>${face(picked, 40)}<h2>${esc(picked.name)}</h2><p>${minutes(picked.seconds)} · ${picked.visits} ${picked.visits === 1 ? "visit" : "visits"}</p></header>
     ${ways.length ? `<ul class="bars wide">${ways.map((way) => `<li data-tool="${esc(way.other)}" style="--w:${Math.round((way.count / most) * 100)}%;--tone:var(--lime)"><span>${face(byName.get(way.other) || { name: way.other }, 26)}<em>${esc(way.other)}</em></span><i></i><b>${way.count}</b></li>`).join("")}</ul>` : `<p class="empty">No jumps to or from it.</p>`}`);
+}
+
+/* Share: the flow as a picture to show others */
+
+// The flow the picture is drawn from, the tools left out of it, and where each
+// tool sits in it, so that one can be pressed.
+let shareFlow = null;
+let shareSpan = "day";
+const shareHidden = new Set();
+let shareNodes = [];
+const pictures = new Map();
+const POSTER = { width: 1080, height: 1350, left: 72, ink: "#0e0d0b", paper: "#f3eee2", lime: "#d7ff42", muted: "#a39d90", line: "#2e2b25" };
+const FACE = `Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif`;
+
+const pictureOf = (address) => {
+  if (!pictures.has(address)) pictures.set(address, new Promise((resolve) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = () => resolve(null); image.src = address; }));
+  return pictures.get(address);
+};
+
+async function loadShare() {
+  // Today's picture is the day that is open in Flow; the week is asked for.
+  shareFlow = shareSpan === "week" ? await api("/api/flow?span=week") : flow;
+  paint($("#share-span"), shareSpan, [["day", flow.day === flow.today ? "Today" : "This day"], ["week", "7 days"]].map(([span, word]) => `<button type="button" data-share-span="${span}" aria-pressed="${span === shareSpan}">${word}</button>`).join(""));
+  await drawShare();
+}
+
+// The picture: what was built with, the three habits between the tools, and
+// three figures. Tool names only: no project, no window title, no site address
+// beyond the name of the site.
+async function drawShare() {
+  const canvas = $("#share-canvas");
+  const pen = canvas.getContext("2d");
+  const { width, height, left, ink, paper, lime, muted, line } = POSTER;
+  const source = shareFlow;
+  const visited = source.tools.filter((tool) => tool.visits);
+  const tools = visited.filter((tool) => !shareHidden.has(tool.name)).slice(0, FLOW_FEW);
+  $("#share-note").textContent = shareHidden.size ? `${shareHidden.size} left out. Press Share again to bring them back.` : "Press a tool in the picture to leave it out.";
+  const write = (text, x, y, { size, weight = 720, color = paper, align = "left", spacing = 0, middle = false }) => {
+    pen.font = `${weight} ${size}px ${FACE}`;
+    pen.fillStyle = color;
+    pen.textAlign = align;
+    pen.textBaseline = middle ? "middle" : "alphabetic";
+    if ("letterSpacing" in pen) pen.letterSpacing = `${spacing}px`;
+    pen.fillText(text, x, y);
+  };
+  pen.setTransform(1, 0, 0, 1, 0, 0);
+  pen.globalAlpha = 1;
+  pen.fillStyle = ink;
+  pen.fillRect(0, 0, width, height);
+
+  const when = source.span === "week" ? "this week." : source.day === source.today ? "today." : `on ${dateOf(source.day).toLocaleDateString("en-GB", { weekday: "long" })}.`;
+  write("How I built", left, 212, { size: 136, spacing: -9 });
+  write(when, left, 340, { size: 136, spacing: -9, color: lime });
+
+  shareNodes = [];
+  if (tools.length) {
+    const top = 410;
+    const layout = flowLayout(tools, source.pairs, { width: width - left * 2, height: 580, cx: (width - left * 2) / 2, cy: 290, rx: 372, ry: 178, small: 46, grow: 46 });
+    pen.save();
+    pen.translate(left, top);
+    pen.lineCap = "round";
+    for (const edge of [...layout.lines].reverse()) {
+      pen.beginPath();
+      pen.moveTo(edge.a.x, edge.a.y);
+      pen.quadraticCurveTo(edge.bend[0], edge.bend[1], edge.b.x, edge.b.y);
+      pen.lineWidth = edge.quiet ? 3 : edge.thick * 1.5;
+      pen.globalAlpha = edge.opacity;
+      pen.strokeStyle = edge.lit ? lime : paper;
+      pen.stroke();
+    }
+    pen.globalAlpha = 1;
+    for (const { tool, x, y, r, nameAt } of layout.nodes) {
+      const image = tool.icon ? await pictureOf(tool.icon) : null;
+      if (image) pen.drawImage(image, x - r * 1.1, y - r * 1.1, r * 2.2, r * 2.2);
+      else {
+        const tile = tileFor(tool);
+        const side = r * 1.8;
+        pen.beginPath();
+        pen.roundRect(x - side / 2, y - side / 2, side, side, side * .23);
+        pen.fillStyle = tile.color;
+        pen.fill();
+        pen.lineWidth = 2;
+        pen.strokeStyle = "rgba(255, 255, 255, .16)";
+        pen.stroke();
+        write(tile.text, x, y + 2, { size: Math.round(side * .42), weight: 700, color: inkOn(tile.color), align: "center", spacing: -1, middle: true });
+      }
+      write(short(tool.name, 18), x, nameAt < y ? y - r - 24 : y + r + 46, { size: 30, weight: 600, color: muted, align: "center", spacing: -.6 });
+      shareNodes.push({ name: tool.name, x: x + left, y: y + top, r });
+    }
+    for (const edge of [...layout.lines].reverse().filter((item) => item.numbered)) {
+      pen.beginPath();
+      pen.arc(edge.label[0], edge.label[1], edge.main ? 46 : 30, 0, Math.PI * 2);
+      pen.fillStyle = ink;
+      pen.fill();
+      write(String(edge.count), edge.label[0], edge.label[1] + 2, { size: edge.main ? 50 : 30, weight: 700, color: edge.lit ? lime : paper, align: "center", spacing: -1.5, middle: true });
+    }
+    pen.restore();
+  }
+
+  // Three figures, each with two words under it.
+  const stay = source.longest ? Math.max(1, Math.round(source.longest.seconds / 60)) : null;
+  // A tool counts when it took at least a hundredth of the time.
+  const used = visited.filter((tool) => tool.seconds >= source.totalSeconds / 100).length;
+  const figures = [[source.perHour ?? "–", "changes of tool an hour"], [stay ? `${stay} min` : "–", "longest in one tool"], [used, used === 1 ? "tool" : "tools"]];
+  figures.forEach(([figure, words], index) => {
+    const x = left + [0, 328, 668][index];
+    write(String(figure), x, 1142, { size: 92, spacing: -5, color: index === 0 ? lime : paper });
+    write(words, x, 1186, { size: 25, weight: 500, color: muted });
+  });
+
+  pen.fillStyle = line;
+  pen.fillRect(left, 1238, width - left * 2, 2);
+  const span = source.span === "week" ? dates(source.fromDay, source.day) : dates(source.day, source.day);
+  write(`${source.owner} · ${span}`, left, 1294, { size: 30, weight: 600 });
+  const mark = await pictureOf("/brand/mason-mark.png");
+  write("made with Mason", width - left - (mark ? 58 : 0), 1294, { size: 26, weight: 500, color: muted, align: "right" });
+  if (mark) pen.drawImage(mark, width - left - 46, 1262, 46, 43);
 }
 
 /* Days: the long view */
@@ -979,6 +1120,30 @@ async function act(event) {
     return loadFlow();
   }
   if (target.closest("[data-flow-all]")) { flowAll = !flowAll; return renderFlow(); }
+  if (target.closest("#flow-share")) {
+    if (!flow?.totalSeconds) return toast("Nothing to share yet.");
+    shareSpan = "day";
+    shareHidden.clear();
+    $("#share").showModal();
+    return loadShare();
+  }
+  if (target.closest("#share-close")) return $("#share").close();
+  const span = target.closest("[data-share-span]");
+  if (span) { shareSpan = span.dataset.shareSpan; shareHidden.clear(); return loadShare(); }
+  if (target.closest("#share-canvas")) {
+    // A tool pressed in the picture is left out of it.
+    const canvas = $("#share-canvas");
+    const box = canvas.getBoundingClientRect();
+    const [x, y] = [(event.clientX - box.left) * (canvas.width / box.width), (event.clientY - box.top) * (canvas.height / box.height)];
+    const hit = shareNodes.find((node) => Math.hypot(node.x - x, node.y - y) <= node.r + 18);
+    if (!hit) return;
+    shareHidden.add(hit.name);
+    return drawShare();
+  }
+  if (target.closest("#share-save")) {
+    const saved = await post("/api/share", { image: $("#share-canvas").toDataURL("image/png"), label: `${shareFlow.span} ${shareFlow.day}` });
+    return toast(`Saved: ${saved.file}`);
+  }
   const tool = target.closest(".flowmap [data-tool], #flow-tool [data-tool], #flow-drill [data-tool]");
   if (tool) { flowTool = flowTool === tool.dataset.tool ? null : tool.dataset.tool; return renderFlow(); }
   const turn = target.closest("[data-month-step]");

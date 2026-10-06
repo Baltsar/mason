@@ -15,6 +15,7 @@ import { ICON_FILE, iconFolder, iconsFor } from "./icons.mjs";
 import { dayKey, daysPayload, loadDays, refreshDays } from "./days.mjs";
 import { measureDay, readsAnswers, sentenceOf } from "./coach.mjs";
 import { builtOf } from "./built.mjs";
+import { saveShare } from "./share.mjs";
 import { applySuggestion, dismissSuggestion, refreshSuggestions, removeRule, suggestionsPayload } from "./suggest.mjs";
 import { mastery, reviewDecision } from "./teach-engine.mjs";
 import { buildGaps, buildTeachBack, confirmation, debriefProgress } from "./debrief.mjs";
@@ -53,11 +54,11 @@ const short = (text, max = 64) => {
   return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
 };
 
-async function body(request) {
+async function body(request, largest = 1_000_000) {
   let data = "";
   for await (const chunk of request) {
     data += chunk;
-    if (data.length > 1_000_000) throw new Error("Request too large");
+    if (data.length > largest) throw new Error("Request too large");
   }
   return data ? JSON.parse(data) : {};
 }
@@ -85,11 +86,17 @@ async function today() {
 
 // How a day moved between tools: today, or the day asked for. Each tool comes
 // with its icon when the app is on this Mac.
-async function flowPayload(asked) {
+async function flowPayload(asked, span = "day") {
   const current = dayKey(Date.now());
   const day = /^\d{4}-\d{2}-\d{2}$/.test(asked || "") ? asked : current;
   let flow;
-  if (day === current) flow = (await today()).flow;
+  let fromDay = day;
+  if (span === "week") {
+    // The last seven days as one: for the picture that is shared.
+    const from = dayStart() - 6 * 86_400_000;
+    flow = buildFlow(await readEventsSince(from));
+    fromDay = dayKey(from);
+  } else if (day === current) flow = (await today()).flow;
   else {
     const [year, month, date] = day.split("-").map(Number);
     const from = new Date(year, month - 1, date, 4).getTime();
@@ -99,7 +106,7 @@ async function flowPayload(asked) {
   }
   const icons = await iconsFor(flow.tools.slice(0, 16).map((tool) => tool.name));
   const known = await loadDays();
-  return { ...flow, day, today: current, days: [...new Set([...Object.keys(known.moves), current])].sort(), tools: flow.tools.map((tool) => ({ ...tool, icon: icons[tool.name] || null })) };
+  return { ...flow, span: span === "week" ? "week" : "day", day: span === "week" ? current : day, fromDay, today: current, owner: ownerName(), days: [...new Set([...Object.keys(known.moves), current])].sort(), tools: flow.tools.map((tool) => ({ ...tool, icon: icons[tool.name] || null })) };
 }
 
 // Today's answers from the agents: how long finished ones were left waiting,
@@ -416,7 +423,15 @@ const server = http.createServer(async (request, response) => {
       }
       return json(response, 200, await suggestionsPayload());
     }
-    if (url.pathname === "/api/flow" && request.method === "GET") return json(response, 200, await flowPayload(url.searchParams.get("day")));
+    if (url.pathname === "/api/flow" && request.method === "GET") return json(response, 200, await flowPayload(url.searchParams.get("day"), url.searchParams.get("span") || "day"));
+    if (url.pathname === "/api/share" && post) {
+      // The picture drawn in the window is kept as a file and shown in the Finder.
+      const input = await body(request, 12_000_000);
+      const file = await saveShare(input.image, input.label);
+      if (!file) return json(response, 400, { error: "Not a picture" });
+      if (process.env.APPRENTICE_COLLECT !== "0") spawn("open", ["-R", file], { stdio: "ignore", detached: true }).once("error", () => {}).unref();
+      return json(response, 200, { file: file.replace(process.env.HOME || "\u0000", "~") });
+    }
     if (url.pathname === "/api/days" && request.method === "GET") {
       // What is known is given at once; anything newer follows as an update.
       catchUpDays();

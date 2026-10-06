@@ -48,7 +48,7 @@
       </section>
 
       <section class="view" data-page="flow" hidden>
-        <p class="eyebrow walk"><button type="button" data-flow-step="-1" aria-label="The day before">‹</button><span id="flow-meta"></span><button type="button" data-flow-step="1" aria-label="The day after">›</button></p>
+        <p class="eyebrow walk"><button type="button" data-flow-step="-1" aria-label="The day before">‹</button><span id="flow-meta"></span><button type="button" data-flow-step="1" aria-label="The day after">›</button><button class="quiet" type="button" id="flow-share">Share</button></p>
         <div class="bigs" id="flow-bigs"></div>
         <div class="drill" id="flow-drill" hidden></div>
         <figure class="flowmap" id="flow-map" aria-label="How the day moved between tools"></figure>
@@ -136,6 +136,17 @@
     <dialog id="source">
       <header><p class="label" id="source-title">Source</p><button type="button" id="source-close" aria-label="Close">Close</button></header>
       <pre id="source-body"></pre>
+    </dialog>
+    <dialog id="share">
+      <header><p class="label">A picture to share</p><button type="button" id="share-close" aria-label="Close">Close</button></header>
+      <div class="share-body">
+        <canvas id="share-canvas" width="1080" height="1350" aria-label="How you built, as a picture"></canvas>
+        <div class="share-side">
+          <div class="chips" id="share-span"></div>
+          <p class="note" id="share-note"></p>
+          <button class="primary" type="button" id="share-save">Save picture</button>
+        </div>
+      </div>
     </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   </body>

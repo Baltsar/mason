@@ -462,6 +462,18 @@ span.logo { border-radius: 23%; background: var(--bg); box-shadow: inset 0 0 0 1
 #flow-tool header, #days-drill header { align-items: center; }
 #flow-tool { margin-top: 0; }
 
+/* A picture of the flow, to share. */
+.walk #flow-share { margin-left: auto; }
+#share { width: min(940px, calc(100vw - 48px)); max-height: 94vh; overflow: hidden; }
+.share-body { display: grid; grid-template-columns: auto minmax(180px, 1fr); align-items: end; gap: 26px; padding: 22px; }
+#share-canvas { display: block; width: auto; height: min(72vh, 680px); border: 1px solid var(--line); border-radius: 14px; cursor: pointer; }
+.share-side { display: grid; gap: 16px; }
+.share-side .note { color: var(--muted); font-size: 14px; line-height: 1.4; }
+@media (max-width: 760px) {
+  .share-body { grid-template-columns: 1fr; }
+  #share-canvas { width: 100%; height: auto; }
+}
+
 /* Days: the long view. A month of days, each as bright as it was busy, and
    under it every project's month as a strip. */
 .month { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-bottom: 22px; animation: rise .5s var(--ease) both; animation-delay: 160ms; }
