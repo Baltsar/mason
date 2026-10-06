@@ -12,7 +12,8 @@ import { settings } from "./settings.mjs";
 // Nothing is copied out of those files except a redacted excerpt of a prompt.
 // With "Agent logs" switched off in Settings, none of them is opened.
 
-const CLAUDE_DIR = path.join(os.homedir(), ".claude", "projects");
+// A test points this at a folder of its own.
+const CLAUDE_DIR = process.env.APPRENTICE_CLAUDE_DIR || path.join(os.homedir(), ".claude", "projects");
 const CURSOR_DIR = path.join(os.homedir(), "Library", "Application Support", "Cursor", "User", "workspaceStorage");
 const ACTIVE_WITHIN_MS = 8 * 60_000;
 const GENERIC = new Set(`hackathon hackaton project projects demo site sajt website new app apps web test tests main src the cursor documents users
@@ -35,8 +36,8 @@ const PIECE_BYTES = 4 * 1024 * 1024;
 const NEWLINE = 10;
 
 async function readNewLines(file, size) {
-  const known = logs.get(file) || { offset: 0, rest: Buffer.alloc(0), cwd: null, root: null, prompts: [], minutes: new Set(), files: new Map(), reports: [] };
-  if (size < known.offset) Object.assign(known, { offset: 0, rest: Buffer.alloc(0), prompts: [], minutes: new Set(), files: new Map(), reports: [] });
+  const known = logs.get(file) || { offset: 0, rest: Buffer.alloc(0), cwd: null, root: null, prompts: [], minutes: new Set(), files: new Map(), reports: [], turns: [] };
+  if (size < known.offset) Object.assign(known, { offset: 0, rest: Buffer.alloc(0), prompts: [], minutes: new Set(), files: new Map(), reports: [], turns: [] });
   if (size > known.offset) {
     const handle = await open(file, "r");
     try {
@@ -72,8 +73,12 @@ function absorb(log, line) {
   }
   if (row.isSidechain) return;
   log.minutes.add(Math.floor(at / 60_000));
+  // A turn is one thing said and the work that follows. It lasts until the
+  // model says it has ended its turn; a step with a tool is still work.
+  const turn = log.turns.at(-1);
   // What the agent built: the files it wrote, and when. Names only, never contents.
   if (row.type === "assistant") {
+    if (turn) { turn.done = at; turn.ended = row.message?.stop_reason === "end_turn"; }
     for (const part of Array.isArray(row.message?.content) ? row.message.content : []) {
       // What it reported back when it was done: the agent's own account of
       // what it built. Short remarks between two steps are not that.
@@ -92,10 +97,15 @@ function absorb(log, line) {
   if (row.type !== "user" || row.isMeta) return;
   const content = row.message?.content;
   const raw = typeof content === "string" ? content : Array.isArray(content) ? content.find((part) => part?.type === "text")?.text : null;
-  if (!raw) return;
+  // The result of a tool coming back: the agent goes on working.
+  if (!raw) { if (turn) { turn.done = at; turn.ended = false; } return; }
   // What the person said, not what the harness wrapped around it.
   const said = raw.replace(/<pasted_content[^>]*>|<\/pasted_content[^>]*>/g, " ").trim();
-  if (!said || said.startsWith("<") || said.startsWith("[") || said.length < 12) return;
+  if (!said || said.startsWith("<") || said.startsWith("[")) return;
+  // Even a word ("go") starts a turn; only a real sentence is kept as said.
+  log.turns.push({ prompt: at, done: at, ended: false });
+  if (log.turns.length > 400) log.turns.shift();
+  if (said.length < 12) return;
   log.prompts.push({ at, text: redact(said, 600) });
 }
 
@@ -115,8 +125,10 @@ async function claudeProjects(since) {
       const log = await readNewLines(file, info.size).catch(() => null);
       // Work in a temporary folder is a tool running, not a project of its owner.
       if (!log?.root || /^(\/private)?\/(tmp|var\/folders)\//.test(log.root)) continue;
-      const project = found.get(log.root) || { name: path.basename(log.root), folder: log.root, prompts: [], minutes: new Set(), source: "Claude Code" };
+      const project = found.get(log.root) || { name: path.basename(log.root), folder: log.root, prompts: [], minutes: new Set(), turns: [], source: "Claude Code" };
       for (const prompt of log.prompts) if (prompt.at >= since) project.prompts.push(prompt);
+      // Each turn with the moment the next thing was said in the same session, if anything was.
+      log.turns.forEach((turn, index) => { if (turn.done >= since) project.turns.push({ ...turn, next: log.turns[index + 1]?.prompt ?? null }); });
       for (const minute of log.minutes) if (minute * 60_000 >= since - 60_000) project.minutes.add(minute);
       found.set(log.root, project);
     }
@@ -215,7 +227,7 @@ export async function projectIndex(since, { maxAgeMs = 20_000 } = {}) {
   for (const project of claude.values()) if (project.minutes.size) projects.set(project.folder, project);
   // Cursor touches many workspaces when it starts; the two newest are the ones in use.
   for (const workspace of cursor.slice(0, 2)) {
-    if (!projects.has(workspace.folder)) projects.set(workspace.folder, { name: path.basename(workspace.folder), folder: workspace.folder, prompts: [], minutes: new Set(), source: "Cursor" });
+    if (!projects.has(workspace.folder)) projects.set(workspace.folder, { name: path.basename(workspace.folder), folder: workspace.folder, prompts: [], minutes: new Set(), turns: [], source: "Cursor" });
     projects.get(workspace.folder).cursorUsedAt = workspace.usedAt;
   }
   for (const project of projects.values()) project.tokens = tokensOf(project.name);
@@ -226,6 +238,7 @@ export async function projectIndex(since, { maxAgeMs = 20_000 } = {}) {
     const parent = outermost.find((other) => other !== child && child.folder.startsWith(`${other.folder}${path.sep}`));
     if (!parent) continue;
     parent.prompts.push(...child.prompts);
+    parent.turns.push(...child.turns);
     for (const minute of child.minutes) parent.minutes.add(minute);
     parent.tokens = [...new Set([...parent.tokens, ...child.tokens])];
     projects.delete(child.folder);
@@ -274,6 +287,11 @@ export async function projectIndex(since, { maxAgeMs = 20_000 } = {}) {
     },
     prompts() {
       return list.flatMap((project) => project.prompts.map((prompt) => ({ ...prompt, project: project.name }))).sort((a, b) => a.at - b.at);
+    },
+    // Every turn of every project: when it was asked for, when the work on it
+    // last moved, and whether the answer is finished.
+    turns() {
+      return list.flatMap((project) => project.turns.map((turn) => ({ ...turn, project: project.name }))).sort((a, b) => a.done - b.done);
     },
   };
   for (const [key, entry] of cached) if (Date.now() - entry.at > 600_000) cached.delete(key);

@@ -93,6 +93,10 @@ async function digest(name, prompts, work, reports) {
   };
 }
 
+// The last memory written for a project, as it is on disk: nothing is read
+// from the logs and no model is asked.
+export const savedMemory = (name) => readJson(fileFor(name), null);
+
 // The memory of one project. Answers at once with what it has; a newer one is
 // written in the background when the project has been spoken to since.
 export async function projectMemory(project, { wait = false } = {}) {

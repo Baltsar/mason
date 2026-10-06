@@ -35,7 +35,7 @@ export function dayStart(now = Date.now()) {
 }
 
 // Largest remainder, so work + social + other always reads as exactly 100.
-function percentages(values) {
+export function percentages(values) {
   const total = values.reduce((sum, value) => sum + value, 0);
   if (!total) return values.map(() => 0);
   const exact = values.map((value) => (value / total) * 100);

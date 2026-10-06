@@ -35,7 +35,7 @@ const BREAK_MS = 15 * 60_000;
 const GLANCE_SECONDS = 5;
 
 // What macOS puts in front by itself is not a tool anyone went to.
-const NOT_A_TOOL = /^(usernotificationcenter|coreservicesuiagent|securityagent|loginwindow|screensaverengine|dock|mason|apprentice)$/i;
+export const NOT_A_TOOL = /^(usernotificationcenter|coreservicesuiagent|securityagent|loginwindow|screensaverengine|dock|mason|apprentice)$/i;
 
 export const tileOf = (name) => KNOWN.get(String(name).toLowerCase())?.tile || null;
 
