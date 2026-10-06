@@ -96,7 +96,7 @@ ELEVENLABS_API_KEY=...
 
 ## The model
 
-A model is used for two things: the summary of a project and the script of the weekly recap. Everything else is plain code. By default the model is Claude through your own login (the Claude Code CLI), the same place your prompts already went: it is sent redacted excerpts of them. To use another, name it in `.env.local`:
+A model is used for three things: the summary of a project, the script of the weekly recap, and saying which of your repeated rules mean the same. Everything else is plain code. By default the model is Claude through your own login (the Claude Code CLI), the same place your prompts already went: it is sent redacted excerpts of them. To use another, name it in `.env.local`:
 
 ```dotenv
 APPRENTICE_LLM_URL=http://127.0.0.1:11434/v1   # Ollama on this Mac; or any provider's OpenAI-style address
@@ -105,6 +105,10 @@ APPRENTICE_LLM_KEY=                             # only when the provider asks fo
 ```
 
 Anything that answers in the OpenAI chat format works. With a model on the Mac and ElevenLabs switched off, nothing leaves it. **Summaries** in Settings shows which model is writing and switches it off (`APPRENTICE_LLM=0` does the same); the memory is then your own words.
+
+## What it writes outside its own folder
+
+One file, and only when you press: a proposal you say yes to becomes one line under the heading `## Learned by Mason` in `~/.claude/CLAUDE.md`, the file every Claude Code agent on the Mac reads. The line is shown before it is written and its words can be changed. The file as it was before Mason first touched it is kept as `data/rules-before-mason.md`, and **Told every agent** in Settings takes a line out again. `APPRENTICE_RULES_FILE` points it at another file.
 
 ## What it reads
 
