@@ -424,6 +424,7 @@ dialog mark { background: rgba(215, 255, 66, .16); color: var(--lime); }
 .walk button:disabled { opacity: .25; cursor: default; }
 .walk button:disabled:hover { border-color: var(--line); }
 .logo { display: inline-grid; place-items: center; flex: none; width: var(--s, 28px); height: var(--s, 28px); }
+img.logo.site { border-radius: 23%; background: #fff; object-fit: cover; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16); transform: scale(.86); }
 span.logo { border-radius: 23%; background: var(--bg); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16); color: var(--fg); font: 700 calc(var(--s, 28px) * .42)/1 var(--font); letter-spacing: -.04em; transform: scale(.86); }
 .flowmap { position: relative; margin: 0 0 14px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); animation: rise .5s var(--ease) both; animation-delay: 160ms; }
 .flowmap svg { display: block; width: 100%; height: auto; }

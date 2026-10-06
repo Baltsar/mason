@@ -186,7 +186,9 @@ export function buildFlow(events, { groupOf = (sample) => sample.group || "other
     perHour: totalSeconds >= 600 ? Math.round(jumps / (totalSeconds / 3600)) : null,
     sittings,
     tools: [...tools.values()].sort((a, b) => b.seconds - a.seconds)
-      .map((tool) => ({ name: tool.name, seconds: Math.round(tool.seconds), visits: tool.visits, group: mostOf(tool.groups), tile: tileOf(tool.name), host: Object.entries(tool.hosts).sort((a, b) => b[1] - a[1])[0]?.[0] || "" })),
+      // Where the tool lives on the web, when it is a site: the address it was
+      // mostly seen at, or the one a named site is known to have.
+      .map((tool) => ({ name: tool.name, seconds: Math.round(tool.seconds), visits: tool.visits, group: mostOf(tool.groups), tile: tileOf(tool.name), host: Object.entries(tool.hosts).sort((a, b) => b[1] - a[1])[0]?.[0] || HOSTS.find(([, name]) => name === tool.name)?.[0] || "" })),
     pairs: [...pairs.values()].sort((a, b) => b.count - a.count),
     longest: longest ? { tool: longest.tool, seconds: Math.round(longest.seconds), startedAt: iso(longest.start) } : null,
     // The day in order, for the ribbon: what was in front, and when.

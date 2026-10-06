@@ -11,7 +11,7 @@ import { handleMcp } from "./mcp-handler.mjs";
 import { loadLocalEnv } from "./config.mjs";
 import { aggregateActivity, classifyActivity, dayStart } from "./activity.mjs";
 import { buildFlow } from "./flow.mjs";
-import { ICON_FILE, iconFolder, iconsFor } from "./icons.mjs";
+import { ICON_FILE, ICON_TYPES, iconFolder, iconsFor, siteIconsFor } from "./icons.mjs";
 import { dayKey, daysPayload, loadDays, refreshDays } from "./days.mjs";
 import { measureDay, readsAnswers, sentenceOf } from "./coach.mjs";
 import { builtOf } from "./built.mjs";
@@ -104,7 +104,11 @@ async function flowPayload(asked, span = "day") {
     const [events, index] = await Promise.all([readEventsSince(from), projectIndex(from)]);
     flow = buildFlow(events.filter((event) => Date.parse(event.startedAt || event.at) < to), { groupOf: groupFor(index) });
   }
-  const icons = await iconsFor(flow.tools.slice(0, 16).map((tool) => tool.name));
+  const shown = flow.tools.slice(0, 16);
+  const icons = await iconsFor(shown.map((tool) => tool.name));
+  // A site with no app of its name may show the icon the site itself gave.
+  const fromSites = await siteIconsFor(shown.filter((tool) => !icons[tool.name]), { arrived: () => broadcast("icons") });
+  Object.assign(icons, fromSites);
   const known = await loadDays();
   return { ...flow, span: span === "week" ? "week" : "day", day: span === "week" ? current : day, fromDay, today: current, owner: ownerName(), days: [...new Set([...Object.keys(known.moves), current])].sort(), tools: flow.tools.map((tool) => ({ ...tool, icon: icons[tool.name] || null })) };
 }
@@ -441,7 +445,8 @@ const server = http.createServer(async (request, response) => {
       const name = url.pathname.slice("/icons/".length);
       if (!ICON_FILE.test(name)) return json(response, 404, { error: "Not found" });
       const picture = await readFile(path.join(iconFolder(), name));
-      response.writeHead(200, { "content-type": "image/png", "cache-control": "max-age=86400" });
+      // A picture and nothing else, whatever a site may have sent.
+      response.writeHead(200, { "content-type": ICON_TYPES[name.split(".").at(-1)], "cache-control": "max-age=86400", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; sandbox" });
       response.end(picture);
       return;
     }

@@ -18,7 +18,7 @@ Live page with the pitch film: https://mason-demo-eight.vercel.app
 
 | | |
 |---|---|
-| **Watches the work, not the screen** | It reads the front app, the window title and the prompt field through macOS Accessibility. No screenshots, no keystrokes. In the background it never asks anything. |
+| **Watches the work, not the screen** | It reads the front app, the window title, the site of a browser tab and the prompt field through macOS Accessibility. No screenshots, no keystrokes, and of an address only the name of the site. In the background it never asks anything. |
 | **Remembers how it was built** | Every Claude Code session of a project folder is folded into one memory: what it is, how it is put together, where it was left, what is still open. |
 | **Picks up your rules without asking** | A correction you gave an agent twice is a rule you never wrote down. It lands in the Work Map with your own words as evidence. |
 | **Talks, when you take the call** | Three ElevenLabs agents: a debrief about today, a recall call that asks what you still know about your own project, and a tutor that stops a new person before they break a rule. |
@@ -27,7 +27,8 @@ Live page with the pitch film: https://mason-demo-eight.vercel.app
 | **Teaches you your own work** | Built asks one question at a time about a project you worked on: how it is put together, what you decided, what you built last, where you left it. A press shows what Mason remembers. Nothing is typed, and the same questions can be asked aloud. |
 | **Looks back, unasked** | Mason is a mirror: it is never told what a day is for. After three days of work it says how the work was done, in at most three plain sentences: where you went right after sending a prompt, how long finished answers from your agents waited, how often you changed tool. Written once, left as it was, with the numbers one press away. A word on the island says when an answer is ready and you are somewhere else. |
 | **Proposes, and says why** | What you told your agents again and again in several projects is proposed as one line in the file every agent reads, shown with the words it rests on. Nothing is written without a press, the wording can be changed first, and a line can be taken out again. A rule that would let agents publish or delete without asking is never proposed. |
-| **Shows how you move** | Flow: the tools of the day with their own icons, and a line between two of them as thick as the jumps between them. Five tools, three habits, one band for the day; the rest is one press away. |
+| **Shows how you move** | Flow: the tools of the day with their own icons, and a line between two of them as thick as the jumps between them. A tool in a browser tab is known by the site it is on. Five tools, three habits, one band for the day; the rest is one press away. |
+| **Makes it a picture to share** | Share draws the flow of the day or the week as one picture: what you built with, the habits between the tools, three figures. Only the names of tools are on it, and a tool can be left out with a press. Mason writes the file and posts nothing. |
 | **Keeps the long view** | Days: a calendar of every day worked, back to the first day of each project, and each project's month as a strip. |
 
 ElevenLabs in the build: Agents (three), Scribe v2 Realtime, Text to Speech (Flash v2.5) and Text to Dialogue (v3) for a weekly two-voice recap.
@@ -99,21 +100,21 @@ macOS 13 or later, Node 18 or later, Xcode command line tools. No packages to in
 Press the island in the menu bar. The first time it asks for Accessibility, which is how it sees which app and window you are in. Name, sound and the rest are under the gear in the app window.
 
 ```bash
-npm test                           # 53 tests, no network, no data of yours needed
+npm test                           # 74 tests, no network, no data of yours needed
 ```
 
 ## Limits
 
 - The memory is stored on the Mac, but the voice is not: speech, calls and dictation go through ElevenLabs, and summaries through your Claude login or the model you chose. Both have a switch in Settings. With ElevenLabs and summaries switched off, nothing leaves the Mac: Mason then speaks with the Mac's own voice, there are no calls, and the memory is your own words.
 - macOS only. The memory is built from Claude Code logs; chats in ChatGPT or on claude.ai are not on disk and are not read.
-- Flow knows a site by its window title, so Grok, X or YouTube in a browser are told apart, and a site that does not name itself counts as the browser. Chat and mail are left out unless you switch on naming them; then their name and the time are kept, never a title.
+- Flow knows a site by the address of the front tab, of which only the host is kept ("figma.com"). Chat and mail are left out unless you switch on naming them; then their name and the time are kept, never a title. A site shows a lettered tile unless you switch on Logos from the web; then Mason asks each site once for its own icon, which is one more thing that leaves the Mac.
 - "How it is put together" and "what was decided" come from your prompts, what the agents reported and the names of the files they changed. File contents are never read, and a line can be wrong where an agent was, or where a model read a wish as a decision.
 - Live questions in a session and the written check in Teach are deterministic. The calls judge by meaning.
 - More in the app's [README](apprentice/README.md#boundaries-of-this-slice).
 
 ## After the hackathon
 
-What was submitted to Hack-Nation 7 on 4 October 2026 is the tag `hack-nation-7`. Added after the deadline: Built, the look back, the proposals, Flow, Days, the switches for ElevenLabs, the agent logs and naming chat and mail, and the choice of model for summaries. Map, Teach (there called New person), Recap and Agents, built for the challenge, are under More.
+What was submitted to Hack-Nation 7 on 4 October 2026 is the tag `hack-nation-7`. Added after the deadline: Built, the look back, the proposals, Flow with the site of a tab and the picture to share, Days, the switches for ElevenLabs, the agent logs and naming chat and mail, and the choice of model for summaries. Map, Teach (there called New person), Recap and Agents, built for the challenge, are under More.
 
 ## What is not in this repository
 

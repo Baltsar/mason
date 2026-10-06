@@ -461,8 +461,11 @@ const inkOn = (color) => {
 const tileFor = (tool) => tool?.tile || { text: String(tool?.name || "?").slice(0, 1).toUpperCase(), color: "#2b2823" };
 // A tool's face: its app icon when the app is on this Mac, otherwise a letter
 // or two on the colour it is known by.
+// An icon a site gave of itself is a full square, cut here to the shape of a
+// tile; an app's icon already has its own shape and air around it.
+const fromSite = (tool) => Boolean(tool?.icon?.includes("/site-"));
 function face(tool, size = 28) {
-  if (tool?.icon) return `<img class="logo" style="--s:${size}px" src="${tool.icon}" alt="" />`;
+  if (tool?.icon) return `<img class="logo ${fromSite(tool) ? "site" : ""}" style="--s:${size}px" src="${tool.icon}" alt="" />`;
   const tile = tileFor(tool);
   return `<span class="logo" style="--s:${size}px;--bg:${tile.color};--fg:${inkOn(tile.color)}">${esc(tile.text)}</span>`;
 }
@@ -555,9 +558,12 @@ function flowMap(tools, total) {
   const marks = nodes.map(({ tool, x, y, r, nameAt, faded }) => {
     const tile = tileFor(tool);
     const side = r * 1.8;
-    const mark = tool.icon
-      ? `<image href="${tool.icon}" x="${x - r * 1.1}" y="${y - r * 1.1}" width="${r * 2.2}" height="${r * 2.2}" />`
-      : `<rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" fill="${tile.color}" stroke="rgba(255,255,255,.16)" /><text class="letters" x="${x}" y="${y}" fill="${inkOn(tile.color)}" font-size="${Math.round(side * .42)}">${esc(tile.text)}</text>`;
+    const cut = `cut-${Math.round(x)}-${Math.round(y)}`;
+    const mark = fromSite(tool)
+      ? `<clipPath id="${cut}"><rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" /></clipPath><image href="${tool.icon}" x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${cut})" /><rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" fill="none" stroke="rgba(255,255,255,.16)" />`
+      : tool.icon
+        ? `<image href="${tool.icon}" x="${x - r * 1.1}" y="${y - r * 1.1}" width="${r * 2.2}" height="${r * 2.2}" />`
+        : `<rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" fill="${tile.color}" stroke="rgba(255,255,255,.16)" /><text class="letters" x="${x}" y="${y}" fill="${inkOn(tile.color)}" font-size="${Math.round(side * .42)}">${esc(tile.text)}</text>`;
     return `<g class="node" data-tool="${esc(tool.name)}" role="button" tabindex="0" aria-pressed="${tool.name === flowTool}" aria-label="${esc(tool.name)}, ${minutes(tool.seconds)}" ${faded ? "data-faded" : ""}><circle cx="${x}" cy="${y}" r="${r + 12}" />${mark}<text class="name" x="${x}" y="${nameAt}">${esc(short(tool.name, 20))}</text></g>`;
   });
   const more = total > FLOW_FEW ? `<button class="all" type="button" data-flow-all aria-pressed="${flowAll}">${flowAll ? "Fewer" : `All ${Math.min(total, FLOW_ALL)}`}</button>` : "";
@@ -718,10 +724,19 @@ async function drawShare() {
     pen.globalAlpha = 1;
     for (const { tool, x, y, r, nameAt } of layout.nodes) {
       const image = tool.icon ? await pictureOf(tool.icon) : null;
-      if (image) pen.drawImage(image, x - r * 1.1, y - r * 1.1, r * 2.2, r * 2.2);
+      const side = r * 1.8;
+      if (image && fromSite(tool)) {
+        pen.save();
+        pen.beginPath();
+        pen.roundRect(x - side / 2, y - side / 2, side, side, side * .23);
+        pen.clip();
+        pen.fillStyle = "#ffffff";
+        pen.fillRect(x - side / 2, y - side / 2, side, side);
+        pen.drawImage(image, x - side / 2, y - side / 2, side, side);
+        pen.restore();
+      } else if (image) pen.drawImage(image, x - r * 1.1, y - r * 1.1, r * 2.2, r * 2.2);
       else {
         const tile = tileFor(tool);
-        const side = r * 1.8;
         pen.beginPath();
         pen.roundRect(x - side / 2, y - side / 2, side, side, side * .23);
         pen.fillStyle = tile.color;
@@ -929,6 +944,7 @@ function renderSettings() {
     ${row("chats", "Chat and mail by name", settings.chats ? on("Name and time") : off("Counted, not named"))}
     <p class="group">Sends</p>
     ${row("summaries", "Summaries", settings.summaries ? (model.ready ? on(writer) : off(writer)) : off("Your own words"))}
+    ${row("logos", "Logos from the web", settings.logos ? on("Asks each site once") : off("Lettered tiles"))}
     ${status.elevenLabsKey
       ? row("elevenlabs", "ElevenLabs voice", settings.elevenlabs ? (status.credits ? on(`${thousands(status.credits.left)} credits left`) : "") : off("Mac voice, no calls"))
       : `<div class="set"><span>ElevenLabs voice</span>${off("No key in .env.local")}</div>`}
@@ -936,7 +952,7 @@ function renderSettings() {
     <p class="group">Keeps</p>
     <div class="set"><span>Memory</span><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Show in Finder</button></div>
     <div class="set"><span>Notes for Obsidian</span><button class="secondary" type="button" data-reveal="notes">Show in Finder</button></div>
-    <p class="fine">No screenshots, no keystrokes. Of a page in a browser only the site is kept, never its address. The agent logs are the files Claude Code already writes on this Mac; Mason keeps short, redacted excerpts. With Summaries and ElevenLabs switched off, nothing leaves this Mac.</p>`);
+    <p class="fine">No screenshots, no keystrokes. Of a page in a browser only the site is kept, never its address. The agent logs are the files Claude Code already writes on this Mac; Mason keeps short, redacted excerpts. With everything under Sends switched off, nothing leaves this Mac.</p>`);
 }
 
 async function loadPrefs() {
