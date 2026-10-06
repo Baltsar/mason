@@ -14,6 +14,7 @@ import { buildFlow } from "./flow.mjs";
 import { ICON_FILE, iconFolder, iconsFor } from "./icons.mjs";
 import { dayKey, daysPayload, loadDays, refreshDays } from "./days.mjs";
 import { measureDay, readsAnswers, sentenceOf } from "./coach.mjs";
+import { builtOf } from "./built.mjs";
 import { applySuggestion, dismissSuggestion, refreshSuggestions, removeRule, suggestionsPayload } from "./suggest.mjs";
 import { mastery, reviewDecision } from "./teach-engine.mjs";
 import { buildGaps, buildTeachBack, confirmation, debriefProgress } from "./debrief.mjs";
@@ -129,6 +130,18 @@ function cueFor(measure, runtime) {
   if (!ready) return null;
   cued.add(`${ready.project}|${ready.since}`);
   return `Answer ready · ${short(ready.project, 20)}`;
+}
+
+// What Mason can ask its owner about their own projects: read from what is
+// remembered of each, as it is on disk. No model is asked.
+let builtMemo = { at: 0, value: [] };
+async function builtProjects() {
+  if (Date.now() - builtMemo.at < 60_000) return builtMemo.value;
+  const known = await loadDays();
+  const names = [...new Set(Object.keys(known.days).sort().slice(-21).flatMap((day) => Object.keys(known.days[day])))];
+  const remembered = Object.fromEntries(await Promise.all(names.map(async (name) => [name, memories.get(name) || await savedMemory(name)])));
+  builtMemo = { at: Date.now(), value: builtOf({ days: known.days, memories: remembered, today: dayKey(Date.now()) }) };
+  return builtMemo.value;
 }
 
 // The days are brought up to date in the background, at most every few minutes.
@@ -283,7 +296,7 @@ async function confirmTeachBack(map, source) {
 }
 
 async function statePayload() {
-  const [map, runtime, events, activity, projects, sinceMorning, index, podcast, days, waiting, suggestions] = await Promise.all([loadMap(), loadRuntime(), readEvents(60), todayActivity(), todayProjects(), readEventsSince(dayStart()), projectIndex(dayStart()), podcastState(), loadDays(), waitingPayload(), suggestionsPayload()]);
+  const [map, runtime, events, activity, projects, sinceMorning, index, podcast, days, waiting, suggestions, built] = await Promise.all([loadMap(), loadRuntime(), readEvents(60), todayActivity(), todayProjects(), readEventsSince(dayStart()), projectIndex(dayStart()), podcastState(), loadDays(), waitingPayload(), suggestionsPayload(), builtProjects()]);
   // The project in front right now (often none: a feed, a video), and the last
   // project that has something remembered about it.
   const inFront = runtime.currentApp && !runtime.currentPrivate ? index.resolve({ app: runtime.currentApp, window: runtime.currentWindow || "", at: new Date().toISOString() }) : null;
@@ -306,6 +319,7 @@ async function statePayload() {
     // The figures the top bar shows for the two views that load by themselves.
     flow: { jumps: (await today()).flow.jumps },
     days: Object.keys(days.days).length,
+    built: built.length,
     now: { project: inFront, recent },
     presence: presence(runtime),
     voice: voiceStatus(),
@@ -365,6 +379,7 @@ const server = http.createServer(async (request, response) => {
     const post = request.method === "POST";
     if (url.pathname === "/api/island" && request.method === "GET") return json(response, 200, await islandPayload());
     if (url.pathname === "/api/state" && request.method === "GET") return json(response, 200, await statePayload());
+    if (url.pathname === "/api/built" && request.method === "GET") return json(response, 200, { today: dayKey(Date.now()), projects: await builtProjects() });
     if (url.pathname === "/api/suggestions") {
       if (post) {
         const input = await body(request);

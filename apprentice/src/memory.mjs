@@ -13,7 +13,7 @@ import { askModel } from "./llm.mjs";
 const DAYS = 21;
 const MAX_PROMPTS = 70;
 // Raised when the shape of a memory changes, so saved ones are written again.
-const VERSION = 4;
+const VERSION = 5;
 const words = (text, count) => String(text ?? "").replace(/\s+/g, " ").trim().split(" ").slice(0, count).join(" ").replace(/[.,;:]+$/, "");
 // A silence this long between two prompts is a new visit to the project.
 const VISIT_GAP_MS = 6 * 3_600_000;
@@ -37,6 +37,7 @@ Reply with JSON only, no code fence, in exactly this shape:
   "one_line": "what this project is, at most 12 words",
   "how": ["at most 4 statements of how it is put together: a main part and what it does, each naming a real file or folder from the list, at most 16 words each"],
   "built": ["at most 3 short statements of what was built or changed, newest first"],
+  "decided": ["at most 3 decisions that were made about how to build it, each with the reason when one was given, at most 22 words each"],
   "left_off": "where they stopped the last time they worked on it, one sentence",
   "open": ["at most 3 things that were still unfinished or unanswered when they stopped"],
   "keeps_saying": [{"rule": "rule in their voice, at most 6 words", "times": 2, "example": "verbatim quote"}],
@@ -44,6 +45,8 @@ Reply with JSON only, no code fence, in exactly this shape:
 }
 
 Rules for keeps_saying: only a demand or correction they gave the agent on at least two separate occasions. Phrase it as a rule of at most 6 words in their own voice. "example" must be copied word for word from one prompt, at most 12 words. If nothing repeats, return an empty list. At most 3 items.
+
+Rules for decided: a decision is a choice between ways of doing it that the prompts or the reports show was made ("use X instead of Y", "drop Z", "keep it on one page"). Say what was chosen and, when a reason was given, why. A wish or a complaint is not a decision. If no choice shows, return an empty list.
 
 Rules for how: describe the parts someone would need to know to explain how this was built. Take what a part does from the agents' reports; a file name alone is not enough to say what a file does. Name the file or folder. Name a framework or service only when a report, a prompt or a file name shows it. If no files are listed, return an empty list.
 
@@ -59,6 +62,7 @@ function fromOwnWords(name, prompts) {
     one_line: null,
     how: [],
     built: prompts.slice(-3).reverse().map((prompt) => short(prompt.text, 110)),
+    decided: [],
     left_off: last ? `You said: “${short(last.text, 180)}”` : null,
     open: [],
     keeps_saying: [],
@@ -80,6 +84,7 @@ async function digest(name, prompts, work, reports) {
     // A part only counts when it names something the agents really changed.
     how: list(reply.how, 6).filter((line) => work.some((item) => item.file.split("/").some((piece) => piece.length > 3 && line.includes(piece)))).slice(0, 4),
     built: list(reply.built, 3),
+    decided: list(reply.decided, 3),
     left_off: short(reply.left_off, 260),
     open: list(reply.open, 3),
     // A rule only counts when its example really is something they said.

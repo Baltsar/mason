@@ -5,7 +5,7 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 const native = window.webkit?.messageHandlers?.apprentice;
 
-const VIEWS = ["today", "flow", "days", "more", "map", "teach", "recap", "agents", "settings"];
+const VIEWS = ["today", "flow", "days", "built", "more", "map", "teach", "recap", "agents", "settings"];
 const LEGACY = { now: "today", capture: "today", mcp: "agents" };
 const TONES = { work: "var(--lime)", social: "var(--red)", other: "var(--grey)" };
 // Cases to try in Teach are made from the rules that are really in the map:
@@ -42,6 +42,10 @@ let todayPlaying = false;
 let airTimer = null;
 // Whether the proposal on screen shows what it rests on.
 let proposeOpen = false;
+// What Mason can ask about each project, which question is up, and whether its answer shows.
+let built = null;
+let builtAt = { project: 0, card: 0 };
+let builtShown = false;
 // What the settings screen shows: the settings and the state of what Mason depends on.
 let prefs = null;
 // How a day moved between tools: the day shown (none is today) and the tool picked in it.
@@ -304,13 +308,42 @@ function renderSignals() {
   paint($("#signals"), rows[0]?.id || "none", rows.map((event) => `<li data-type="${esc(event.type)}"><time>${clock(event.at, true)}</time><b>${esc(event.app || "Mason")}</b><span>${esc(describe(event))}</span></li>`).join(""));
 }
 
+/* Built: Mason asks about your own work, and holds the answer */
+
+async function loadBuilt() {
+  built = await api("/api/built");
+  if (view === "built") renderBuilt();
+}
+
+function renderBuilt() {
+  if (!built) return;
+  const card = $("#built-card");
+  const { projects } = built;
+  if (!projects.length) {
+    $("#built-meta").textContent = "";
+    paint($("#built-projects"), "none", "");
+    return paint(card, "empty", `<h1 class="question">Nothing to ask about yet.</h1><p class="lede">It fills by itself as you work with your agents.</p>`);
+  }
+  builtAt.project = Math.min(builtAt.project, projects.length - 1);
+  const item = projects[builtAt.project];
+  builtAt.card = Math.min(builtAt.card, item.cards.length - 1);
+  const asked = item.cards[builtAt.card];
+  const days = Math.round((dateOf(built.today) - dateOf(item.lastDay)) / 86_400_000);
+  $("#built-meta").textContent = `${item.project} · ${days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`} · ${builtAt.card + 1} of ${item.cards.length}`;
+  // One question in large type. A press shows what is remembered; nothing is typed.
+  paint(card, JSON.stringify([item.project, builtAt.card, builtShown, asked, snapshot.voice.elevenLabs]), `<h1 class="question">${esc(asked.question)}</h1>
+    ${builtShown ? `<ul class="held">${asked.answer.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>` : ""}
+    <div class="row">${builtShown ? "" : `<button class="primary" type="button" data-built="show">Show</button>`}<button class="${builtShown ? "primary" : "secondary"}" type="button" data-built="next">Next</button>${snapshot.voice.elevenLabs ? `<button class="secondary" type="button" data-recall="${esc(item.project)}">Ask me aloud</button>` : ""}</div>`);
+  paint($("#built-projects"), JSON.stringify([projects.map((project) => project.project), builtAt.project]), projects.map((project, index) => `<button type="button" data-built-project="${index}" aria-pressed="${index === builtAt.project}">${esc(project.project)}</button>`).join(""));
+}
+
 /* More: what was built for handing the work to someone else */
 
 function renderMore() {
-  const { stats, teach, podcast } = snapshot;
+  const { stats, podcast } = snapshot;
   const doors = [
     ["map", "Map", `${stats.steps} ${stats.steps === 1 ? "step" : "steps"}`],
-    ["teach", "Teach", `${teach.stops} stopped`],
+    ["teach", "New person", "Test someone on your rules"],
     ["recap", "Recap", podcast.episode ? podcast.episode.title : "The week as news"],
     ["agents", "Agents", "One memory, every agent"],
   ];
@@ -777,6 +810,7 @@ function renderShell() {
   $("#nav-today").textContent = activity.totalSeconds ? `${activity.workPercent}%` : "–";
   $("#nav-flow").textContent = activity.totalSeconds ? snapshot.flow.jumps : "–";
   $("#nav-days").textContent = snapshot.days || "–";
+  $("#nav-built").textContent = snapshot.built || "–";
   const pill = $("#presence");
   pill.dataset.state = presence;
   $("span", pill).textContent = {
@@ -793,7 +827,7 @@ function renderShell() {
 
 function render() {
   renderShell();
-  ({ today: renderToday, flow: renderFlow, days: renderDays, more: renderMore, map: renderMap, teach: renderTeach, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
+  ({ today: renderToday, flow: renderFlow, days: renderDays, built: renderBuilt, more: renderMore, map: renderMap, teach: renderTeach, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
 }
 
 async function load() {
@@ -815,6 +849,7 @@ function show(name, arg) {
   history.replaceState(null, "", `#${view}`);
   if (view === "settings") loadPrefs().catch(() => {});
   if (view === "days") loadDays().catch(() => {});
+  if (view === "built") loadBuilt().catch(() => {});
   window.scrollTo(0, 0);
   if (snapshot) render();
 }
@@ -909,6 +944,19 @@ async function act(event) {
   const nav = target.closest("[data-view]");
   if (nav) return show(nav.dataset.view);
 
+  const turned = target.closest("[data-built]");
+  if (turned) {
+    if (turned.dataset.built === "show") builtShown = true;
+    else {
+      // The next question of the project, and after its last one the next project.
+      const more = builtAt.card + 1 < built.projects[builtAt.project].cards.length;
+      builtAt = more ? { project: builtAt.project, card: builtAt.card + 1 } : { project: (builtAt.project + 1) % built.projects.length, card: 0 };
+      builtShown = false;
+    }
+    return renderBuilt();
+  }
+  const about = target.closest("[data-built-project]");
+  if (about) { builtAt = { project: Number(about.dataset.builtProject), card: 0 }; builtShown = false; return renderBuilt(); }
   if (target.closest("#today-said")) { waitedOpen = !waitedOpen; return render(); }
   if (target.closest("[data-lookback-open]")) { lookbackOpen = !lookbackOpen; return render(); }
   if (target.closest("[data-propose-open]")) { proposeOpen = !proposeOpen; return render(); }

@@ -21,6 +21,7 @@
         <button type="button" data-view="today" aria-current="page"><span>Today</span><b id="nav-today">–</b></button>
         <button type="button" data-view="flow"><span>Flow</span><b id="nav-flow">–</b></button>
         <button type="button" data-view="days"><span>Days</span><b id="nav-days">–</b></button>
+        <button type="button" data-view="built"><span>Built</span><b id="nav-built">–</b></button>
       </nav>
       <div class="top-actions">
         <button class="link more" type="button" data-view="more">More</button>
@@ -63,6 +64,12 @@
         <section class="lanes" id="days-lanes" aria-label="Projects this month"></section>
       </section>
 
+      <section class="view" data-page="built" hidden>
+        <p class="eyebrow"><span id="built-meta"></span></p>
+        <div class="asked" id="built-card" aria-live="polite"></div>
+        <div class="chips" id="built-projects"></div>
+      </section>
+
       <section class="view" data-page="more" hidden>
         <div class="doors" id="doors"></div>
       </section>
@@ -77,12 +84,14 @@
       </section>
 
       <section class="view" data-page="teach" hidden>
+        <h1 class="statement">Test someone new on your rules.</h1>
+        <p class="lede">They decide a case aloud. A decision that breaks one of your rules is stopped, in your own words.</p>
         <div class="bigs" id="teach-bigs"></div>
         <div class="pair teach-pair">
           <section class="card case" aria-label="A decision to check">
             <div class="chips" id="case-presets"></div>
             <textarea id="teach-prompt" rows="3" aria-label="Decision about to be saved"></textarea>
-            <div class="row"><button class="primary" type="button" data-tutor>Tutor call</button><button class="secondary" id="teach-review" type="button">Check</button></div>
+            <div class="row"><button class="primary" type="button" data-tutor>Start the test call</button><button class="secondary" id="teach-review" type="button">Check this decision</button></div>
           </section>
           <section class="card verdict" id="teach-result" aria-live="polite" hidden></section>
         </div>
