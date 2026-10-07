@@ -174,8 +174,9 @@ function catchUpDays() {
 // goes through every log there is; after that only what is new.
 let saidAt = 0;
 let saidWaiting = null;
-// More was read: what is proposed is looked over at the next pass, not hours later.
-let lookSoon = false;
+// After a start, and when more was read, what is proposed is looked over at
+// the next pass and not hours later. Nothing is asked when nothing changed.
+let lookSoon = true;
 function catchUpSaid() {
   if (!settings().meaning || !settings().logs || !embedStatus().ready) return;
   if (Date.now() - saidAt < 5 * 60_000) return;
