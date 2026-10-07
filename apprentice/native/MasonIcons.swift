@@ -21,24 +21,39 @@ let places = [
     NSHomeDirectory() + "/Applications", "/System/Library/CoreServices", "/System/Library/CoreServices/Applications",
 ]
 
-// Where the app of this name lives: one that is running first, then the usual
-// folders. The name is the one macOS shows, which on a Swedish Mac is "Kalender".
-func locate(_ wanted: String) -> URL? {
-    // The file system spells "ä" as two characters; compare in one spelling.
-    let name = wanted.precomposedStringWithCanonicalMapping
-    if let running = NSWorkspace.shared.runningApplications.first(where: { $0.localizedName?.precomposedStringWithCanonicalMapping == name }), let url = running.bundleURL {
-        return url
-    }
+// A name in one spelling. The file system spells "ä" as two characters, and
+// some apps put a mark for the direction of writing in front of their name.
+func plain(_ name: String) -> String {
+    name.precomposedStringWithCanonicalMapping.replacingOccurrences(of: "\u{200E}", with: "").replacingOccurrences(of: "\u{200F}", with: "")
+}
+
+// Every app in the usual folders, under each name it goes by. The folders are
+// read once: a day can have been spent in forty tools, and most are sites.
+let installed: [String: URL] = {
+    var apps: [String: URL] = [:]
     for place in places {
         for item in (try? FileManager.default.contentsOfDirectory(atPath: place)) ?? [] where item.hasSuffix(".app") {
             let path = place + "/" + item
             // Spotlight knows an app by the name it has in the owner's language.
             let listed = NSMetadataItem(url: URL(fileURLWithPath: path))?.value(forAttribute: NSMetadataItemDisplayNameKey) as? String
-            let shown = (listed ?? FileManager.default.displayName(atPath: path)).precomposedStringWithCanonicalMapping
-            if shown == name || shown == name + ".app" || item.precomposedStringWithCanonicalMapping == name + ".app" { return URL(fileURLWithPath: path) }
+            for shown in [listed ?? FileManager.default.displayName(atPath: path), item] {
+                let spelled = plain(shown)
+                let name = spelled.hasSuffix(".app") ? String(spelled.dropLast(4)) : spelled
+                if apps[name] == nil { apps[name] = URL(fileURLWithPath: path) }
+            }
         }
     }
-    return nil
+    return apps
+}()
+
+// Where the app of this name lives: one that is running first, then the usual
+// folders. The name is the one macOS shows, which on a Swedish Mac is "Kalender".
+func locate(_ wanted: String) -> URL? {
+    let name = plain(wanted)
+    if let running = NSWorkspace.shared.runningApplications.first(where: { $0.localizedName.map(plain) == name }), let url = running.bundleURL {
+        return url
+    }
+    return installed[name]
 }
 
 func write(_ icon: NSImage, to url: URL, side: Int = 128) -> Bool {

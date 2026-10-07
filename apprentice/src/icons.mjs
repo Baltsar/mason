@@ -27,7 +27,8 @@ function draw(apps) {
     child.once("error", () => { clearTimeout(timer); resolve([]); });
     child.once("exit", () => {
       clearTimeout(timer);
-      try { resolve(JSON.parse(output.trim().split("\n").at(-1)).found || []); } catch { resolve([]); }
+      // A helper that was stopped half way has not said which apps have no icon.
+      try { resolve(JSON.parse(output.trim().split("\n").at(-1)).found || []); } catch { resolve(null); }
     });
     child.stdin.on("error", () => {});
     child.stdin.end(`${JSON.stringify({ folder: iconFolder(), apps })}\n`);
@@ -44,8 +45,9 @@ export async function iconsFor(names) {
     catch { missing.push({ name, file }); }
   }
   if (missing.length) {
-    const found = new Set(await draw(missing));
-    for (const { name, file } of missing) known.set(name, found.has(name) ? file : null);
+    const found = await draw(missing);
+    // Without an answer the names are asked for again the next time.
+    if (found) for (const { name, file } of missing) known.set(name, found.includes(name) ? file : null);
   }
   const icons = {};
   for (const name of names) if (known.get(name)) icons[name] = `/icons/${known.get(name)}`;

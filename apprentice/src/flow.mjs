@@ -104,7 +104,8 @@ function siteOf(app, title) {
 
 // The tool a moment was spent in.
 export function toolOf({ type, app = "", window = "", host = "" } = {}) {
-  const name = String(app).trim();
+  // Some apps put a mark for the direction of writing in front of their name.
+  const name = String(app).replace(/[\u200e\u200f]/g, "").trim();
   if (type === "private" || !activityPatterns.BROWSER.test(name)) return name;
   // The address of the tab says which site it is; a title only sometimes does.
   if (host) return siteAt(String(host).toLowerCase());

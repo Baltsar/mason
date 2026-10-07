@@ -7,6 +7,8 @@ const spent = (app, window, minute, seconds, more = {}) => ({ type: "activity", 
 
 test("a tool is the app, or in a browser the site its window title names", () => {
   assert.equal(toolOf({ app: "Cursor", window: "flow.mjs" }), "Cursor");
+  // An app that puts a mark for the direction of writing in front of its name.
+  assert.equal(toolOf({ app: "\u200eWhatsApp", window: "" }), "WhatsApp");
   assert.equal(toolOf({ app: "Comet", window: "SvenskTiger - Grok" }), "Grok");
   assert.equal(toolOf({ app: "Comet", window: "(2) Home / X - Comet" }), "X");
   assert.equal(toolOf({ app: "Comet", window: "R on X: \"The prompt: an isometric object\"" }), "X");
