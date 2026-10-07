@@ -84,6 +84,9 @@ async function today() {
   return activityMemo;
 }
 
+// How many of a day's sites are asked for their own icon, when that is switched on.
+const SITES_ASKED = 24;
+
 // How a day moved between tools: today, or the day asked for. Each tool comes
 // with its icon when the app is on this Mac.
 async function flowPayload(asked, span = "day") {
@@ -104,10 +107,12 @@ async function flowPayload(asked, span = "day") {
     const [events, index] = await Promise.all([readEventsSince(from), projectIndex(from)]);
     flow = buildFlow(events.filter((event) => Date.parse(event.startedAt || event.at) < to), { groupOf: groupFor(index) });
   }
-  const shown = flow.tools.slice(0, 16);
+  // Every tool that was gone to is named in the window, so each is looked up.
+  const shown = flow.tools.filter((tool) => tool.visits);
   const icons = await iconsFor(shown.map((tool) => tool.name));
   // A site with no app of its name may show the icon the site itself gave.
-  const fromSites = await siteIconsFor(shown.filter((tool) => !icons[tool.name]), { arrived: () => broadcast("icons") });
+  // Only the sites with the most time are asked: the rest keep their letter.
+  const fromSites = await siteIconsFor(shown.slice(0, SITES_ASKED).filter((tool) => !icons[tool.name]), { arrived: () => broadcast("icons") });
   Object.assign(icons, fromSites);
   const known = await loadDays();
   return { ...flow, span: span === "week" ? "week" : "day", day: span === "week" ? current : day, fromDay, today: current, owner: ownerName(), days: [...new Set([...Object.keys(known.moves), current])].sort(), tools: flow.tools.map((tool) => ({ ...tool, icon: icons[tool.name] || null })) };

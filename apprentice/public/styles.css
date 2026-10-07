@@ -442,8 +442,15 @@ span.logo { border-radius: 23%; background: var(--bg); box-shadow: inset 0 0 0 1
 .flowmap .count text { fill: var(--paper); font: 700 20px var(--font); letter-spacing: -.03em; text-anchor: middle; dominant-baseline: central; font-variant-numeric: tabular-nums; }
 .flowmap .count.on text { fill: var(--lime); }
 .flowmap .count.main text { font-size: 34px; letter-spacing: -.05em; }
-.flowmap .all { position: absolute; right: 16px; bottom: 14px; height: 30px; padding: 0 13px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: 500 12px var(--mono); }
-.flowmap .all:hover, .flowmap .all[aria-pressed="true"] { border-color: var(--paper); color: var(--paper); }
+/* Every tool of the day by name. The ones in the picture are the bright ones. */
+.toolstrip { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.toolstrip[hidden] { display: none; }
+.toolstrip button { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px 0 6px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font-size: 14px; letter-spacing: -.01em; transition: border-color .15s, color .15s; }
+.toolstrip button em { color: var(--faint); font: 11px var(--mono); }
+.toolstrip button[data-lit] { color: var(--paper); }
+.toolstrip button:hover { border-color: var(--muted); color: var(--paper); }
+.toolstrip button[aria-pressed="true"] { border-color: var(--lime); color: var(--paper); }
+.toolstrip .more { padding: 0 13px; font: 500 12px var(--mono); }
 .ribbon { margin-bottom: 18px; animation: rise .5s var(--ease) both; animation-delay: 240ms; }
 .ribbon .marks { position: relative; height: 34px; }
 .ribbon .marks:empty { display: none; }
@@ -470,6 +477,7 @@ span.logo { border-radius: 23%; background: var(--bg); box-shadow: inset 0 0 0 1
 #share-canvas { display: block; width: auto; height: min(72vh, 680px); border: 1px solid var(--line); border-radius: 14px; cursor: pointer; }
 .share-side { display: grid; gap: 16px; }
 .share-side .note { color: var(--muted); font-size: 14px; line-height: 1.4; }
+.share-side .toolstrip { max-height: min(44vh, 400px); margin: 0; overflow-y: auto; }
 @media (max-width: 760px) {
   .share-body { grid-template-columns: 1fr; }
   #share-canvas { width: 100%; height: auto; }
