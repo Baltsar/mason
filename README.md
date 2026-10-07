@@ -28,6 +28,7 @@ Live page with the pitch film: https://mason-demo-eight.vercel.app
 | **Looks back, unasked** | Mason is a mirror: it is never told what a day is for. After three days of work it says how the work was done, in at most three plain sentences: where you went right after sending a prompt, how long finished answers from your agents waited, how often you changed tool. Written once, left as it was, with the numbers one press away. A word on the island says when an answer is ready and you are somewhere else. |
 | **Proposes, and says why** | What you told your agents again and again in several projects is proposed as one line in the file every agent reads, shown with the words it rests on. Nothing is written without a press, the wording can be changed first, and a line can be taken out again. A rule that would let agents publish or delete without asking is never proposed. |
 | **Shows how you move** | Flow: the tools of the day with their own icons, and a line between two of them as thick as the jumps between them. A tool in a browser tab is known by the site it is on. Five tools, three habits, one band for the day. Under the picture every tool of the day is named, and pressing one shows it among the tools it trades places with. |
+| **Finds what you said** | Find: type what it was about and get the project, by meaning and not by the words, in Swedish or English. With nothing typed it shows what you told your agents again and again across projects, in your own words. An embedding model on this Mac does the reading; off until switched on. |
 | **Makes it a picture to share** | Share draws the flow of the day or the week as one picture: what you built with, the habits between the tools, three figures. Only the names of tools are on it. It starts with the five tools the work was done in, and any tool goes in or out with a press, seven at most. Mason writes the file and posts nothing. |
 | **Keeps the long view** | Days: a calendar of every day worked, back to the first day of each project, and each project's month as a strip. |
 
@@ -114,7 +115,7 @@ npm test                           # 74 tests, no network, no data of yours need
 
 ## After the hackathon
 
-What was submitted to Hack-Nation 7 on 4 October 2026 is the tag `hack-nation-7`. Added after the deadline: Built, the look back, the proposals, Flow with the site of a tab and the picture to share, Days, the switches for ElevenLabs, the agent logs and naming chat and mail, and the choice of model for summaries. Map, Teach (there called New person), Recap and Agents, built for the challenge, are under More.
+What was submitted to Hack-Nation 7 on 4 October 2026 is the tag `hack-nation-7`. Added after the deadline: Built, the look back, the proposals, Flow with the site of a tab and the picture to share, Days, Find by meaning with a model on the Mac, the switches for ElevenLabs, the agent logs and naming chat and mail, and the choice of model for summaries. Map, Teach (there called New person), Recap and Agents, built for the challenge, are under More.
 
 ## What is not in this repository
 

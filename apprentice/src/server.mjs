@@ -11,11 +11,13 @@ import { handleMcp } from "./mcp-handler.mjs";
 import { loadLocalEnv } from "./config.mjs";
 import { aggregateActivity, classifyActivity, dayStart } from "./activity.mjs";
 import { buildFlow } from "./flow.mjs";
+import { embedStatus, stopEmbedder } from "./embed.mjs";
 import { ICON_FILE, ICON_TYPES, iconFolder, iconsFor, siteIconsFor } from "./icons.mjs";
 import { dayKey, daysPayload, loadDays, refreshDays } from "./days.mjs";
 import { measureDay, readsAnswers, sentenceOf } from "./coach.mjs";
 import { builtOf } from "./built.mjs";
 import { saveShare } from "./share.mjs";
+import { findSaid, forgetSaid, refreshSaid, repeatedSaid, saidStatus } from "./said.mjs";
 import { applySuggestion, dismissSuggestion, refreshSuggestions, removeRule, suggestionsPayload } from "./suggest.mjs";
 import { mastery, reviewDecision } from "./teach-engine.mjs";
 import { buildGaps, buildTeachBack, confirmation, debriefProgress } from "./debrief.mjs";
@@ -167,6 +169,36 @@ function catchUpDays() {
   daysAt = Date.now();
   refreshDays().then(() => broadcast("days")).catch(() => {});
 }
+// What was said to the agents is placed by the embedding model in the
+// background while that is switched on, a step at a time. The first reading
+// goes through every log there is; after that only what is new.
+let saidAt = 0;
+let saidWaiting = null;
+function catchUpSaid() {
+  if (!settings().meaning || !settings().logs || !embedStatus().ready) return;
+  if (Date.now() - saidAt < 5 * 60_000) return;
+  saidAt = Date.now();
+  const moved = ({ waiting }) => { saidWaiting = waiting; repeatedMemo.at = 0; broadcast("said"); };
+  projectIndex(0, { maxAgeMs: 5 * 60_000 })
+    .then((index) => refreshSaid(index.prompts(), { moved }))
+    .then((progress) => {
+      if (!progress) return;
+      saidWaiting = progress.waiting;
+      // More is waiting: go on at once, and let others in between.
+      if (progress.waiting && progress.added) { saidAt = 0; setTimeout(catchUpSaid, 200).unref(); }
+    })
+    .catch(() => {});
+}
+
+// What is said again and again is worked out from everything that was read,
+// which takes a moment, so it is kept until more has been read.
+let repeatedMemo = { at: 0, value: [] };
+async function repeatedDemands() {
+  if (Date.now() - repeatedMemo.at < 30 * 60_000) return repeatedMemo.value;
+  repeatedMemo = { at: Date.now(), value: await repeatedSaid() };
+  return repeatedMemo.value;
+}
+
 // What each of today's projects is about and where it was left. Built in the
 // background from the prompts already given to the agents; nothing is asked.
 const memories = new Map();
@@ -431,6 +463,13 @@ const server = http.createServer(async (request, response) => {
         broadcast("suggestions");
       }
       return json(response, 200, await suggestionsPayload());
+    }
+    if (url.pathname === "/api/find" && post) {
+      if (!settings().meaning) return json(response, 200, { off: true });
+      const found = await findSaid((await body(request)).query);
+      if (!found) return json(response, 200, { unavailable: embedStatus().missing || "model" });
+      // With nothing asked for, what is said again and again is shown instead.
+      return json(response, 200, { ...found, waiting: saidWaiting, repeated: found.query ? [] : (await repeatedDemands()).slice(0, 8) });
     }
     if (url.pathname === "/api/flow" && request.method === "GET") return json(response, 200, await flowPayload(url.searchParams.get("day"), url.searchParams.get("span") || "day"));
     if (url.pathname === "/api/share" && post) {
@@ -770,9 +809,19 @@ const server = http.createServer(async (request, response) => {
           if (process.env.APPRENTICE_COLLECT !== "0") spawn("open", [input.action === "notes" ? paths.wiki : paths.data], { stdio: "ignore", detached: true }).once("error", () => {}).unref();
           return json(response, 200, { ok: true });
         }
+        // What was read by its meaning is forgotten only when that is asked for.
+        if (input.action === "forget-said") {
+          await forgetSaid();
+          saidWaiting = null;
+          repeatedMemo = { at: 0, value: [] };
+          broadcast("said");
+          return json(response, 200, { ok: true });
+        }
         await saveSettings(input);
         // Switching the agents' logs on or off shows at once, not at the next reading.
         if ("logs" in input) { await projectIndex(dayStart(), { maxAgeMs: 0 }); activityMemo.at = 0; }
+        // Switched on, the reading starts now; switched off, the model is stopped.
+        if ("meaning" in input) { saidAt = 0; if (settings().meaning) catchUpSaid(); else stopEmbedder(); }
         broadcast("settings");
       }
       const runtime = await loadRuntime();
@@ -785,6 +834,8 @@ const server = http.createServer(async (request, response) => {
           elevenLabsKey: hasElevenLabsKey(),
           credits: await elevenLabsCredits(),
           model: modelStatus(),
+          // The model that places what was said, and how much it has read.
+          said: { ...embedStatus(), ...(await saidStatus()), waiting: saidWaiting },
           logs: await logSources(),
           data: paths.data.replace(process.env.HOME || "\u0000", "~"),
         },
@@ -883,6 +934,7 @@ async function shutdown() {
   if (stopping) return;
   stopping = true;
   stopSpeaking();
+  stopEmbedder();
   await collector.stop();
   desktop?.kill("SIGTERM");
   for (const response of clients) response.end();
@@ -913,6 +965,8 @@ server.listen(port, "127.0.0.1", () => {
   // The long view is caught up once Mason is running, not while it starts.
   setTimeout(catchUpDays, 15_000).unref();
   setInterval(catchUpDays, 10 * 60_000).unref();
+  setTimeout(catchUpSaid, 30_000).unref();
+  setInterval(catchUpSaid, 10 * 60_000).unref();
   console.log(`Mason is running locally: http://127.0.0.1:${port}`);
   console.log("Stop with Ctrl+C or by quitting Mason. No data leaves this Mac unless an ElevenLabs key is configured.");
 });

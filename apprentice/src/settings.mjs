@@ -5,8 +5,9 @@ import { atomicJson, paths, readJson } from "./store.mjs";
 
 // The few things a person may want to change. Each has a default that works,
 // so the settings screen is never needed to get started.
-// Naming chat and mail, and asking sites for their icons, are off until asked for.
-const DEFAULTS = { name: "", speech: true, summaries: true, elevenlabs: true, chats: false, logs: true, cues: true, logos: false };
+// Naming chat and mail, asking sites for their icons, and placing what was
+// said by its meaning are off until asked for.
+const DEFAULTS = { name: "", speech: true, summaries: true, elevenlabs: true, chats: false, logs: true, cues: true, logos: false, meaning: false };
 const file = () => path.join(paths.data, "settings.json");
 
 // What was set from outside (a rehearsal runs muted, for one) is kept and
@@ -49,6 +50,7 @@ function clean(value) {
     logs: value?.logs !== false,
     cues: value?.cues !== false,
     logos: value?.logos === true,
+    meaning: value?.meaning === true,
   };
 }
 

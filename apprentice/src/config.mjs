@@ -9,6 +9,7 @@ export async function loadLocalEnv() {
   const allowed = new Set([
     "ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL_ID", "ELEVENLABS_LANGUAGE", "ELEVENLABS_AGENT_LLM",
     "APPRENTICE_LLM_URL", "APPRENTICE_LLM_MODEL", "APPRENTICE_LLM_KEY", "APPRENTICE_SYSTEM_VOICE", "PORT",
+    "APPRENTICE_EMBED_URL", "APPRENTICE_EMBED_MODEL", "APPRENTICE_EMBED_KEY", "APPRENTICE_LLAMA",
   ]);
   for (const line of text.split(/\r?\n/)) {
     const match = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());

@@ -5,7 +5,7 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 const native = window.webkit?.messageHandlers?.apprentice;
 
-const VIEWS = ["today", "flow", "days", "built", "more", "map", "teach", "recap", "agents", "settings"];
+const VIEWS = ["today", "flow", "days", "built", "more", "find", "map", "teach", "recap", "agents", "settings"];
 const LEGACY = { now: "today", capture: "today", mcp: "agents" };
 const TONES = { work: "var(--lime)", social: "var(--red)", other: "var(--grey)" };
 // Cases to try in Teach are made from the rules that are really in the map:
@@ -45,6 +45,11 @@ let proposeOpen = false;
 // What Mason can ask about each project, which question is up, and whether its answer shows.
 let built = null;
 let builtAt = { project: 0, card: 0 };
+// What was last looked for, and what came back.
+let found = null;
+let findTimer = null;
+let findTurn = 0;
+let findOpen = null;
 let builtShown = false;
 // What the settings screen shows: the settings and the state of what Mason depends on.
 let prefs = null;
@@ -337,11 +342,58 @@ function renderBuilt() {
   paint($("#built-projects"), JSON.stringify([projects.map((project) => project.project), builtAt.project]), projects.map((project, index) => `<button type="button" data-built-project="${index}" aria-pressed="${index === builtAt.project}">${esc(project.project)}</button>`).join(""));
 }
 
+/* Find: something that was said, by what it means */
+
+const agoOf = (iso) => {
+  const days = Math.round((new Date().setHours(0, 0, 0, 0) - new Date(iso).setHours(0, 0, 0, 0)) / 86_400_000);
+  return days <= 0 ? "today" : days === 1 ? "yesterday" : days < 60 ? `${days} days ago` : new Date(iso).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+};
+
+async function seek(query) {
+  const turn = ++findTurn;
+  const answer = await post("/api/find", { query });
+  // An answer to something that is no longer asked is dropped.
+  if (turn !== findTurn) return;
+  found = answer;
+  if (view === "find") renderFind();
+}
+
+function renderFind() {
+  const node = $("#find-results");
+  const field = $("#find-query");
+  if (!found) return;
+  field.hidden = Boolean(found.off || found.unavailable);
+  if (found.off) {
+    $("#find-meta").textContent = "";
+    return paint(node, "off", `<h1 class="question">Find what you said, by what it means.</h1><p class="lede">A model on this Mac reads what you said to your agents. Nothing is sent anywhere.</p><div class="row"><button class="primary" type="button" data-find-on>Switch on</button></div>`);
+  }
+  if (found.unavailable) {
+    $("#find-meta").textContent = "";
+    const [title, lede] = found.unavailable === "runner"
+      ? ["llama.cpp is not on this Mac.", "It runs the model. In a terminal: brew install llama.cpp"]
+      : ["No model on this Mac yet.", "Put an embedding model, a .gguf file, in the folder data/models."];
+    return paint(node, found.unavailable, `<h1 class="question">${title}</h1><p class="lede">${lede}</p>`);
+  }
+  $("#find-meta").textContent = found.read ? `${thousands(found.read)} prompts read${found.waiting ? ` · ${thousands(found.waiting)} to go` : ""}` : found.waiting === null ? "Nothing read yet" : "Reading";
+  if (!found.query) {
+    // Nothing asked for: what was said again and again, in the words it was said in.
+    const repeated = found.repeated || [];
+    return paint(node, JSON.stringify([repeated.map((demand) => [demand.id, demand.times]), findOpen]), repeated.length ? `<p class="label">Said again and again</p>${repeated.map((demand) => `<article class="again" data-again="${esc(demand.id)}" role="button" tabindex="0" aria-expanded="${demand.id === findOpen}">
+      <b>${demand.times}×</b><h2>${esc(demand.text)}</h2><p>${demand.projects.length} projects</p>
+      ${demand.id === findOpen ? `<ul>${demand.ways.slice(1).map((way) => `<li><span>${esc(way.text)}</span><time>${esc(way.project)}</time></li>`).join("")}</ul>` : ""}</article>`).join("")}` : "");
+  }
+  if (!found.projects.length) return paint(node, `none ${found.query}`, `<p class="lede">Nothing you said is close to that.</p>`);
+  // The project is the answer, in large type. Under it, the words it rests on.
+  paint(node, JSON.stringify(found.projects), found.projects.map((entry) => `<article class="hit"><header><h2>${esc(entry.project)}</h2><p>${entry.count} said · ${agoOf(entry.last)}</p></header>
+    <ul>${entry.said.map((hit) => `<li><span>${esc(hit.text)}</span><time>${new Date(hit.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</time></li>`).join("")}</ul></article>`).join(""));
+}
+
 /* More: what was built for handing the work to someone else */
 
 function renderMore() {
   const { stats, podcast } = snapshot;
   const doors = [
+    ["find", "Find", "Something you said, by what it means"],
     ["map", "Map", `${stats.steps} ${stats.steps === 1 ? "step" : "steps"}`],
     ["teach", "New person", "Test someone on your rules"],
     ["recap", "Recap", podcast.episode ? podcast.episode.title : "The week as news"],
@@ -969,7 +1021,11 @@ function renderSettings() {
   const row = (key, label, note = "") => `<div class="set"><span>${label}</span><span class="with">${note}<button class="switch" type="button" role="switch" aria-checked="${settings[key]}" aria-label="${label}" data-setting="${key}"></button></span></div>`;
   const on = (text) => `<b>${esc(text)}</b>`;
   const off = (text) => `<b data-off>${esc(text)}</b>`;
-  const { model, logs } = status;
+  const { model, logs, said } = status;
+  const reader = !settings.meaning ? off("Not read")
+    : !said.ready ? off(said.missing === "runner" ? "llama.cpp not found" : "No model in data/models")
+    : said.waiting ? on(`Reading · ${thousands(said.waiting)} to go`)
+    : on(`${thousands(said.count)} read · ${said.onThisMac ? "on this Mac" : said.where}`);
   const applied = snapshot?.suggestions?.applied || [];
   const writer = model.ready ? (model.name === "Claude" ? "Claude" : `${model.name} · ${model.onThisMac ? "on this Mac" : model.where}`) : model.name === "Claude" ? "Claude not found" : "No model named";
   paint(node, JSON.stringify([prefs, applied]), `
@@ -980,6 +1036,7 @@ function renderSettings() {
     <div class="set"><span>Screen: app, window, site, prompt</span>${status.access === "on" ? on("On") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
     ${row("logs", "Agent logs", settings.logs ? on(`Claude Code · ${logs.claude} ${logs.claude === 1 ? "project" : "projects"}`) : off("Not read"))}
     ${row("chats", "Chat and mail by name", settings.chats ? on("Name and time") : off("Counted, not named"))}
+    ${row("meaning", "What you said, by meaning", reader)}
     <p class="group">Sends</p>
     ${row("summaries", "Summaries", settings.summaries ? (model.ready ? on(writer) : off(writer)) : off("Your own words"))}
     ${row("logos", "Logos from the web", settings.logos ? on("Asks each site once") : off("Lettered tiles"))}
@@ -990,7 +1047,8 @@ function renderSettings() {
     <p class="group">Keeps</p>
     <div class="set"><span>Memory</span><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Show in Finder</button></div>
     <div class="set"><span>Notes for Obsidian</span><button class="secondary" type="button" data-reveal="notes">Show in Finder</button></div>
-    <p class="fine">No screenshots, no keystrokes. Of a page in a browser only the site is kept, never its address. The agent logs are the files Claude Code already writes on this Mac; Mason keeps short, redacted excerpts. With everything under Sends switched off, nothing leaves this Mac.</p>`);
+    ${said.count ? `<div class="set"><span>What you said · ${thousands(said.count)} prompts</span><button class="secondary" type="button" data-forget-said>Forget</button></div>` : ""}
+    <p class="fine">No screenshots, no keystrokes. Of a page in a browser only the site is kept, never its address. The agent logs are the files Claude Code already writes on this Mac; Mason keeps short, redacted excerpts. With What you said switched on, each prompt is kept, redacted, and read by a model that runs on this Mac. With everything under Sends switched off, nothing leaves this Mac.</p>`);
 }
 
 async function loadPrefs() {
@@ -1022,7 +1080,7 @@ function renderShell() {
 
 function render() {
   renderShell();
-  ({ today: renderToday, flow: renderFlow, days: renderDays, built: renderBuilt, more: renderMore, map: renderMap, teach: renderTeach, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
+  ({ today: renderToday, flow: renderFlow, days: renderDays, built: renderBuilt, more: renderMore, map: renderMap, teach: renderTeach, find: renderFind, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
 }
 
 async function load() {
@@ -1045,6 +1103,7 @@ function show(name, arg) {
   if (view === "settings") loadPrefs().catch(() => {});
   if (view === "days") loadDays().catch(() => {});
   if (view === "built") loadBuilt().catch(() => {});
+  if (view === "find") { seek($("#find-query").value.trim()).catch(() => {}); $("#find-query").focus(); }
   window.scrollTo(0, 0);
   if (snapshot) render();
 }
@@ -1258,6 +1317,10 @@ async function act(event) {
     return load();
   }
   if (target.closest("[data-fix-access]")) { await post("/api/access", { action: "fix" }); return toast("Switch Mason on in the list"); }
+  const again = target.closest("[data-again]");
+  if (again) { findOpen = findOpen === again.dataset.again ? null : again.dataset.again; return renderFind(); }
+  if (target.closest("[data-forget-said]")) { await post("/api/settings", { action: "forget-said" }); toast("Forgotten"); return loadPrefs(); }
+  if (target.closest("[data-find-on]")) { prefs = await post("/api/settings", { meaning: true }); return seek(""); }
   const reveal = target.closest("[data-reveal]");
   if (reveal) return post("/api/settings", { action: reveal.dataset.reveal });
   if (target.closest("[data-tutor]")) return placeCall("tutor");
@@ -1344,9 +1407,15 @@ document.addEventListener("change", (event) => {
   if (event.target.id !== "set-name") return;
   post("/api/settings", { name: event.target.value }).then((value) => { prefs = value; toast("Saved"); }).catch((error) => toast(error.message));
 });
+// What is looked for is asked a moment after the typing stops.
+document.addEventListener("input", (event) => {
+  if (event.target.id !== "find-query") return;
+  clearTimeout(findTimer);
+  findTimer = setTimeout(() => seek(event.target.value.trim()).catch((error) => toast(error.message)), 320);
+});
 document.addEventListener("keydown", (event) => {
   // A tool in the flow picture is pressed with the keyboard like any button.
-  if ((event.key === "Enter" || event.key === " ") && event.target.matches?.(".flowmap .node")) { event.preventDefault(); return event.target.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
+  if ((event.key === "Enter" || event.key === " ") && event.target.matches?.(".flowmap .node, [data-again]")) { event.preventDefault(); return event.target.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
   if (event.key !== "Enter" || event.shiftKey) return;
   const button = { "live-answer": "[data-answer]", "gap-answer": '[data-debrief="answer"]', correction: '[data-debrief="correct"]' }[event.target.id];
   if (!button) return;
@@ -1362,6 +1431,8 @@ function connect() {
     const { kind } = JSON.parse(event.data);
     if (kind === "spoken") { playing = null; todayPlaying = false; if (snapshot) render(); return; }
     if (kind === "days" && view === "days") loadDays().catch(() => {});
+    // More was read: the count in view follows.
+    if (kind === "said") { if (view === "settings") loadPrefs().catch(() => {}); if (view === "find" && !$("#find-query").value.trim()) seek("").catch(() => {}); return; }
     clearTimeout(timer);
     timer = setTimeout(() => load().catch(() => {}), 250);
   });

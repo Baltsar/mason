@@ -106,6 +106,24 @@ APPRENTICE_LLM_KEY=                             # only when the provider asks fo
 
 Anything that answers in the OpenAI chat format works. With a model on the Mac and ElevenLabs switched off, nothing leaves it. **Summaries** in Settings shows which model is writing and switches it off (`APPRENTICE_LLM=0` does the same); the memory is then your own words.
 
+## Finding what you said, by what it means
+
+Off until you switch it on, in Settings or on **More → Find**. An embedding model on this Mac reads what you said to your agents and places each prompt by its meaning. **Find** then answers in projects: "where did I cut film" finds the project, with the words it rests on. With nothing typed, it shows what you said again and again across projects, in your own words and with the count. The model writes nothing and nothing is sent anywhere: it runs under llama.cpp while it is needed, listens on this Mac only, and is stopped after three minutes of quiet.
+
+Two files are needed, and neither is in the repository:
+
+- A model, a `.gguf` file, in `data/models/`. It was built with [EmbeddingGemma 2](https://huggingface.co/ggml-org/embeddinggemma-2-GGUF) (`embeddinggemma-2-Q8_0.gguf`, 310 MB, Apache 2.0). Mason never downloads it by itself.
+- llama.cpp. `brew install llama.cpp` is enough once Homebrew ships a version that knows the model; until then, a build from [its releases](https://github.com/ggml-org/llama.cpp/releases) unpacked into `.runtime/llama/` is used first.
+
+Any other model works the same way, and the index starts again when it changes:
+
+```dotenv
+APPRENTICE_EMBED_URL=http://127.0.0.1:11434/v1   # anything that answers in the OpenAI embeddings format
+APPRENTICE_EMBED_MODEL=nomic-embed-text           # or the path of a .gguf file for llama.cpp
+```
+
+Each prompt is kept redacted, up to 600 characters, with its row of numbers in `data/said/`. **Forget** in Settings empties it. What was said after the first 600 characters of a prompt cannot be found.
+
 ## Logos from the web
 
 Off until you switch it on in Settings. A tool that is a site has no app to lend it an icon, so it shows a lettered tile. Switched on, Mason asks each site you used for its own icon, once, over https, and keeps the picture in `data/icons/`. It asks only public names: never an address on this Mac or on the network at home, and it follows a site's redirects one step at a time for the same reason. Only pictures are kept, never an SVG.
