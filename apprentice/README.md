@@ -96,7 +96,7 @@ ELEVENLABS_API_KEY=...
 
 ## The model
 
-A model is used for three things: the summary of a project, the script of the weekly recap, and saying which of your repeated rules mean the same. Everything else is plain code. By default the model is Claude through your own login (the Claude Code CLI), the same place your prompts already went: it is sent redacted excerpts of them. To use another, name it in `.env.local`:
+A model is used for four things: the summary of a project, the script of the weekly recap, saying which of your repeated rules mean the same, and saying which of the things you said again and again is a way of working and not a job. Everything else is plain code. By default the model is Claude through your own login (the Claude Code CLI), the same place your prompts already went: it is sent redacted excerpts of them. To use another, name it in `.env.local`:
 
 ```dotenv
 APPRENTICE_LLM_URL=http://127.0.0.1:11434/v1   # Ollama on this Mac; or any provider's OpenAI-style address
@@ -109,6 +109,8 @@ Anything that answers in the OpenAI chat format works. With a model on the Mac a
 ## Finding what you said, by what it means
 
 Off until you switch it on, in Settings or on **More → Find**. An embedding model on this Mac reads what you said to your agents and places each prompt by its meaning. **Find** then answers in projects: "where did I cut film" finds the project, with the words it rests on. With nothing typed, it shows what you said again and again across projects, in your own words and with the count. The model writes nothing and nothing is sent anywhere: it runs under llama.cpp while it is needed, listens on this Mac only, and is stopped after three minutes of quiet.
+
+What you said again and again can become a proposal on Today, the same card with the same yes and no as before. Which prompts mean the same is worked out by the embedding model alone. The model that writes summaries is then asked one thing: which of these is a way of working ("start the local server so I can look") and which is a job asked for now and then ("go through the page for search engines"), and it words the first kind as a rule. Anything about publishing, pushing, uploading or deleting is held back before it is asked. With Summaries switched off nothing is proposed from here, and the list on Find stays as it is.
 
 Two files are needed, and neither is in the repository:
 

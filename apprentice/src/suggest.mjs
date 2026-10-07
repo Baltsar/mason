@@ -38,7 +38,19 @@ If nothing repeats across projects, reply {"groups": []}.`;
 // A rule that takes away the question before something is published, sent,
 // deleted or paid for is never proposed for every project. Said in one place
 // it was about that place, and the day after it can be "do not push".
-const ACTS_OUTWARD = /\b(publish|deploy|push|merge|release|ship|send|delete|remove|pay|publicera|pusha|deploya|depkoya|skicka|radera|betala|mergea)\w*/i;
+const ACTS_OUTWARD = /\b(publish|deploy|push|merge|release|ship|send|upload|github|delete|remove|pay|publicera|pusha|deploya|depkoya|skicka|ladda\s+upp|radera|betala|mergea)\w*/i;
+
+const DEMANDS = `You are given things one person said to coding agents again and again, in several projects. Each numbered group holds a few of the ways one thing was said, in the person's own words, often in Swedish.
+
+Say for every group which kind it is:
+- "habit": a way of working the person wants from an agent whatever the job is. It would make sense to follow it during every job in every project. ("Show me the diff before you change files." "Answer in a few lines.")
+- "job": a piece of work with an end, asked for now and then: an analysis, a review, a summary, a post, a new page. It is a job however often it was asked for, because nobody wants it done during every other job. ("Go through the page for search engines." "Write a post about what we built.")
+- "answer": a reply to something the agent asked or offered. ("Yes, do that." "Go with what you recommend.")
+- "other": a question, a complaint, or a subject that keeps coming up.
+
+Only for a "habit", write the rule: what the agent should do without being asked, as an instruction to an agent, in plain English, at most 22 words. Say when it applies if what was said tells you. Never write "when asked". Write it as a default, not a law. Never make it stricter or wider than what was said. No praise, no emphasis, no capitals for effect.
+
+Reply with JSON only, no code fence, one entry for every group: {"groups": [{"group": 1, "kind": "habit", "rule": "..."}, {"group": 2, "kind": "job"}]}`;
 
 const clean = (text, max) => String(text ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 
@@ -76,6 +88,32 @@ export async function groupRules(rules) {
   return proposals.sort((a, b) => b.projects - a.projects || b.times - a.times);
 }
 
+// The same demand, found in the prompts themselves: `repeated` are the groups
+// of prompts that mean the same, said on several days in several projects
+// (see said.mjs, where no model that writes is involved). Here a model says
+// only which groups are a way of working, and words each of those as a rule.
+// A job asked for now and then is not one: "go through the page for search
+// engines" in every agent's rules would be done during every other job.
+// Without a model there is no telling a habit from a "yes, do that", so
+// nothing is proposed and the groups stay where they are shown as they were said.
+export async function wordDemands(repeated) {
+  const demands = repeated.filter((demand) => !demand.ways.some((way) => ACTS_OUTWARD.test(way.text)));
+  if (!demands.length) return [];
+  const lines = demands.map((demand, index) => `${index + 1}. Said ${demand.times} times in ${demand.projects.length} projects:\n${demand.ways.slice(0, 5).map((way) => `   "${clean(way.text, 200)}"`).join("\n")}`);
+  const reply = await askModel(DEMANDS, lines.join("\n"));
+  if (!Array.isArray(reply?.groups)) return null;
+  const proposals = new Map();
+  for (const item of reply.groups) {
+    const demand = demands[Math.round(Number(item?.group)) - 1];
+    const rule = clean(item?.rule, 220);
+    if (!demand || item?.kind !== "habit" || proposals.has(demand.id) || rule.length < 8 || ACTS_OUTWARD.test(rule)) continue;
+    // What it rests on is the words that were said, never the reply.
+    const evidence = demand.ways.map((way) => ({ project: way.project, rule: clean(way.text, 120), example: clean(way.text, 160), times: way.times }));
+    proposals.set(demand.id, { id: demand.id, rule, projects: demand.projects.length, times: demand.times, evidence });
+  }
+  return [...proposals.values()];
+}
+
 let kept = null;
 async function load() {
   kept ||= { checkedAt: 0, basis: "", open: [], applied: [], settled: [], ...(await readJson(file(), {})) };
@@ -90,15 +128,19 @@ const settledBefore = (proposal, store) => {
 };
 
 // Looks over the rules again when they have changed, at most a few times a day.
-// `memories` is what is remembered of each project, by its name.
-export async function refreshSuggestions(memories, now = Date.now()) {
+// `memories` is what is remembered of each project, by its name. `repeated`
+// are the demands found in the prompts themselves, when those are read by
+// their meaning; `soon` looks now and does not wait for the next time.
+export async function refreshSuggestions(memories, now = Date.now(), { repeated = [], soon = false } = {}) {
   const store = await load();
   const rules = rulesOf(memories);
-  const basis = fingerprint(JSON.stringify(rules.map((rule) => [rule.project, rule.example])));
-  if (basis === store.basis || now - store.checkedAt < LOOK_AGAIN_MS) return false;
-  const proposals = await groupRules(rules);
+  const remembered = fingerprint(JSON.stringify(rules.map((rule) => [rule.project, rule.example])));
+  const basis = repeated.length ? fingerprint(`${remembered}\n${repeated.map((demand) => demand.id).join("\n")}`) : remembered;
+  if (basis === store.basis || (!soon && now - store.checkedAt < LOOK_AGAIN_MS)) return false;
+  const [grouped, worded] = await Promise.all([groupRules(rules), wordDemands(repeated)]);
   store.checkedAt = now;
   // Without an answer the same rules are looked over again later.
+  const proposals = grouped && worded ? [...grouped, ...worded].sort((a, b) => b.projects - a.projects || b.times - a.times) : null;
   if (proposals) {
     store.basis = basis;
     store.open = proposals.filter((proposal) => !settledBefore(proposal, store));

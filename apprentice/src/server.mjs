@@ -174,6 +174,8 @@ function catchUpDays() {
 // goes through every log there is; after that only what is new.
 let saidAt = 0;
 let saidWaiting = null;
+// More was read: what is proposed is looked over at the next pass, not hours later.
+let lookSoon = false;
 function catchUpSaid() {
   if (!settings().meaning || !settings().logs || !embedStatus().ready) return;
   if (Date.now() - saidAt < 5 * 60_000) return;
@@ -186,6 +188,7 @@ function catchUpSaid() {
       saidWaiting = progress.waiting;
       // More is waiting: go on at once, and let others in between.
       if (progress.waiting && progress.added) { saidAt = 0; setTimeout(catchUpSaid, 200).unref(); }
+      else if (progress.added) lookSoon = true;
     })
     .catch(() => {});
 }
@@ -233,7 +236,9 @@ async function refreshMemories() {
     const known = await loadDays();
     const names = [...new Set(Object.keys(known.days).sort().slice(-21).flatMap((day) => Object.keys(known.days[day])))];
     const remembered = Object.fromEntries(await Promise.all(names.map(async (name) => [name, memories.get(name) || await savedMemory(name)])));
-    if (await refreshSuggestions(remembered)) broadcast("suggestions");
+    const repeated = settings().meaning ? await repeatedDemands() : [];
+    if (await refreshSuggestions(remembered, Date.now(), { repeated, soon: lookSoon })) broadcast("suggestions");
+    lookSoon = false;
     await rememberOlder();
   } catch {} finally { refreshing = false; summarising = false; }
 }

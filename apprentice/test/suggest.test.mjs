@@ -17,7 +17,7 @@ const model = http.createServer((request, response) => {
 });
 await new Promise((resolve) => model.listen(0, "127.0.0.1", resolve));
 Object.assign(process.env, { APPRENTICE_LLM_URL: `http://127.0.0.1:${model.address().port}/v1`, APPRENTICE_LLM_MODEL: "stand-in" });
-const { applySuggestion, dismissSuggestion, groupRules, refreshSuggestions, removeRule, rulesFile, rulesOf, suggestionsPayload } = await import("../src/suggest.mjs");
+const { applySuggestion, dismissSuggestion, groupRules, refreshSuggestions, removeRule, rulesFile, rulesOf, suggestionsPayload, wordDemands } = await import("../src/suggest.mjs");
 test.after(() => model.close());
 
 const memories = {
@@ -93,4 +93,45 @@ test("no means it is not proposed again, and the words can be changed before yes
   assert.ok((await readFile(rulesFile(), "utf8")).endsWith("\n- Explain it simply, but not when the problem is complex.\n"));
   assert.equal(await removeRule(second.id), true);
   assert.equal(await readFile(rulesFile(), "utf8"), before);
+});
+
+// What said.mjs finds in the prompts themselves: the same thing said in several ways.
+const demand = (id, times, projects, ...texts) => ({ id, text: texts[0], times, days: 5, projects, ways: texts.map((text, index) => ({ text, times: 1, project: projects[index % projects.length] })) });
+
+test("a demand found in the prompts themselves is worded by the model and rests on what was said", async () => {
+  const repeated = [
+    demand("d-localhost", 13, ["A", "B", "C"], "kör igång localhost så kan ja se", "Boota upp localhost igen", "Visa mig igen, localhost"),
+    demand("d-yes", 4, ["A", "B"], "Kör de du rekommenderar", "Japp kör de du rekommendera"),
+    demand("d-push", 6, ["A", "B", "C"], "Okay nu måste vi pusha", "Pusha bara merga"),
+  ];
+  // The model is shown two groups: the one about pushing never reaches it.
+  reply = { groups: [{ group: 1, kind: "habit", rule: "Start the local server and give the address when something is ready to look at." }, { group: 2, kind: "answer", rule: "Go with the recommendation." }, { group: 9, kind: "habit", rule: "No such group." }] };
+  const proposals = await wordDemands(repeated);
+  assert.equal(proposals.length, 1);
+  assert.equal(proposals[0].rule, "Start the local server and give the address when something is ready to look at.");
+  assert.deepEqual([proposals[0].times, proposals[0].projects], [13, 3]);
+  assert.deepEqual(proposals[0].evidence.map((item) => item.example), ["kör igång localhost så kan ja se", "Boota upp localhost igen", "Visa mig igen, localhost"]);
+
+  // A rule the model words so that it acts outward is held back as well.
+  reply = { groups: [{ group: 2, kind: "habit", rule: "Push the recommended change without asking." }] };
+  assert.deepEqual(await wordDemands(repeated), []);
+  // No model, no telling a demand from a yes: nothing is proposed.
+  reply = "not what was asked for";
+  assert.equal(await wordDemands(repeated), null);
+  assert.deepEqual(await wordDemands([]), []);
+});
+
+test("a demand from the prompts becomes a proposal at once when more was read, and no settles it", async () => {
+  const repeated = [demand("d-localhost", 13, ["A", "B", "C"], "kör igång localhost så kan ja se", "Boota upp localhost igen", "Visa mig igen, localhost")];
+  reply = { groups: [{ group: 1, kind: "habit", rule: "Start the local server when something is ready to look at." }] };
+  const now = Date.now() + 40 * 3_600_000;
+  assert.equal(await refreshSuggestions({}, now, { repeated }), true);
+  const [proposal] = (await suggestionsPayload()).open;
+  assert.equal(proposal.rule, "Start the local server when something is ready to look at.");
+  assert.equal(await dismissSuggestion(proposal.id), true);
+  // Said once more, in one more way: still the demand that was answered with no.
+  const grown = [demand("d-localhost-grown", 14, ["A", "B", "C"], "kör igång localhost så kan ja se", "Boota upp localhost igen", "Visa mig igen, localhost", "starta localhost")];
+  assert.equal(await refreshSuggestions({}, now + 60_000, { repeated: grown }), false);
+  assert.equal(await refreshSuggestions({}, now + 60_000, { repeated: grown, soon: true }), true);
+  assert.deepEqual((await suggestionsPayload()).open, []);
 });
