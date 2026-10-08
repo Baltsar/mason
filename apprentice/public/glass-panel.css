@@ -15,7 +15,19 @@ html[data-look="glass"] .tools .play[data-state="playing"], html[data-look="glas
 
 /* The numbers overlap, so nothing is drawn behind the one the pointer is on. */
 html[data-look="glass"] .big:hover, html[data-look="glass"] .big:focus-visible { background: transparent; }
+/* That a number can be pressed shows in a bead of glass at the end of its
+   line. Under the pointer the number catches light in its own colour and the
+   bead leans forward; pressed, the line gives a little. */
+html[data-look="glass"] .big { grid-template-columns: auto 1fr auto; }
+html[data-look="glass"] .big::after { content: "\2192"; display: grid; align-self: center; place-items: center; width: 28px; height: 28px; border: 1px solid rgba(255, 255, 255, .22); border-radius: 50%; background: linear-gradient(180deg, rgba(255, 255, 255, .24), rgba(255, 255, 255, .08)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), inset 0 -1px 0 rgba(0, 0, 0, .2), 0 8px 16px -8px rgba(0, 0, 0, .65); color: var(--paper); font: 600 13px/1 var(--font); text-shadow: none; transition: transform .2s var(--ease), background .2s, border-color .2s, box-shadow .2s; }
+html[data-look="glass"] .big b { transition: text-shadow .25s; }
+html[data-look="glass"] .big[data-group="work"] { --tone: var(--lime); }
+html[data-look="glass"] .big[data-group="social"] { --tone: var(--red); }
+html[data-look="glass"] .big[data-group="other"] { --tone: #b9b9c0; }
+html[data-look="glass"] .big:hover b { text-shadow: 0 0 30px color-mix(in srgb, var(--tone) 55%, transparent), 0 2px 22px rgba(0, 0, 0, .4); }
 html[data-look="glass"] .big:hover > span { color: #fff; }
+html[data-look="glass"] .big:hover::after { transform: translateX(3px); border-color: color-mix(in srgb, var(--tone) 70%, transparent); background: linear-gradient(180deg, rgba(255, 255, 255, .4), rgba(255, 255, 255, .16)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 0 18px -4px color-mix(in srgb, var(--tone) 70%, transparent); }
+html[data-look="glass"] .big:active { transform: scale(.985); }
 html[data-look="glass"] :is(.big, .headline) { text-shadow: 0 2px 22px rgba(0, 0, 0, .4); }
 
 /* The one thing worth saying lies in a shallow dish of its own. */
