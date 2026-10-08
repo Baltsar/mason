@@ -167,6 +167,8 @@ ElevenLabs has a switch in Settings, next to what is left of the month's credits
 
 What leaves the Mac for ElevenLabs, and only when a key is set and the switch is on: the text to be spoken, the audio of an answer while the microphone is open, and for a call the day's summary (project names, minutes, the sites outside the projects without their titles, and redacted excerpts of your prompts).
 
+**Codex and Grok too.** The sessions Codex keeps in `~/.codex/sessions` and Grok in `~/.grok/sessions` are read into the same projects, under the same **Agent logs** switch. A session you typed in is yours: its prompts count as said and its answers as waiting for you. A session another agent started with a brief of its own counts as time worked on the project and nothing more.
+
 ## The challenge, module by module
 
 | Module | Where | What proves it |

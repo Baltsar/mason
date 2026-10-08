@@ -2,6 +2,7 @@ import { open, readdir, readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { redact } from "./redact.mjs";
+import { otherProjects, otherSources } from "./others.mjs";
 import { settings } from "./settings.mjs";
 
 // A project is a folder the work happens in. Mason never asks for a list:
@@ -175,10 +176,11 @@ async function logsOf(folder, since) {
 }
 
 // What there is to read on this Mac, for the settings screen: how many
-// project folders Claude Code keeps logs for, and how many Cursor workspaces.
+// project folders Claude Code keeps logs for, how many Cursor workspaces, and
+// how many sessions Codex and Grok keep.
 export async function logSources() {
   const count = async (folder) => { try { return (await readdir(folder)).filter((name) => !name.startsWith(".")).length; } catch { return 0; } };
-  return { claude: await count(CLAUDE_DIR), cursor: await count(CURSOR_DIR) };
+  return { claude: await count(CLAUDE_DIR), cursor: await count(CURSOR_DIR), ...(await otherSources()) };
 }
 
 // Everything said to an agent in one project folder, as far back as asked.
@@ -221,10 +223,19 @@ const cached = new Map();
 export async function projectIndex(since, { maxAgeMs = 20_000 } = {}) {
   const known = cached.get(since);
   if (known && Date.now() - known.at < maxAgeMs) return known.index;
-  const [claude, cursor] = await Promise.all([claudeProjects(since), cursorWorkspaces(since)]);
+  const [claude, cursor, others] = await Promise.all([claudeProjects(since), cursorWorkspaces(since), otherProjects(since)]);
   const projects = new Map();
   // A log that was only touched today, with nothing said or done in it, is not today's work.
   for (const project of claude.values()) if (project.minutes.size) projects.set(project.folder, project);
+  // What was said to Codex or Grok in a folder belongs to the same project.
+  for (const other of others.values()) {
+    if (!other.minutes.size) continue;
+    const known = projects.get(other.folder);
+    if (!known) { projects.set(other.folder, other); continue; }
+    known.prompts.push(...other.prompts);
+    known.turns.push(...other.turns);
+    for (const minute of other.minutes) known.minutes.add(minute);
+  }
   // Cursor touches many workspaces when it starts; the two newest are the ones in use.
   for (const workspace of cursor.slice(0, 2)) {
     if (!projects.has(workspace.folder)) projects.set(workspace.folder, { name: path.basename(workspace.folder), folder: workspace.folder, prompts: [], minutes: new Set(), turns: [], source: "Cursor" });

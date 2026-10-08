@@ -119,7 +119,7 @@ npm test                           # 74 tests, no network, no data of yours need
 
 ## After the hackathon
 
-What was submitted to Hack-Nation 7 on 4 October 2026 is the tag `hack-nation-7`. Taken out of the app window after the deadline: the Map page and Teach, the test of a new person, with its written check. They were built for the brief and not for daily use. The Work Map itself is still filled by a capture session and the debrief call, still stops a prompt that breaks a rule, and is still what an agent reads over MCP. Added after the deadline: Built, the look back, the proposals, Flow with the site of a tab and the picture to share, Days, Find by meaning with a model on the Mac, the switches for ElevenLabs, the agent logs and naming chat and mail, and the choice of model for summaries. Map, Teach (there called New person), Recap and Agents, built for the challenge, are under More.
+What was submitted to Hack-Nation 7 on 4 October 2026 is the tag `hack-nation-7`. Taken out of the app window after the deadline: the Map page and Teach, the test of a new person, with its written check. They were built for the brief and not for daily use. The Work Map itself is still filled by a capture session and the debrief call, still stops a prompt that breaks a rule, and is still what an agent reads over MCP. Added after the deadline: Built, the look back, the proposals, Flow with the site of a tab and the picture to share, Days, the logs of Codex and Grok beside Claude Code's, Find by meaning with a model on the Mac, the switches for ElevenLabs, the agent logs and naming chat and mail, and the choice of model for summaries. Map, Teach (there called New person), Recap and Agents, built for the challenge, are under More.
 
 ## What is not in this repository
 

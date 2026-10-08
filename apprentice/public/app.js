@@ -956,7 +956,7 @@ function renderSettings() {
     ${row("glass", "Liquid glass", settings.glass ? on("A look to try") : off("Dark"))}
     <p class="group">Reads</p>
     <div class="set"><span>Screen: app, window, site, prompt</span>${status.access === "on" ? on("On") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
-    ${row("logs", "Agent logs", settings.logs ? on(`Claude Code · ${logs.claude} ${logs.claude === 1 ? "project" : "projects"}`) : off("Not read"))}
+    ${row("logs", "Agent logs", settings.logs ? on([`Claude Code ${logs.claude}`, logs.codex ? `Codex ${logs.codex}` : "", logs.grok ? `Grok ${logs.grok}` : ""].filter(Boolean).join(" · ")) : off("Not read"))}
     ${row("chats", "Chat and mail by name", settings.chats ? on("Name and time") : off("Counted, not named"))}
     ${row("meaning", "What you said, by meaning", reader)}
     <p class="group">Sends</p>

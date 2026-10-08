@@ -11,7 +11,8 @@ import { atomicJson, paths, readEvents, readJson } from "./store.mjs";
 // of a project, and kept in a file of its own: those logs are cleared after a
 // while, and the days should not go with them.
 
-const VERSION = 1;
+// 2: the days are also read from Codex and Grok.
+const VERSION = 2;
 const file = () => path.join(paths.data, "days.json");
 // An agent that ran by itself for a few minutes is not a day's work.
 const WORTH_MINUTES = 10;
@@ -79,7 +80,9 @@ let refreshing = null;
 export async function loadDays() {
   if (ledger) return ledger;
   const stored = await readJson(file(), {});
-  ledger = stored.version === VERSION ? { days: {}, moves: {}, lookbacks: [], ...stored } : { version: VERSION, through: 0, days: {}, moves: {}, lookbacks: [] };
+  // An older ledger is read again from every log there is. How the days moved
+  // and what was said about them then is kept: neither can be read again.
+  ledger = stored.version === VERSION ? { days: {}, moves: {}, lookbacks: [], ...stored } : { version: VERSION, through: 0, days: {}, moves: stored.moves || {}, lookbacks: stored.lookbacks || [] };
   return ledger;
 }
 
