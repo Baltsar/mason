@@ -1022,16 +1022,19 @@ function renderSettings() {
   const on = (text) => `<b>${esc(text)}</b>`;
   const off = (text) => `<b data-off>${esc(text)}</b>`;
   const { model, logs, said } = status;
+  // How the nudges of the last week went, in place of a setting for them.
+  const { said: nudges = 0, followed = 0, quiet = [] } = snapshot?.nudges || {};
+  const nudged = nudges ? `${nudges} this week · ${followed} followed${quiet.length ? " · one kind gone quiet" : ""}` : "When an answer is ready";
   const reader = !settings.meaning ? off("Not read")
     : !said.ready ? off(said.missing === "runner" ? "llama.cpp not found" : "No model in data/models")
     : said.waiting ? on(`Reading · ${thousands(said.waiting)} to go`)
     : on(`${thousands(said.count)} read · ${said.onThisMac ? "on this Mac" : said.where}`);
   const applied = snapshot?.suggestions?.applied || [];
   const writer = model.ready ? (model.name === "Claude" ? "Claude" : `${model.name} · ${model.onThisMac ? "on this Mac" : model.where}`) : model.name === "Claude" ? "Claude not found" : "No model named";
-  paint(node, JSON.stringify([prefs, applied]), `
+  paint(node, JSON.stringify([prefs, applied, snapshot?.nudges]), `
     <label class="set"><span>Name</span><input id="set-name" type="text" value="${esc(settings.name || name)}" maxlength="40" autocomplete="off" spellcheck="false" /></label>
     ${row("speech", "Sound")}
-    ${row("cues", "A word on the island", settings.cues ? on("When an answer is ready") : off("Silent"))}
+    ${row("cues", "A word on the island", settings.cues ? on(nudged) : off("Silent"))}
     <p class="group">Reads</p>
     <div class="set"><span>Screen: app, window, site, prompt</span>${status.access === "on" ? on("On") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
     ${row("logs", "Agent logs", settings.logs ? on(`Claude Code · ${logs.claude} ${logs.claude === 1 ? "project" : "projects"}`) : off("Not read"))}
@@ -1103,7 +1106,13 @@ function show(name, arg) {
   if (view === "settings") loadPrefs().catch(() => {});
   if (view === "days") loadDays().catch(() => {});
   if (view === "built") loadBuilt().catch(() => {});
-  if (view === "find") { seek($("#find-query").value.trim()).catch(() => {}); $("#find-query").focus(); }
+  if (view === "find") {
+    // Opened from a nudge about work done before: what was just said is looked for.
+    const nudge = snapshot?.nudges?.latest;
+    if (nudge?.kind === "before" && !$("#find-query").value) { $("#find-query").value = nudge.query; post("/api/nudge", { id: nudge.id }).catch(() => {}); }
+    seek($("#find-query").value.trim()).catch(() => {});
+    $("#find-query").focus();
+  }
   window.scrollTo(0, 0);
   if (snapshot) render();
 }

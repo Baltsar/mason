@@ -43,19 +43,26 @@ function spansOf(events, projectOf) {
 const ranked = (seconds) => Object.entries(seconds).sort((a, b) => b[1] - a[1]).map(([tool, value]) => ({ tool, seconds: Math.round(value) }));
 const minutesOf = (seconds) => Math.max(1, Math.round(seconds / 60));
 
+// Each finished answer, and until when it was left: until its owner was back
+// where answers are read, or said the next thing. `turns` come from the agents' logs.
+function leftOf(spans, turns, from, now) {
+  return turns.filter((item) => item.ended && item.done >= from && item.done <= now).sort((a, b) => a.done - b.done).map((turn) => {
+    const back = spans.find((span) => readsAnswers(span.tool) && span.end > turn.done);
+    return { project: turn.project, done: turn.done, until: Math.min(back ? Math.max(back.start, turn.done) : now, turn.next ?? now, now) };
+  });
+}
+
 // Active time somewhere else while a finished answer was waiting. Two answers
-// waiting at once count once. `turns` come from the agents' logs.
+// waiting at once count once.
 function waitedOf(spans, turns, from, now) {
   const stretches = [];
   let answers = 0;
-  for (const turn of turns.filter((item) => item.ended && item.done >= from && item.done <= now).sort((a, b) => a.done - b.done)) {
-    const back = spans.find((span) => readsAnswers(span.tool) && span.end > turn.done);
-    const until = Math.min(back ? Math.max(back.start, turn.done) : now, turn.next ?? now, now);
-    if (until - turn.done <= WAITING_MS) continue;
+  for (const left of leftOf(spans, turns, from, now)) {
+    if (left.until - left.done <= WAITING_MS) continue;
     answers += 1;
     const last = stretches.at(-1);
-    if (last && turn.done <= last[1]) last[1] = Math.max(last[1], until);
-    else stretches.push([turn.done, until]);
+    if (last && left.done <= last[1]) last[1] = Math.max(last[1], left.until);
+    else stretches.push([left.done, left.until]);
   }
   const where = {};
   for (const [start, end] of stretches) {
@@ -75,6 +82,16 @@ function readyOf(spans, turns, now) {
     .filter((turn) => !spans.some((span) => readsAnswers(span.tool) && span.end > turn.done))
     .sort((a, b) => a.done - b.done)
     .map((turn) => ({ project: turn.project, since: new Date(turn.done).toISOString() }));
+}
+
+// How long a finished answer is usually left, when it is left at all: the
+// middle one of the waits in these events, in milliseconds. Null when there
+// are too few to say what is usual.
+export function usualWait(events, { projectOf = (event) => event.project || null, turns = [], now = Date.now() } = {}) {
+  const spans = spansOf(events, projectOf);
+  if (!spans.length) return null;
+  const waits = leftOf(spans, turns, spans[0].start, now).map((left) => left.until - left.done).filter((wait) => wait > WAITING_MS).sort((a, b) => a - b);
+  return waits.length >= 8 ? waits[waits.length >> 1] : null;
 }
 
 // Today so far: how long finished answers were left waiting, and which are

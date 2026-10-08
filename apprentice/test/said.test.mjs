@@ -8,7 +8,7 @@ import path from "node:path";
 // Its own data folder, set before anything is loaded. This file runs in its own process.
 process.env.APPRENTICE_DATA = await mkdtemp(path.join(os.tmpdir(), "mason-said-"));
 const { DIMENSIONS, embed } = await import("../src/embed.mjs");
-const { findSaid, forgetSaid, refreshSaid, repeatedSaid, saidStatus } = await import("../src/said.mjs");
+const { beforeSaid, findSaid, forgetSaid, refreshSaid, repeatedSaid, saidStatus, unreadSaid } = await import("../src/said.mjs");
 
 // A stand-in for the model: a text points the way of the things it is about,
 // whatever language or words it says them in.
@@ -127,4 +127,31 @@ test("the model is asked in its own way, and its rows are cut and brought back t
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
   }
+});
+
+test("a piece of work done before in another project is found, and a habit is not taken for one", async () => {
+  // Enough has to be read before what all prompts have in common is known.
+  const filler = Array.from({ length: 210 }, (_, count) => ({ project: `p${count % 7}`, at: day(1, 1) + count * 60_000, text: `nothing of note was said here, this is line number ${count} of them` }));
+  const earlier = { project: "shop", at: day(2), text: "The Stripe webhook must verify the signature before anything else is done" };
+  const again = { project: "site", at: day(5), text: "Checkout has to take a payment by invoice as well as by card" };
+  const habit = ["shop", "tool", "kiosk"].map((project, count) => ({ project, at: day(2, 12 + count), text: "Keep the answer short please, I do not read the long ones" }));
+  const habitAgain = { project: "site", at: day(6), text: "A brief answer is what I want here, not a long one" };
+  const sameDay = { project: "tool", at: day(5, 12), text: "The invoice for a payment has to be sent after checkout is done" };
+  const little = { project: "site", at: day(6, 12), text: "Stripe webhook again" };
+  const all = [...filler, earlier, again, ...habit, habitAgain, sameDay, little];
+  assert.deepEqual((await unreadSaid([again, earlier])).length, 2);
+  await refreshSaid(all, { embedder: model, model: "stand-in" });
+  assert.deepEqual(await unreadSaid([again, earlier]), []);
+
+  const found = await beforeSaid(again);
+  assert.equal(found.project, "shop");
+  assert.equal(found.text, earlier.text);
+  assert.ok(found.score > 0.9);
+  // Said the same way in three other projects: a habit, not a piece of work.
+  assert.equal(await beforeSaid(habitAgain), null);
+  // The first time it was said there was nothing before it.
+  assert.equal(await beforeSaid(earlier), null);
+  // Too little said to be a piece of work, and a prompt that was never read.
+  assert.equal(await beforeSaid(little), null);
+  assert.equal(await beforeSaid({ project: "site", at: day(7), text: "Checkout has to take a payment by invoice, said but never read" }), null);
 });

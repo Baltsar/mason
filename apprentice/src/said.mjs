@@ -11,6 +11,10 @@ import { atomicJson, paths, readJson } from "./store.mjs";
 // shows up as one thing said five times. The words and the rows stay in the
 // data folder on this Mac, also after the agents' own logs have been cleared.
 
+// What the agent's own program puts in the person's mouth: the note it sends
+// after a pause, and the summary a long conversation is carried on from.
+const NOT_THEIR_WORDS = /^(This session is being continued from a previous conversation|Caveat: the messages below|The dev server failed to start with the following error)|while you were working[^.]*\. Please continue from where you left off/i;
+
 const VERSION = 1;
 const folder = () => path.join(paths.data, "said");
 // The model is asked for this many prompts at a time, so that a first reading
@@ -35,10 +39,14 @@ const SAYS_SOMETHING = 4;
 const DEMAND_LETTERS = 240;
 // Said this often, on this many days, in this many projects, before it counts.
 const ENOUGH = { times: 4, days: 3, projects: 2 };
-
-// What the agent's own program puts in the person's mouth: the note it sends
-// after a pause, and the summary a long conversation is carried on from.
-const NOT_THEIR_WORDS = /^(This session is being continued from a previous conversation|Caveat: the messages below)|while you were working[^.]*\. Please continue from where you left off/i;
+// A prompt this close to one in another project, a day or more before, is
+// the same piece of work come back. Both have to say enough to be a piece of
+// work, and what was said the same way in several other projects is a habit,
+// which is dealt with elsewhere.
+const DONE_BEFORE = 0.68;
+const A_PIECE_OF_WORK = 10;
+const A_HABIT_FROM = 3;
+const A_DAY_MS = 86_400_000;
 
 const pause = () => new Promise((resolve) => setImmediate(resolve));
 const dayOf = (at) => new Date(at).toISOString().slice(0, 10);
@@ -78,7 +86,13 @@ async function load() {
     const bytes = await readFile(path.join(folder(), "said.bin"));
     // Rows and words that do not match were not written together: start again.
     if (bytes.length !== stored.items.length * DIMENSIONS * 4) return (kept = empty);
-    kept = { model: stored.model, items: stored.items, rows: new Float32Array(bytes.buffer, bytes.byteOffset, bytes.length / 4).slice() };
+    const rows = new Float32Array(bytes.buffer, bytes.byteOffset, bytes.length / 4);
+    // What has since been recognised as written by the agent's own program
+    // is let go of, with its row.
+    const theirs = stored.items.map((item, place) => place).filter((place) => !NOT_THEIR_WORDS.test(stored.items[place].text));
+    const own = new Float32Array(theirs.length * DIMENSIONS);
+    theirs.forEach((place, at) => own.set(rows.subarray(place * DIMENSIONS, (place + 1) * DIMENSIONS), at * DIMENSIONS));
+    kept = { model: stored.model, items: theirs.map((place) => stored.items[place]), rows: own };
   } catch { kept = empty; }
   return kept;
 }
@@ -235,4 +249,34 @@ export async function repeatedSaid({ sameDemand = SAME_DEMAND, enough = ENOUGH }
     if (group.times >= enough.times && group.days >= enough.days && group.projects.length >= enough.projects) groups.push(group);
   }
   return groups.sort((a, b) => b.projects.length - a.projects.length || b.times - a.times);
+}
+
+// The same piece of work, done before in another project: the closest prompt
+// from elsewhere, a day or more older. `prompt` is { project, at, text } and
+// has to have been read. Null when there is none, or when it is not known yet.
+export async function beforeSaid(prompt) {
+  const index = await load();
+  const place = index.items.findIndex((item) => item.id === idOf(prompt));
+  const words = (text) => text.trim().split(/\s+/).length;
+  if (place < 0 || index.items.length < CENTRED_FROM || words(prompt.text) < A_PIECE_OF_WORK) return null;
+  const { rows } = compared(index);
+  let best = null;
+  const elsewhere = new Set();
+  index.items.forEach((item, other) => {
+    if (item.project === prompt.project || item.at > prompt.at - A_DAY_MS || words(item.text) < SAYS_SOMETHING) return;
+    const score = alike(rows, place, other);
+    // The same demand, however briefly it was put, in one more project.
+    if (score >= SAME_DEMAND) elsewhere.add(item.project);
+    if (score < DONE_BEFORE || words(item.text) < A_PIECE_OF_WORK) return;
+    if (!best || score > best.score) best = { project: item.project, at: new Date(item.at).toISOString(), text: item.text, score: Math.round(score * 100) / 100 };
+  });
+  return best && elsewhere.size < A_HABIT_FROM ? best : null;
+}
+
+// Whether each of these prompts has been read: the ones that have not are
+// what a nudge has to wait for.
+export async function unreadSaid(prompts) {
+  const index = await load();
+  const known = new Set(index.items.map((item) => item.id));
+  return prompts.filter((prompt) => !NOT_THEIR_WORDS.test(prompt.text) && !known.has(idOf(prompt)));
 }

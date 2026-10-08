@@ -14,10 +14,11 @@ import { buildFlow } from "./flow.mjs";
 import { embedStatus, stopEmbedder } from "./embed.mjs";
 import { ICON_FILE, ICON_TYPES, iconFolder, iconsFor, siteIconsFor } from "./icons.mjs";
 import { dayKey, daysPayload, loadDays, refreshDays } from "./days.mjs";
-import { measureDay, readsAnswers, sentenceOf } from "./coach.mjs";
+import { measureDay, readsAnswers, sentenceOf, usualWait } from "./coach.mjs";
 import { builtOf } from "./built.mjs";
 import { saveShare } from "./share.mjs";
-import { findSaid, forgetSaid, refreshSaid, repeatedSaid, saidStatus } from "./said.mjs";
+import { nudgesPayload, offerNudge, openNudge, settleNudges } from "./nudge.mjs";
+import { beforeSaid, findSaid, forgetSaid, refreshSaid, repeatedSaid, saidStatus, unreadSaid } from "./said.mjs";
 import { applySuggestion, dismissSuggestion, refreshSuggestions, removeRule, suggestionsPayload } from "./suggest.mjs";
 import { mastery, reviewDecision } from "./teach-engine.mjs";
 import { buildGaps, buildTeachBack, confirmation, debriefProgress } from "./debrief.mjs";
@@ -148,6 +149,63 @@ function cueFor(measure, runtime) {
   if (!ready) return null;
   cued.add(`${ready.project}|${ready.since}`);
   return `Answer ready · ${short(ready.project, 20)}`;
+}
+
+// How long a finished answer is usually left, over the last week. It changes
+// slowly, so it is worked out once an hour.
+let usualMemo = { at: 0, value: null };
+async function usualWaitMs() {
+  if (Date.now() - usualMemo.at < 3_600_000) return usualMemo.value;
+  const from = dayStart() - 6 * 86_400_000;
+  const [events, index] = await Promise.all([readEventsSince(from), projectIndex(from, { maxAgeMs: 3_600_000 })]);
+  usualMemo = { at: Date.now(), value: usualWait(events, { projectOf: (event) => index.of(event), turns: index.turns() }) };
+  return usualMemo.value;
+}
+
+// A nudge: a word on the island at the moment it can be acted on, resting on
+// what its owner usually does. Two kinds so far. An answer that has waited
+// twice as long as answers are usually left, within these bounds. And a
+// prompt, just sent, for a piece of work that was done before in another
+// project. Each is followed up, and a kind that is ignored goes quiet (nudge.mjs).
+const WAITED_FROM_MS = 4 * 60_000;
+const WAITED_AT_MOST_MS = 15 * 60_000;
+// An answer left this long is not being waited for any more.
+const WAITED_TOO_LONG_MS = 45 * 60_000;
+const JUST_SAID_MS = 3 * 60_000;
+let nudgeAt = 0;
+async function nudgeFor(waiting, runtime, index) {
+  if (!settings().cues || runtime.session?.active || Date.now() - nudgeAt < 5000) return null;
+  const now = (nudgeAt = Date.now());
+  const state = presence(runtime);
+  const reading = state === "watching" && readsAnswers(runtime.currentApp);
+  const todays = index.prompts();
+  // What was said before is settled first: back where answers are read, or
+  // the other project named in the next prompt, is acting on it.
+  const changed = await settleNudges((nudge) => nudge.kind === "waited" ? reading
+    : nudge.kind === "before" ? todays.some((prompt) => prompt.project === nudge.project && prompt.at > Date.parse(nudge.at) && prompt.text.toLowerCase().includes(String(nudge.other).toLowerCase()))
+    : false, now);
+  if (changed) broadcast("nudge");
+  // Only someone who is at the Mac is nudged.
+  if (state !== "watching" && state !== "private-surface") return null;
+  const candidates = [];
+  if (!reading) {
+    const patience = Math.min(WAITED_AT_MOST_MS, Math.max(WAITED_FROM_MS, ((await usualWaitMs()) || 0) * 2));
+    const late = waiting.ready.find((answer) => { const left = now - Date.parse(answer.since); return left >= patience && left < WAITED_TOO_LONG_MS; });
+    if (late) candidates.push({ kind: "waited", key: `${late.project}|${late.since}`, project: late.project, text: `Waited ${Math.round((now - Date.parse(late.since)) / 60_000)} min · ${short(late.project, 18)}` });
+  }
+  if (settings().meaning && embedStatus().ready) {
+    const fresh = todays.filter((prompt) => now - prompt.at < JUST_SAID_MS);
+    // A prompt has to be read before it can be compared: it is read now, and
+    // the nudge comes at the next look, a few seconds on.
+    if ((await unreadSaid(fresh)).length) refreshSaid(todays, { steps: 1 }).catch(() => {});
+    else for (const prompt of fresh.slice(-2)) {
+      const earlier = await beforeSaid(prompt);
+      if (earlier) candidates.push({ kind: "before", key: `${prompt.project}|${earlier.project}|${dayKey(now)}`, project: prompt.project, other: earlier.project, when: earlier.at, query: short(prompt.text, 200), text: `Done before · ${short(earlier.project, 20)}` });
+    }
+  }
+  const nudge = await offerNudge(candidates, now);
+  if (nudge) broadcast("nudge");
+  return nudge?.text || null;
 }
 
 // What Mason can ask its owner about their own projects: read from what is
@@ -396,6 +454,8 @@ async function statePayload() {
     // How the last few days of work were done, as it was written down then.
     lookback: days.lookbacks.at(-1) || null,
     suggestions,
+    // The nudge that was just said, and how the last week of them went.
+    nudges: await nudgesPayload(),
     // The figures the top bar shows for the two views that load by themselves.
     flow: { jumps: (await today()).flow.jumps },
     days: Object.keys(days.days).length,
@@ -425,7 +485,7 @@ async function islandPayload() {
     status: presence(runtime),
     app: runtime.currentApp,
     project,
-    returning: returningTo(runtime, project) || cueFor(waiting, runtime),
+    returning: returningTo(runtime, project) || cueFor(waiting, runtime) || await nudgeFor(waiting, runtime, index),
     category: runtime.currentCategory,
     group: runtime.currentGroup,
     work: activity.workPercent,
@@ -469,6 +529,12 @@ const server = http.createServer(async (request, response) => {
         broadcast("suggestions");
       }
       return json(response, 200, await suggestionsPayload());
+    }
+    if (url.pathname === "/api/nudge" && post) {
+      // Pressing a nudge is acting on it.
+      const pressed = await openNudge((await body(request)).id);
+      if (pressed) broadcast("nudge");
+      return json(response, pressed ? 200 : 404, { ok: Boolean(pressed) });
     }
     if (url.pathname === "/api/find" && post) {
       if (!settings().meaning) return json(response, 200, { off: true });

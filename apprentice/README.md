@@ -126,6 +126,17 @@ APPRENTICE_EMBED_MODEL=nomic-embed-text           # or the path of a .gguf file 
 
 Each prompt is kept redacted, up to 600 characters, with its row of numbers in `data/said/`. **Forget** in Settings empties it. What was said after the first 600 characters of a prompt cannot be found.
 
+## Nudges
+
+A nudge is a word on the island at the moment it can be acted on. It comes from what is happening and rests on your own history, never on a clock or a list you keep. There are two:
+
+- **Waited 9 min · PROJECT.** An answer that has waited twice as long as you usually leave one, while you are at the Mac in another tool. What is usual is the middle one of your own waits over the last week.
+- **Done before · PROJECT.** A prompt you just sent is the same piece of work as one in another project, a day or more ago. The line in the drop panel opens Find on it. Needs **What you said, by meaning** switched on.
+
+Each nudge is followed up. Back where answers are read within a minute and a half, or the earlier project looked up or named in your next prompt, counts as followed; otherwise it counts as ignored. A kind that is ignored three times in a row goes quiet for two weeks by itself. At most one nudge in ten minutes and six in a day. **A word on the island** in Settings shows how the last week of them went and switches them all off.
+
+A third was tried and left out: "the third try at the same thing". Against four months of real prompts the embedding model could not tell "it does not work" from "now it works", so it would have been wrong.
+
 ## Logos from the web
 
 Off until you switch it on in Settings. A tool that is a site has no app to lend it an icon, so it shows a lettered tile. Switched on, Mason asks each site you used for its own icon, once, over https, and keeps the picture in `data/icons/`. It asks only public names: never an address on this Mac or on the network at home, and it follows a site's redirects one step at a time for the same reason. Only pictures are kept, never an SVG.
