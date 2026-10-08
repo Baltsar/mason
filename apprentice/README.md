@@ -33,6 +33,8 @@ Every surface is made to be read in one to three seconds: a figure or a few word
 
 One loud colour, the green, for the figures and for the thing to press. Sandstone is Mason speaking or asking. The greys are warm stone. Every screen is one figure or a few words in large type. The whole guide is a page in the app: `public/brand.html`.
 
+**Liquid glass, to try.** A second look, off until switched on in Settings: the bar floats as a capsule, panels and pills are glass with a bright upper rim, and the pane is darkened so that the text holds over a white desktop (paper and green at 11:1 or more, the greys at 4.9:1 or more). It is plain CSS in `public/glass.css`; there is no refraction, which Safari's engine cannot do. In a browser, `?look=glass` shows it over a painted desktop and `&wall=day` over a bright one.
+
 ## What it understands
 
 **Projects.** A project is a folder your tools work in. Mason reads the traces they already leave on this Mac: Claude Code keeps a log per project folder with every prompt and its time, Cursor keeps the folder of every workspace. From that it knows which project the Claude window is about (the one last spoken to), counts a browser tab named after a project as that project, and treats time inside a project as work whatever the window is called. A game you are building is not leisure.

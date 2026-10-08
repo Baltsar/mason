@@ -453,6 +453,8 @@ async function statePayload() {
     // How the last few days of work were done, as it was written down then.
     lookback: days.lookbacks.at(-1) || null,
     suggestions,
+    // What the window is made of: the dark look, or liquid glass.
+    look: settings().glass ? "glass" : "",
     // The nudge that was just said, and how the last week of them went.
     nudges: await nudgesPayload(),
     // The figures the top bar shows for the two views that load by themselves.

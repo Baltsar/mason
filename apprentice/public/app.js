@@ -19,6 +19,15 @@ const TOOLS = [
 ];
 
 let snapshot;
+// The look of the window: the dark one, or liquid glass. An address can ask
+// for one, and for a desktop to lie behind it, to look at it in a browser.
+const asked = new URLSearchParams(location.search);
+if (asked.get("wall")) document.documentElement.dataset.wall = asked.get("wall");
+function applyLook() {
+  const look = asked.get("look") ?? snapshot?.look ?? "";
+  if (look) document.documentElement.dataset.look = look; else delete document.documentElement.dataset.look;
+}
+applyLook();
 let view = "today";
 // Which line of each result is pressed open.
 const drill = { today: null, flow: null };
@@ -898,6 +907,7 @@ function renderSettings() {
     <label class="set"><span>Name</span><input id="set-name" type="text" value="${esc(settings.name || name)}" maxlength="40" autocomplete="off" spellcheck="false" /></label>
     ${row("speech", "Sound")}
     ${row("cues", "A word on the island", settings.cues ? on(nudged) : off("Silent"))}
+    ${row("glass", "Liquid glass", settings.glass ? on("A look to try") : off("Dark"))}
     <p class="group">Reads</p>
     <div class="set"><span>Screen: app, window, site, prompt</span>${status.access === "on" ? on("On") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
     ${row("logs", "Agent logs", settings.logs ? on(`Claude Code · ${logs.claude} ${logs.claude === 1 ? "project" : "projects"}`) : off("Not read"))}
@@ -945,6 +955,7 @@ function renderShell() {
 }
 
 function render() {
+  applyLook();
   renderShell();
   ({ today: renderToday, flow: renderFlow, days: renderDays, built: renderBuilt, more: renderMore, find: renderFind, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
 }

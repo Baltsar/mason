@@ -1,0 +1,95 @@
+/* Liquid glass: an alternative look, tried next to the dark one. Nothing here
+   changes what is on a page or where: only what the surfaces are made of.
+
+   The window is one pane of glass over the desktop. On it float thicker
+   pieces: the bar at the top, the panels, the pills. Each piece has a bright
+   rim along its upper edge, as glass has where light enters it, a faint glow
+   along its lower edge, and a shadow that lifts it off the pane.
+
+   Glass has one hard limit, which is reading. What lies behind it cannot be
+   chosen, and it may be a white document. So every piece that carries text is
+   tinted dark enough for the paper white and the green to stay readable over a
+   white desktop, and the muted grey is brightened. The clear, bright glass is
+   kept for what is pressed and not read. */
+
+html[data-look="glass"] {
+  /* A panel that is read from. Over pure white it comes out near #403f3e. */
+  --glass: rgba(16, 14, 11, .68);
+  --glass-edge: rgba(255, 255, 255, .18);
+  --glass-rim: inset 0 1px 0 rgba(255, 255, 255, .36), inset 0 0 0 1px rgba(255, 255, 255, .04), inset 0 -26px 36px -30px rgba(255, 255, 255, .2);
+  --glass-drop: 0 26px 60px -28px rgba(0, 0, 0, .66), 0 2px 8px rgba(0, 0, 0, .2);
+  --glass-blur: blur(28px) saturate(1.8);
+  /* Something to press: brighter, thinner, with less behind it. */
+  --pill: rgba(255, 255, 255, .09);
+  --pill-rim: inset 0 1px 0 rgba(255, 255, 255, .3), inset 0 -1px 0 rgba(0, 0, 0, .18);
+  --panel: var(--glass);
+  --raised: rgba(255, 255, 255, .14);
+  --line: rgba(255, 255, 255, .15);
+  /* The quiet greys, one step brighter: on glass they have less to stand on. */
+  --muted: #c2bcae;
+  --faint: #a39e91;
+  background: transparent;
+}
+
+/* The pane itself. In the desktop app macOS draws the blurred desktop and
+   this only darkens it, so that the large type standing straight on the pane
+   holds. In a browser there is no desktop, so one is painted to look through. */
+html[data-look="glass"] body { background: transparent; padding-top: 86px; }
+html[data-look="glass"] body::before { content: ""; position: fixed; inset: 0; z-index: -1; background: rgba(10, 9, 8, .5); }
+html[data-look="glass"]:not([data-shell="desktop"]) { background: #1b1430 fixed; background-image: radial-gradient(60% 55% at 12% 18%, #ff7a3d 0%, transparent 70%), radial-gradient(55% 60% at 88% 12%, #5b4bff 0%, transparent 72%), radial-gradient(70% 60% at 78% 92%, #00b3a1 0%, transparent 70%), radial-gradient(50% 50% at 20% 88%, #d83a8c 0%, transparent 72%); min-height: 100%; }
+html[data-look="glass"][data-wall="day"]:not([data-shell="desktop"]) { background: #f4f6fb fixed; background-image: radial-gradient(60% 55% at 15% 15%, #ffffff 0%, transparent 70%), radial-gradient(55% 60% at 85% 20%, #bfe3ff 0%, transparent 72%), radial-gradient(70% 60% at 70% 90%, #fff3c4 0%, transparent 70%); }
+/* The second layer stands in for the dark material macOS puts under a window:
+   over a white desktop that material alone comes out near #494949, which is
+   what the real window measures. */
+html[data-look="glass"]:not([data-shell="desktop"]) body::before { background: linear-gradient(rgba(10, 9, 8, .5), rgba(10, 9, 8, .5)), rgba(28, 28, 28, .8); -webkit-backdrop-filter: blur(70px) saturate(1.5); backdrop-filter: blur(70px) saturate(1.5); }
+
+/* The bar: a capsule that floats under the top edge instead of a strip
+   fastened to it. */
+html[data-look="glass"] .topbar { inset: 12px 14px auto; height: 58px; padding: 0 14px 0 18px; border: 1px solid var(--glass-edge); border-radius: 24px; background: linear-gradient(180deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .05)), rgba(16, 14, 11, .5); box-shadow: var(--glass-rim), var(--glass-drop); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+/* The four views lie in a track cut into the bar. The one in view is a
+   lozenge of clear glass lying on the track. */
+html[data-look="glass"] .stages { gap: 2px; padding: 3px; border-color: rgba(255, 255, 255, .08); border-radius: 17px; background: rgba(0, 0, 0, .26); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .4); }
+html[data-look="glass"] .stages button { height: 34px; border-right: 0; border-radius: 13px; transition: background .2s var(--ease), color .2s, box-shadow .2s; }
+html[data-look="glass"] .stages button:hover { background: rgba(255, 255, 255, .08); }
+html[data-look="glass"] .stages button[aria-current="page"] { background: linear-gradient(180deg, rgba(255, 255, 255, .34), rgba(255, 255, 255, .16)); color: #fff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -1px 0 rgba(0, 0, 0, .12), 0 6px 16px -6px rgba(0, 0, 0, .5); }
+html[data-look="glass"] .stages button[aria-current="page"] b { color: #fff; }
+
+/* Panels: what is read from. */
+html[data-look="glass"] :is(.card, .drill, .lookback, .propose, .flowmap, .day, .ribbon .band) { border-color: var(--glass-edge); background: linear-gradient(180deg, rgba(255, 255, 255, .09), rgba(255, 255, 255, .02) 38%), var(--glass); box-shadow: var(--glass-rim), var(--glass-drop); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+html[data-look="glass"] :is(.card, .drill, .lookback, .propose, .flowmap) { border-radius: 28px; }
+html[data-look="glass"] .day:not(.rest) { background: linear-gradient(180deg, rgba(255, 255, 255, .09), rgba(255, 255, 255, .02) 38%), color-mix(in srgb, var(--lime) calc(var(--heat, 0) * 20%), var(--glass)); }
+html[data-look="glass"] .ribbon .band { border-radius: 14px; box-shadow: var(--pill-rim), inset 0 2px 6px rgba(0, 0, 0, .35); }
+html[data-look="glass"] :is(dialog, .toast) { border-color: var(--glass-edge); border-radius: 28px; background: linear-gradient(180deg, rgba(255, 255, 255, .1), rgba(255, 255, 255, .02) 40%), rgba(16, 14, 11, .82); box-shadow: var(--glass-rim), 0 40px 120px -30px rgba(0, 0, 0, .8); -webkit-backdrop-filter: blur(40px) saturate(1.8); backdrop-filter: blur(40px) saturate(1.8); }
+html[data-look="glass"] .toast { border-radius: 18px; }
+html[data-look="glass"] dialog::backdrop { background: rgba(0, 0, 0, .35); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+
+/* Things to press: pills of clear glass. */
+html[data-look="glass"] :is(.pill, .quiet, .secondary, .chips button, .toolstrip button, .walk button, .again, .seek) { transition: background .2s var(--ease), border-color .2s, box-shadow .2s, color .2s; }
+html[data-look="glass"] :is(.pill, .quiet, .secondary, .chips button, .toolstrip button, .walk button) { border-color: rgba(255, 255, 255, .17); background: var(--pill); box-shadow: var(--pill-rim); -webkit-backdrop-filter: blur(16px) saturate(1.6); backdrop-filter: blur(16px) saturate(1.6); }
+html[data-look="glass"] :is(.pill, .quiet, .secondary, .chips button, .toolstrip button, .walk button):hover { border-color: rgba(255, 255, 255, .36); background: rgba(255, 255, 255, .16); }
+html[data-look="glass"] :is(.chips button, .toolstrip button)[aria-pressed="true"] { border-color: color-mix(in srgb, var(--lime) 70%, transparent); background: color-mix(in srgb, var(--lime) 16%, rgba(255, 255, 255, .08)); box-shadow: var(--pill-rim), 0 0 22px -6px color-mix(in srgb, var(--lime) 60%, transparent); }
+html[data-look="glass"] .secondary { border-radius: 14px; }
+/* The one thing to press first stays the loud green, now with light in it. */
+html[data-look="glass"] .primary { border-radius: 14px; background: linear-gradient(180deg, #ecff93, var(--lime) 55%, #c5ee2b); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .75), inset 0 -1px 0 rgba(60, 80, 0, .35), 0 12px 28px -12px color-mix(in srgb, var(--lime) 70%, transparent); }
+html[data-look="glass"] .primary:hover { background: linear-gradient(180deg, #f3ffb0, #e0ff5e 55%, #cff53a); }
+html[data-look="glass"] .switch { background: rgba(0, 0, 0, .3); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .5), 0 1px 0 rgba(255, 255, 255, .12); }
+html[data-look="glass"] .switch::after { background: linear-gradient(180deg, #fff, #cfcabd); box-shadow: 0 2px 6px rgba(0, 0, 0, .45); }
+html[data-look="glass"] .switch[aria-checked="true"] { background: linear-gradient(180deg, #c9f02e, var(--lime)); box-shadow: inset 0 1px 3px rgba(60, 80, 0, .5), 0 0 18px -4px color-mix(in srgb, var(--lime) 65%, transparent); }
+html[data-look="glass"] .switch[aria-checked="true"]::after { background: linear-gradient(180deg, #2a2d12, #101100); }
+
+/* Fields, tracks and bars are cut into the glass instead of lying on it. */
+html[data-look="glass"] :is(textarea, .set input) { border-color: rgba(255, 255, 255, .16); background: rgba(0, 0, 0, .32); box-shadow: inset 0 2px 6px rgba(0, 0, 0, .4); }
+html[data-look="glass"] :is(.projects .hear, .projects .line i, .bars i, .lane .strip u:not([data-on])) { background: rgba(0, 0, 0, .3); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .45), 0 1px 0 rgba(255, 255, 255, .08); }
+html[data-look="glass"] .seek { border-bottom-color: rgba(255, 255, 255, .22); }
+html[data-look="glass"] .big:hover { background: rgba(255, 255, 255, .07); box-shadow: var(--pill-rim); }
+html[data-look="glass"] .flowmap .count circle { fill: #1c1a15; stroke: rgba(255, 255, 255, .2); }
+
+/* The largest type stands straight on the pane, with nothing of its own
+   behind it. A soft shadow keeps its edge where the desktop is bright. */
+html[data-look="glass"] :is(.big, .said, .question, .statement, .seek, .again h2, .hit h2, .doors b) { text-shadow: 0 2px 26px rgba(0, 0, 0, .45); }
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-look="glass"] { --glass: #191713; --pill: #2a2722; }
+  html[data-look="glass"] body::before { background: #100f0d; }
+  html[data-look="glass"] :is(.topbar, dialog, .toast) { background: #1c1a16; }
+}
