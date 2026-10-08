@@ -112,6 +112,14 @@ function renderBigs(container, rows, open) {
     $("em", node).textContent = row.meta;
     node.setAttribute("aria-pressed", String(open === row.key));
   });
+  // What opens under the numbers is told which of them it belongs to: its
+  // words and its colour, for a look in which the two do not touch.
+  const pressed = rows.find((row) => row.key === open);
+  const under = container.nextElementSibling;
+  if (pressed && under?.classList.contains("drill")) {
+    under.dataset.of = `${pressed.number}${pressed.unit ? ` ${pressed.unit}` : ""} ${pressed.word}`.replace(" %", "%");
+    under.style.setProperty("--of", pressed.tone);
+  }
   if (open) container.dataset.open = open;
   else delete container.dataset.open;
 }

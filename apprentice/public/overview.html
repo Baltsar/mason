@@ -170,6 +170,7 @@
       @keyframes ring { to { transform: scale(1.35); opacity: 0; } }
       @media (prefers-reduced-motion: reduce) { .big { opacity: 1; transform: none; } * { animation: none !important; } }
     </style>
+    <link rel="stylesheet" href="/glass-panel.css" />
   </head>
   <body>
     <div class="wrap">
@@ -470,6 +471,11 @@
 
       function render() {
         const { activity, map, runtime } = state;
+        // The look follows the window's: the dark one, or liquid glass.
+        const asked = new URLSearchParams(location.search);
+        if (asked.get("wall")) document.documentElement.dataset.wall = asked.get("wall");
+        const look = asked.get("look") ?? state.look ?? "";
+        if (look) document.documentElement.dataset.look = look; else delete document.documentElement.dataset.look;
         const question = map.questions.find((item) => item.status === "open");
         // The form is rebuilt only for a new question, so a half-said or
         // half-typed answer survives every live update.

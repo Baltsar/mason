@@ -81,7 +81,15 @@ html[data-look="glass"] .switch[aria-checked="true"]::after { background: linear
 html[data-look="glass"] :is(textarea, .set input) { border-color: rgba(255, 255, 255, .16); background: rgba(0, 0, 0, .32); box-shadow: inset 0 2px 6px rgba(0, 0, 0, .4); }
 html[data-look="glass"] :is(.projects .hear, .projects .line i, .bars i, .lane .strip u:not([data-on])) { background: rgba(0, 0, 0, .3); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .45), 0 1px 0 rgba(255, 255, 255, .08); }
 html[data-look="glass"] .seek { border-bottom-color: rgba(255, 255, 255, .22); }
-html[data-look="glass"] .big:hover { background: rgba(255, 255, 255, .07); box-shadow: var(--pill-rim); }
+/* The large numbers overlap each other on purpose, so a box behind one of
+   them would cut into its neighbour. Pressed, a number keeps its place and
+   the others step back; nothing is drawn behind it. */
+html[data-look="glass"] .big:hover { background: transparent; }
+/* What opens under the numbers is a pane of its own, standing clear of them.
+   It says which number it belongs to, in that number's colour, and its upper
+   rim is lit in the same colour. */
+html[data-look="glass"] .drill { position: relative; margin: 14px 0 26px; padding-top: 22px; border-top-color: color-mix(in srgb, var(--of, #fff) 62%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--of, #fff) 55%, rgba(255, 255, 255, .3)), inset 0 22px 30px -26px color-mix(in srgb, var(--of, #fff) 55%, transparent), inset 0 -26px 36px -30px rgba(255, 255, 255, .2), var(--glass-drop); }
+html[data-look="glass"] .drill[data-of]::before { content: attr(data-of); display: block; margin: 0 0 16px; color: var(--of, var(--paper)); font: 600 11px/1.4 var(--mono); letter-spacing: .09em; text-transform: uppercase; }
 html[data-look="glass"] .flowmap .count circle { fill: #1c1a15; stroke: rgba(255, 255, 255, .2); }
 
 /* The largest type stands straight on the pane, with nothing of its own

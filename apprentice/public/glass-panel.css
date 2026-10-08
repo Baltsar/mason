@@ -1,0 +1,40 @@
+/* Liquid glass for the panel under the island. macOS draws the pane and its
+   corners; this lays light and depth on it. The pane is darkened a little,
+   for the same reason as the window: what lies behind it may be white. */
+
+html[data-look="glass"] { --muted: #c9c3b5; --grey: #a39e91; }
+html[data-look="glass"] body::before { content: ""; position: fixed; inset: 0; z-index: -1; border-radius: 24px; pointer-events: none;
+  /* Light entering from the upper left, and a glow where it leaves at the bottom. */
+  background: radial-gradient(120% 70% at 0% 0%, rgba(255, 255, 255, .2), transparent 62%), radial-gradient(90% 50% at 100% 100%, rgba(255, 255, 255, .08), transparent 70%), rgba(10, 9, 8, .36);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .46), inset 1px 0 0 rgba(255, 255, 255, .1), inset -1px 0 0 rgba(255, 255, 255, .06), inset 0 -30px 40px -32px rgba(255, 255, 255, .26); }
+
+/* The round buttons are beads of clear glass. */
+html[data-look="glass"] .tools .round, html[data-look="glass"] .round { background: linear-gradient(180deg, rgba(255, 255, 255, .28), rgba(255, 255, 255, .1)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -1px 0 rgba(0, 0, 0, .22), 0 8px 16px -8px rgba(0, 0, 0, .6); }
+html[data-look="glass"] .tools .round:hover { background: linear-gradient(180deg, rgba(255, 255, 255, .4), rgba(255, 255, 255, .18)); }
+html[data-look="glass"] .tools .play[data-state="playing"], html[data-look="glass"] .tools .ring[data-ready] { background: linear-gradient(180deg, #ecff93, var(--lime) 55%, #c5ee2b); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .75), 0 0 22px -4px color-mix(in srgb, var(--lime) 70%, transparent); }
+
+/* The numbers overlap, so nothing is drawn behind the one the pointer is on. */
+html[data-look="glass"] .big:hover, html[data-look="glass"] .big:focus-visible { background: transparent; }
+html[data-look="glass"] .big:hover > span { color: #fff; }
+html[data-look="glass"] :is(.big, .headline) { text-shadow: 0 2px 22px rgba(0, 0, 0, .4); }
+
+/* The one thing worth saying lies in a shallow dish of its own. */
+html[data-look="glass"] .said:not(:empty) { margin: 14px -6px 6px; padding: 12px 14px 13px 16px; border: 1px solid rgba(255, 255, 255, .14); border-left: 3px solid var(--grey); border-radius: 16px; background: rgba(0, 0, 0, .22); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .4), 0 1px 0 rgba(255, 255, 255, .1); }
+html[data-look="glass"] .said[data-tone="off"] { border-left-color: var(--red); }
+html[data-look="glass"] .said[data-tone="on"] { border-left-color: var(--lime); }
+html[data-look="glass"] .said[data-tone="ready"] { border-left-color: var(--gold); }
+
+/* A call is a pane of glass on the pane; fields are cut into it. */
+html[data-look="glass"] .call { border: 1px solid rgba(255, 255, 255, .16); background: linear-gradient(180deg, rgba(255, 255, 255, .1), rgba(255, 255, 255, .02) 40%), rgba(16, 14, 11, .5); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .34), 0 18px 40px -22px rgba(0, 0, 0, .7); }
+html[data-look="glass"] .ask { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -1px 0 rgba(90, 60, 0, .3), 0 18px 40px -22px rgba(0, 0, 0, .7); }
+
+/* In a browser there is neither a desktop nor the pane macOS draws. Both are
+   painted here, only so that this can be looked at outside the app. */
+html[data-look="glass"]:not([data-shell="desktop"]) { min-height: 100%; padding: 46px 0 60px; background: #1b1430 fixed; background-image: radial-gradient(60% 55% at 12% 18%, #ff7a3d 0%, transparent 70%), radial-gradient(55% 60% at 88% 12%, #5b4bff 0%, transparent 72%), radial-gradient(70% 60% at 78% 92%, #00b3a1 0%, transparent 70%), radial-gradient(50% 50% at 20% 88%, #d83a8c 0%, transparent 72%); }
+html[data-look="glass"][data-wall="day"]:not([data-shell="desktop"]) { background: #f4f6fb fixed; background-image: radial-gradient(60% 55% at 15% 15%, #ffffff 0%, transparent 70%), radial-gradient(55% 60% at 85% 20%, #bfe3ff 0%, transparent 72%), radial-gradient(70% 60% at 70% 90%, #fff3c4 0%, transparent 70%); }
+html[data-look="glass"]:not([data-shell="desktop"]) body { position: relative; isolation: isolate; overflow: hidden; border: 1px solid rgba(255, 255, 255, .2); border-radius: 24px; background: rgba(34, 34, 34, .66); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, .7); -webkit-backdrop-filter: blur(44px) saturate(1.7); backdrop-filter: blur(44px) saturate(1.7); }
+html[data-look="glass"]:not([data-shell="desktop"]) body::before { position: absolute; }
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-look="glass"] body::before { background: #1a1815; }
+}
