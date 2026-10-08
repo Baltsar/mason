@@ -613,6 +613,44 @@ function renderFlow() {
     ${ways.length ? `<ul class="bars wide">${ways.map((way) => `<li data-tool="${esc(way.other)}" style="--w:${Math.round((way.count / most) * 100)}%;--tone:var(--lime)"><span>${face(byName.get(way.other) || { name: way.other }, 26)}<em>${esc(way.other)}</em></span><i></i><b>${way.count}</b></li>`).join("")}</ul>` : `<p class="empty">No jumps to or from it.</p>`}`);
 }
 
+/* Replay: a stretch of real work, for someone else to sit beside */
+
+// The piece of work as it would be shown, which piece it is (none is the
+// latest), whether names are shown, and the lines that were taken out of it.
+let replay = null;
+let replayPiece = null;
+let replayNames = false;
+const replayOut = new Set();
+
+async function loadReplay() {
+  replay = await post("/api/replay", { piece: replayPiece, names: replayNames });
+  renderReplay();
+}
+
+function renderReplay() {
+  // What is cut is a piece of work: one project, from its first prompt to its last.
+  const pieces = [...replay.pieces.map((piece) => [piece.id, `${piece.project} · ${piece.prompts}`]), ["today", "All of today"]];
+  paint($("#replay-span"), JSON.stringify([pieces, replay.piece]), pieces.map(([id, word]) => `<button type="button" data-replay-piece="${esc(id)}" aria-pressed="${id === replay.piece}">${esc(word)}</button>`).join(""));
+  $("#replay-names").setAttribute("aria-checked", String(replayNames));
+  const kept = replay.lines.filter((line) => !replayOut.has(line.id)).length;
+  $("#replay-note").textContent = replay.lines.length ? `${kept} of ${replay.lines.length} prompts. Press one to leave it out. Read each before you save: this is what others will see.` : "Nothing was said to an agent today.";
+  $("#replay-save").disabled = $("#replay-copy").disabled = !kept;
+  paint($("#replay-lines"), JSON.stringify([replay.lines.map((line) => [line.id, line.project, line.text.length]), [...replayOut]]), replay.lines.map((line) => `<article class="cut" data-replay-line="${esc(line.id)}" role="button" tabindex="0" aria-pressed="${!replayOut.has(line.id)}">
+    <header><time>${clock(line.at)}</time><b>${esc(line.project)}</b></header><p>${esc(line.text)}</p>${line.around ? `<footer>${esc(line.around)}</footer>` : ""}</article>`).join(""));
+}
+
+// The clipboard is asked the new way and, where that is refused, the old one.
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {}
+  const field = document.createElement("textarea");
+  field.value = text;
+  document.body.append(field);
+  field.select();
+  const done = document.execCommand("copy");
+  field.remove();
+  return done;
+}
+
 /* Share: the flow as a picture to show others */
 
 // The flow the picture is drawn from, the tools chosen for it, and where each
@@ -1082,6 +1120,21 @@ async function act(event) {
     return loadShare();
   }
   if (target.closest("#share-close")) return $("#share").close();
+  if (target.closest("#flow-replay")) { replayPiece = null; replayOut.clear(); $("#replay").showModal(); return loadReplay(); }
+  if (target.closest("#replay-close")) return $("#replay").close();
+  const piece = target.closest("[data-replay-piece]");
+  if (piece) { replayPiece = piece.dataset.replayPiece; replayOut.clear(); return loadReplay(); }
+  if (target.closest("#replay-names")) { replayNames = !replayNames; return loadReplay(); }
+  const cut = target.closest("[data-replay-line]");
+  if (cut) { if (!replayOut.delete(cut.dataset.replayLine)) replayOut.add(cut.dataset.replayLine); return renderReplay(); }
+  if (target.closest("#replay-save")) {
+    const saved = await post("/api/replay", { action: "save", piece: replay.piece, names: replayNames, hidden: [...replayOut] });
+    return toast(`Saved: ${saved.file}`);
+  }
+  if (target.closest("#replay-copy")) {
+    const { text } = await post("/api/replay", { action: "text", piece: replay.piece, names: replayNames, hidden: [...replayOut] });
+    return toast(await copyText(text) ? "Copied. Paste it where you want it read." : "Could not copy. Save the page instead.");
+  }
   const span = target.closest("[data-share-span]");
   if (span) { shareSpan = span.dataset.shareSpan; return loadShare(); }
   if (target.closest("#share-tools [data-all]")) { shareAll = !shareAll; return drawShare(); }
@@ -1218,7 +1271,7 @@ document.addEventListener("input", (event) => {
 });
 document.addEventListener("keydown", (event) => {
   // A tool in the flow picture is pressed with the keyboard like any button.
-  if ((event.key === "Enter" || event.key === " ") && event.target.matches?.(".flowmap .node, [data-again]")) { event.preventDefault(); return event.target.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
+  if ((event.key === "Enter" || event.key === " ") && event.target.matches?.(".flowmap .node, [data-again], [data-replay-line]")) { event.preventDefault(); return event.target.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
   if (event.key !== "Enter" || event.shiftKey) return;
   const button = { "live-answer": "[data-answer]" }[event.target.id];
   if (!button) return;

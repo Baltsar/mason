@@ -430,6 +430,23 @@ span.logo { border-radius: 23%; background: var(--bg); box-shadow: inset 0 0 0 1
   #share-canvas { width: 100%; height: auto; }
 }
 
+/* A replay: the prompts of a stretch, each one to read and to leave out. */
+#replay { width: min(1040px, calc(100vw - 48px)); max-height: 94vh; overflow: hidden; }
+.replay-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); align-items: start; gap: 26px; padding: 22px; }
+.cuts { display: grid; gap: 12px; max-height: min(74vh, 720px); overflow-y: auto; padding-right: 6px; }
+.cut { padding: 16px 18px 14px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255, 255, 255, .03); cursor: pointer; outline: none; transition: opacity .2s, border-color .15s; }
+.cut:hover, .cut:focus-visible { border-color: var(--muted); }
+.cut header { display: flex; align-items: baseline; justify-content: flex-start; gap: 12px; padding: 0; border: 0; color: var(--muted); font: 12px/1.4 var(--mono); }
+.cut header b { color: var(--lime); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.cut p { display: -webkit-box; overflow: hidden; margin: 8px 0 0; font-size: 16px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 6; }
+.cut footer { margin-top: 10px; color: var(--muted); font-size: 13px; }
+.cut[aria-pressed="false"] { opacity: .32; }
+.cut[aria-pressed="false"] p { text-decoration: line-through; }
+.replay-body .set { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 0; border: 0; font-size: 14px; }
+@media (max-width: 760px) {
+  .replay-body { grid-template-columns: 1fr; }
+}
+
 /* Days: the long view. A month of days, each as bright as it was busy, and
    under it every project's month as a strip. */
 .month { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-bottom: 22px; animation: rise .5s var(--ease) both; animation-delay: 160ms; }

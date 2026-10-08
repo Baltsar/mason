@@ -49,7 +49,7 @@
       </section>
 
       <section class="view" data-page="flow" hidden>
-        <p class="eyebrow walk"><button type="button" data-flow-step="-1" aria-label="The day before">‹</button><span id="flow-meta"></span><button type="button" data-flow-step="1" aria-label="The day after">›</button><button class="quiet" type="button" id="flow-share">Share</button></p>
+        <p class="eyebrow walk"><button type="button" data-flow-step="-1" aria-label="The day before">‹</button><span id="flow-meta"></span><button type="button" data-flow-step="1" aria-label="The day after">›</button><button class="quiet" type="button" id="flow-share">Share</button><button class="quiet" type="button" id="flow-replay">Replay</button></p>
         <div class="bigs" id="flow-bigs"></div>
         <div class="drill" id="flow-drill" hidden></div>
         <figure class="flowmap" id="flow-map" aria-label="How the day moved between tools"></figure>
@@ -115,6 +115,19 @@
       </section>
     </main>
 
+    <dialog id="replay">
+      <header><p class="label">A replay to share</p><button type="button" id="replay-close" aria-label="Close">Close</button></header>
+      <div class="replay-body">
+        <div class="cuts" id="replay-lines" aria-live="polite"></div>
+        <div class="share-side">
+          <div class="chips" id="replay-span"></div>
+          <div class="set"><span>Names of projects and sites</span><button class="switch" type="button" role="switch" id="replay-names" aria-checked="false" aria-label="Names of projects and sites"></button></div>
+          <p class="note" id="replay-note"></p>
+          <button class="primary" type="button" id="replay-save">Save page</button>
+          <button class="secondary" type="button" id="replay-copy">Copy as text</button>
+        </div>
+      </div>
+    </dialog>
     <dialog id="share">
       <header><p class="label">A picture to share</p><button type="button" id="share-close" aria-label="Close">Close</button></header>
       <div class="share-body">

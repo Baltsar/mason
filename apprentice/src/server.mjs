@@ -16,6 +16,7 @@ import { ICON_FILE, ICON_TYPES, iconFolder, iconsFor, siteIconsFor } from "./ico
 import { dayKey, daysPayload, loadDays, refreshDays } from "./days.mjs";
 import { measureDay, readsAnswers, sentenceOf, usualWait } from "./coach.mjs";
 import { builtOf } from "./built.mjs";
+import { pageOf, piecesOf, replayOf, saveReplay, shownReplay, textOf } from "./replay.mjs";
 import { saveShare } from "./share.mjs";
 import { nudgesPayload, offerNudge, openNudge, settleNudges } from "./nudge.mjs";
 import { beforeSaid, findSaid, forgetSaid, refreshSaid, repeatedSaid, saidStatus, unreadSaid } from "./said.mjs";
@@ -549,6 +550,30 @@ const server = http.createServer(async (request, response) => {
       const input = await body(request, 12_000_000);
       const file = await saveShare(input.image, input.label);
       if (!file) return json(response, 400, { error: "Not a picture" });
+      if (process.env.APPRENTICE_COLLECT !== "0") spawn("open", ["-R", file], { stdio: "ignore", detached: true }).once("error", () => {}).unref();
+      return json(response, 200, { file: file.replace(process.env.HOME || "\u0000", "~") });
+    }
+    if (url.pathname === "/api/replay" && post) {
+      // One piece of today's work, cut afterwards from what is kept anyway:
+      // the latest, or the one that is asked for, or the whole day.
+      const input = await body(request);
+      const [events, index] = await Promise.all([readEventsSince(dayStart()), projectIndex(dayStart())]);
+      const said = index.prompts();
+      const pieces = piecesOf(said);
+      const piece = input.piece === "today" ? null : pieces.find((item) => item.id === input.piece) || pieces[0] || null;
+      const ends = [...events.map((event) => Date.parse(event.startedAt || event.at) + (Number(event.durationSec) || 0) * 1000), ...said.map((prompt) => prompt.at)].filter(Number.isFinite);
+      const last = Math.min(Date.now(), ends.length ? Math.max(...ends) : Date.now());
+      // A piece runs a little past its last prompt, to where the answer was read.
+      const [from, to] = piece ? [piece.from - 60_000, Math.min(last, piece.to + 10 * 60_000)] : [dayStart(), last];
+      const prompts = piece ? said.filter((prompt) => prompt.project === piece.project) : said;
+      const replay = replayOf({ events, prompts, turns: index.turns(), from, to });
+      const names = input.names === true;
+      // First everything is shown to its owner, who picks the piece and takes lines out.
+      if (input.action !== "save" && input.action !== "text") return json(response, 200, { ...shownReplay(replay, { names }), piece: piece?.id || "today", pieces: pieces.slice(0, 5).map((item) => ({ id: item.id, project: item.project, prompts: item.prompts })) });
+      const shown = shownReplay(replay, { names, hidden: Array.isArray(input.hidden) ? input.hidden.map(String) : [] });
+      if (!shown.lines.length) return json(response, 400, { error: "Nothing is left to show" });
+      if (input.action === "text") return json(response, 200, { text: textOf(shown, ownerName()) });
+      const file = await saveReplay(pageOf(shown, ownerName()));
       if (process.env.APPRENTICE_COLLECT !== "0") spawn("open", ["-R", file], { stdio: "ignore", detached: true }).once("error", () => {}).unref();
       return json(response, 200, { file: file.replace(process.env.HOME || "\u0000", "~") });
     }

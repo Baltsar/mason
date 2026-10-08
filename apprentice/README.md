@@ -137,6 +137,16 @@ Each nudge is followed up. Back where answers are read within a minute and a hal
 
 A third was tried and left out: "the third try at the same thing". Against four months of real prompts the embedding model could not tell "it does not work" from "now it works", so it would have been wrong.
 
+## A replay to share
+
+**Flow → Replay.** A piece of real work for someone else to sit beside: every prompt as it was said, how long the agent worked on it, where you were meanwhile, and how long the answer waited. Nothing is recorded for it. It is cut afterwards from what Mason keeps anyway, so there is no button to remember before the work starts.
+
+What is cut is a piece of work, not a length of time: the prompts said in one project with no half hour of silence between them. Mason offers today's pieces and opens on the latest. You read every line and press the ones to leave out. Until you switch names on, a project is "Project A", a site without a name of its own is "a website", and your home folder is "~". **Save page** writes one HTML file that stands by itself to `data/share/`; **Copy as text** puts the same thing on the clipboard for a chat. Mason posts nothing.
+
+The page carries its figures a second time as data, without any of its words (prompts, jumps, tools, the middle length of a prompt and of a wait), so that replays from several people can be put side by side without anyone reading anyone's prompts.
+
+A replay shows your half only. What the agent answered is not in it yet.
+
 ## Logos from the web
 
 Off until you switch it on in Settings. A tool that is a site has no app to lend it an icon, so it shows a lettered tile. Switched on, Mason asks each site you used for its own icon, once, over https, and keeps the picture in `data/icons/`. It asks only public names: never an address on this Mac or on the network at home, and it follows a site's redirects one step at a time for the same reason. Only pictures are kept, never an SVG.
