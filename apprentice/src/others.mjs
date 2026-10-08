@@ -1,4 +1,4 @@
-import { readdir, readFile, stat } from "node:fs/promises";
+import { open, readdir, readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { redact } from "./redact.mjs";
@@ -24,8 +24,21 @@ const GROK_DIR = process.env.APPRENTICE_GROK_DIR || (elsewhere ? "" : path.join(
 const TEMPORARY = /^(\/private)?\/(tmp|var\/folders)\//;
 // Even a word starts a turn; only a real sentence is kept as said.
 const A_SENTENCE = 12;
+// A log can be very large: one Codex session is 128 MB, most of it pictures
+// and what tools gave back. So a log is never held as a whole. It is read a
+// piece at a time, from where the last reading stopped, and of a line longer
+// than this only the beginning is looked at, for the moment it was written.
+const PIECE = 1024 * 1024;
+const LONGEST_LINE = 256 * 1024;
+const BEGINNING = 16 * 1024;
+// In a line that is too long to read whole, what was typed stands near the
+// beginning, before the picture that made it long.
+const TYPED = /"role":"user"[\s\S]*?"type":"input_text","text":"((?:[^"\\]|\\.)*)"/;
+const NEWLINE = 10;
+const WHEN = /"(?:timestamp|ts)":"([^"]+)"/;
 
 const minuteOf = (at) => Math.floor(at / 60_000);
+const freshLog = () => ({ cwd: null, byHand: true, prompts: [], turns: [], minutes: new Set() });
 // What the person said, without what the program wrapped around it.
 const typed = (text) => {
   const said = String(text ?? "").trim();
@@ -33,57 +46,65 @@ const typed = (text) => {
   return asked >= 0 ? said.slice(asked + 24).trim() : said;
 };
 
-// One Codex session, from the lines of its log.
-export function codexLog(text) {
-  const log = { cwd: null, byHand: true, prompts: [], turns: [], minutes: new Set() };
-  for (const line of String(text).split("\n")) {
-    if (!line) continue;
-    let row;
-    try { row = JSON.parse(line); } catch { continue; }
-    const at = Date.parse(row.timestamp);
-    const payload = row.payload && typeof row.payload === "object" ? row.payload : {};
-    if (!Number.isFinite(at)) continue;
-    if (row.type === "session_meta") {
-      log.cwd = payload.cwd || log.cwd;
-      // Started by a script or by another agent, or a helper of its own.
-      log.byHand = payload.source !== "exec" && typeof payload.source !== "object" && payload.thread_source !== "subagent" && !/exec|sdk/i.test(String(payload.originator || ""));
-      continue;
-    }
+// One line of a Codex log. `cut` says that only its beginning is there.
+function absorbCodex(log, line, cut = false) {
+  if (cut || line.length > LONGEST_LINE) {
+    const beginning = line.subarray(0, BEGINNING).toString("utf8");
+    const at = Date.parse(WHEN.exec(beginning)?.[1]);
+    if (!Number.isFinite(at)) return;
     log.minutes.add(minuteOf(at));
-    const turn = log.turns.at(-1);
-    if (row.type === "response_item" && payload.type === "message" && payload.role === "user") {
-      const said = typed((Array.isArray(payload.content) ? payload.content : []).find((part) => part?.type === "input_text")?.text);
-      // What the program itself puts in as the user: context, not something said.
-      if (!said || said.startsWith("<") || said.startsWith("[")) continue;
+    let said = "";
+    try { said = typed(JSON.parse(`"${TYPED.exec(beginning)?.[1] ?? ""}"`)); } catch {}
+    // Something said with a picture attached: the words are kept, the picture is not read.
+    if (said && !said.startsWith("<") && !said.startsWith("[")) {
       log.turns.push({ prompt: at, done: at, ended: false });
       if (said.length >= A_SENTENCE) log.prompts.push({ at, text: redact(said, 600), agent: "Codex" });
-    } else if (turn && row.type === "event_msg" && (payload.type === "task_complete" || payload.type === "turn_aborted")) {
-      turn.done = at;
-      turn.ended = payload.type === "task_complete";
-    } else if (turn && row.type === "response_item") turn.done = at;
+    } else if (log.turns.length) log.turns.at(-1).done = at;
+    return;
   }
-  return log;
+  let row;
+  try { row = JSON.parse(line.toString("utf8")); } catch { return; }
+  const at = Date.parse(row.timestamp);
+  const payload = row.payload && typeof row.payload === "object" ? row.payload : {};
+  if (!Number.isFinite(at)) return;
+  if (row.type === "session_meta") {
+    log.cwd = payload.cwd || log.cwd;
+    // Started by a script or by another agent, or a helper of its own.
+    log.byHand = payload.source !== "exec" && typeof payload.source !== "object" && payload.thread_source !== "subagent" && !/exec|sdk/i.test(String(payload.originator || ""));
+    return;
+  }
+  log.minutes.add(minuteOf(at));
+  const turn = log.turns.at(-1);
+  if (row.type === "response_item" && payload.type === "message" && payload.role === "user") {
+    const said = typed((Array.isArray(payload.content) ? payload.content : []).find((part) => part?.type === "input_text")?.text);
+    // What the program itself puts in as the user: context, not something said.
+    if (!said || said.startsWith("<") || said.startsWith("[")) return;
+    log.turns.push({ prompt: at, done: at, ended: false });
+    if (said.length >= A_SENTENCE) log.prompts.push({ at, text: redact(said, 600), agent: "Codex" });
+  } else if (turn && row.type === "event_msg" && (payload.type === "task_complete" || payload.type === "turn_aborted")) {
+    turn.done = at;
+    turn.ended = payload.type === "task_complete";
+  } else if (turn && row.type === "response_item") turn.done = at;
 }
 
-// One Grok session, from the three files that say what it was: its summary,
-// its events, and what was typed in its folder.
-export function grokSession({ summary, events, history }) {
-  const log = { cwd: null, byHand: true, prompts: [], turns: [], minutes: new Set() };
+// One line of what happened in a Grok session.
+function absorbGrok(log, line, cut = false) {
+  if (cut || line.length > LONGEST_LINE) return;
+  let row;
+  try { row = JSON.parse(line.toString("utf8")); } catch { return; }
+  const at = Date.parse(row.ts);
+  if (!Number.isFinite(at)) return;
+  log.minutes.add(minuteOf(at));
+  const turn = log.turns.at(-1);
+  if (row.type === "turn_started") log.turns.push({ prompt: at, done: at, ended: false });
+  else if (turn) { turn.done = at; if (row.type === "turn_ended") turn.ended = row.outcome === "completed"; }
+}
+
+// What a Grok session was: where, whether it was typed in, and what was typed.
+function describeGrok(log, summary, history) {
   let known = {};
   try { known = JSON.parse(summary); } catch {}
-  log.cwd = known.info?.cwd || null;
-  log.byHand = known.session_kind !== "headless";
-  for (const line of String(events ?? "").split("\n")) {
-    if (!line) continue;
-    let row;
-    try { row = JSON.parse(line); } catch { continue; }
-    const at = Date.parse(row.ts);
-    if (!Number.isFinite(at)) continue;
-    log.minutes.add(minuteOf(at));
-    const turn = log.turns.at(-1);
-    if (row.type === "turn_started") log.turns.push({ prompt: at, done: at, ended: false });
-    else if (turn) { turn.done = at; if (row.type === "turn_ended") turn.ended = row.outcome === "completed"; }
-  }
+  const prompts = [];
   for (const line of String(history ?? "").split("\n")) {
     if (!line) continue;
     let row;
@@ -92,25 +113,65 @@ export function grokSession({ summary, events, history }) {
     const said = String(row.prompt ?? "").trim();
     // A command for the shell is not something said to the agent.
     if (!Number.isFinite(at) || row.session_id !== known.info?.id || row.is_bash || said.length < A_SENTENCE) continue;
-    log.prompts.push({ at, text: redact(said, 600), agent: "Grok" });
+    prompts.push({ at, text: redact(said, 600), agent: "Grok" });
   }
-  return log;
+  return { ...log, cwd: known.info?.cwd || null, byHand: known.session_kind !== "headless", prompts };
 }
 
-// A log is read again only when its file has grown or changed.
-const read = new Map();
-async function parsed(file, parse) {
+const lineByLine = (text, absorb) => {
+  const log = freshLog();
+  for (const line of String(text ?? "").split("\n")) if (line) absorb(log, Buffer.from(line));
+  return log;
+};
+
+// One Codex session, from the text of its log.
+export const codexLog = (text) => lineByLine(text, absorbCodex);
+
+// One Grok session, from the three files that say what it was: its summary,
+// its events, and what was typed in its folder.
+export const grokSession = ({ summary, events, history }) => describeGrok(lineByLine(events, absorbGrok), summary, history);
+
+// Follows one log: reads what was added since the last time, a piece at a
+// time, and hands each line to `absorb`. Returns what is known of the log.
+const followed = new Map();
+export async function follow(file, absorb) {
   let info;
   try { info = await stat(file); } catch { return null; }
-  const known = read.get(file);
-  if (known && known.size === info.size && known.mtime === info.mtimeMs) return known;
-  let log;
-  try { log = await parse(); } catch { return null; }
-  read.set(file, { log, size: info.size, mtime: info.mtimeMs });
-  return read.get(file);
+  let known = followed.get(file);
+  // A file that became shorter was written anew.
+  if (!known || info.size < known.offset) { known = { offset: 0, rest: Buffer.alloc(0), cut: false, log: freshLog(), mtime: 0 }; followed.set(file, known); }
+  known.mtime = info.mtimeMs;
+  if (info.size === known.offset) return known;
+  let handle;
+  try { handle = await open(file, "r"); } catch { return known; }
+  try {
+    const piece = Buffer.alloc(PIECE);
+    while (known.offset < info.size) {
+      const { bytesRead } = await handle.read(piece, 0, PIECE, known.offset);
+      if (!bytesRead) break;
+      known.offset += bytesRead;
+      const data = piece.subarray(0, bytesRead);
+      let from = 0;
+      for (let end = data.indexOf(NEWLINE, from); end !== -1; end = data.indexOf(NEWLINE, from)) {
+        // The line ends here. What earlier pieces held of it is its beginning,
+        // and of a line that was too long that beginning is all there is.
+        const line = known.cut ? known.rest : known.rest.length ? Buffer.concat([known.rest, data.subarray(from, end)]) : data.subarray(from, end);
+        if (line.length) absorb(known.log, line, known.cut);
+        known.rest = Buffer.alloc(0);
+        known.cut = false;
+        from = end + 1;
+      }
+      // What is left goes on in the next piece. Once a line has grown too
+      // long only its beginning is kept, and the rest of it is let pass.
+      if (!known.cut && from < bytesRead) known.rest = Buffer.concat([known.rest, data.subarray(from)]);
+      if (!known.cut && known.rest.length > LONGEST_LINE) { known.rest = Buffer.from(known.rest.subarray(0, BEGINNING)); known.cut = true; }
+    }
+  } catch {} finally { await handle.close().catch(() => {}); }
+  return known;
 }
 
-const text = (file) => readFile(file, "utf8").catch(() => "");
+// A file of settings or of a few lines. A large one is not what it should be.
+const small = async (file) => { try { return (await stat(file)).size < 4 * 1024 * 1024 ? await readFile(file, "utf8") : ""; } catch { return ""; } };
 const listed = async (folder) => { try { return folder ? (await readdir(folder)).filter((name) => !name.startsWith(".")) : []; } catch { return []; } };
 
 async function codexLogs(since) {
@@ -118,8 +179,7 @@ async function codexLogs(since) {
   for (const year of await listed(CODEX_DIR)) for (const month of await listed(path.join(CODEX_DIR, year))) for (const day of await listed(path.join(CODEX_DIR, year, month))) {
     for (const name of await listed(path.join(CODEX_DIR, year, month, day))) {
       if (!name.endsWith(".jsonl")) continue;
-      const file = path.join(CODEX_DIR, year, month, day, name);
-      const entry = await parsed(file, async () => codexLog(await text(file)));
+      const entry = await follow(path.join(CODEX_DIR, year, month, day, name), absorbCodex);
       if (entry && entry.mtime >= since) logs.push({ ...entry.log, source: "Codex" });
     }
   }
@@ -128,31 +188,39 @@ async function codexLogs(since) {
 
 async function grokLogs(since) {
   const logs = [];
-  for (const place of await listed(GROK_DIR)) for (const session of await listed(path.join(GROK_DIR, place))) {
-    const folder = path.join(GROK_DIR, place, session);
-    const events = path.join(folder, "events.jsonl");
-    const entry = await parsed(events, async () => grokSession({ summary: await text(path.join(folder, "summary.json")), events: await text(events), history: await text(path.join(GROK_DIR, place, "prompt_history.jsonl")) }));
-    if (entry && entry.mtime >= since) logs.push({ ...entry.log, source: "Grok" });
+  for (const place of await listed(GROK_DIR)) {
+    const history = await small(path.join(GROK_DIR, place, "prompt_history.jsonl"));
+    for (const session of await listed(path.join(GROK_DIR, place))) {
+      const folder = path.join(GROK_DIR, place, session);
+      const entry = await follow(path.join(folder, "events.jsonl"), absorbGrok);
+      if (entry && entry.mtime >= since) logs.push({ ...describeGrok(entry.log, await small(path.join(folder, "summary.json")), history), source: "Grok" });
+    }
   }
   return logs;
 }
 
 // What Codex and Grok were used for, by project folder, since a moment.
-export async function otherProjects(since) {
-  const found = new Map();
-  if (!settings().logs) return found;
-  for (const log of [...await codexLogs(since), ...await grokLogs(since)]) {
-    if (!log.cwd || TEMPORARY.test(log.cwd)) continue;
-    const project = found.get(log.cwd) || { name: path.basename(log.cwd), folder: log.cwd, prompts: [], minutes: new Set(), turns: [], source: log.source };
-    for (const minute of log.minutes) if (minute * 60_000 >= since - 60_000) project.minutes.add(minute);
-    // Only what its owner typed is said by them, and only its answers wait for them.
-    if (log.byHand) {
-      for (const prompt of log.prompts) if (prompt.at >= since) project.prompts.push(prompt);
-      log.turns.forEach((turn, index) => { if (turn.done >= since) project.turns.push({ ...turn, next: log.turns[index + 1]?.prompt ?? null }); });
+let reading = Promise.resolve();
+export function otherProjects(since) {
+  // One reading at a time: two would follow the same logs from the same place.
+  const next = reading.then(async () => {
+    const found = new Map();
+    if (!settings().logs) return found;
+    for (const log of [...await codexLogs(since), ...await grokLogs(since)]) {
+      if (!log.cwd || TEMPORARY.test(log.cwd)) continue;
+      const project = found.get(log.cwd) || { name: path.basename(log.cwd), folder: log.cwd, prompts: [], minutes: new Set(), turns: [], source: log.source };
+      for (const minute of log.minutes) if (minute * 60_000 >= since - 60_000) project.minutes.add(minute);
+      // Only what its owner typed is said by them, and only its answers wait for them.
+      if (log.byHand) {
+        for (const prompt of log.prompts) if (prompt.at >= since) project.prompts.push(prompt);
+        log.turns.forEach((turn, index) => { if (turn.done >= since) project.turns.push({ ...turn, next: log.turns[index + 1]?.prompt ?? null }); });
+      }
+      found.set(log.cwd, project);
     }
-    found.set(log.cwd, project);
-  }
-  return found;
+    return found;
+  });
+  reading = next.catch(() => {});
+  return next;
 }
 
 // How many sessions each of them keeps on this Mac, for the settings screen.

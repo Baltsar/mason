@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -11,7 +11,8 @@ const { codexLog, grokSession, otherProjects, otherSources } = await import("../
 const { logSources, projectIndex } = await import("../src/projects.mjs");
 
 const at = (minute, second = 0) => new Date(Date.UTC(2026, 9, 8, 10, minute, second)).toISOString();
-const lines = (rows) => rows.map((row) => JSON.stringify(row)).join("\n");
+// Every line of a log ends with a new line, the last one too.
+const lines = (rows) => rows.map((row) => `${JSON.stringify(row)}\n`).join("");
 const said = (minute, text) => ({ timestamp: at(minute), type: "response_item", payload: { type: "message", role: "user", content: [{ type: "input_text", text }] } });
 
 const typedInCodex = lines([
@@ -79,4 +80,30 @@ test("both are read into the same projects: the work always counts, the words on
   const index = await projectIndex(0);
   assert.deepEqual(index.prompts().map((prompt) => [prompt.project, prompt.agent]), [["shop", "Codex"], ["site", "Grok"]]);
   assert.equal(index.turns().filter((turn) => turn.project === "shop").length, 2);
+});
+
+test("a very large log is read a piece at a time, and only what was added is read again", async () => {
+  const file = path.join(root, "codex", "2026", "10", "08", "rollout-large.jsonl");
+  // A line of three megabytes, as a picture or what a tool gave back is, between two ordinary ones.
+  const picture = JSON.stringify({ timestamp: at(52), type: "response_item", payload: { type: "custom_tool_call_output", output: "x".repeat(3 * 1024 * 1024) } });
+  await writeFile(file, `${lines([
+    { timestamp: at(50), type: "session_meta", payload: { cwd: "/Users/x/code/large", originator: "Codex Desktop", source: "vscode" } },
+    said(50, "Draw the first page again, larger this time"),
+  ])}${picture}\n${JSON.stringify({ timestamp: at(55), type: "event_msg", payload: { type: "task_complete" } })}\n`);
+  const first = (await otherProjects(0)).get("/Users/x/code/large");
+  assert.deepEqual(first.prompts.map((prompt) => prompt.text), ["Draw the first page again, larger this time"]);
+  assert.deepEqual(first.turns.map((turn) => [turn.done, turn.ended]), [[Date.parse(at(55)), true]]);
+  // The long line was not read, but the moment it was written counts as work.
+  assert.ok(first.minutes.has(Math.floor(Date.parse(at(52)) / 60_000)));
+
+  // Something said with a picture attached is one very long line. The words
+  // stand at its beginning and are kept; the picture is let pass.
+  const withPicture = { timestamp: at(58), type: "response_item", payload: { type: "message", role: "user", content: [{ type: "input_text", text: "And now the second page, like \"this\" picture" }, { type: "input_image", image_url: `data:image/png;base64,${"A".repeat(2 * 1024 * 1024)}` }] } };
+  await appendFile(file, `${JSON.stringify(withPicture)}\n`);
+  const second = (await otherProjects(0)).get("/Users/x/code/large");
+  assert.deepEqual(second.prompts.map((prompt) => prompt.text), ["Draw the first page again, larger this time", "And now the second page, like \"this\" picture"]);
+  assert.equal(second.turns.length, 2);
+  // A line that is not finished yet is left for the next reading.
+  await appendFile(file, JSON.stringify(said(59, "Half a line, still being written")).slice(0, 60));
+  assert.equal((await otherProjects(0)).get("/Users/x/code/large").prompts.length, 2);
 });
