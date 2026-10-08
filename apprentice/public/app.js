@@ -830,7 +830,7 @@ function renderDays() {
   const total = workedDays.reduce((count, key) => count + sum(key), 0);
   renderBigs($("#days-bigs"), [
     { key: "days", number: workedDays.length, word: workedDays.length === 1 ? "day" : "days", meta: "", tone: "var(--paper)" },
-    { key: "hours", number: Math.round(total / 60), unit: "h", word: "built", meta: "", tone: "var(--lime)" },
+    { key: "hours", number: Math.round(total / 60), unit: "h", word: "with agents", meta: "", tone: "var(--lime)" },
   ], null);
 
   const busiest = Math.max(1, ...keys.map(sum));
@@ -948,7 +948,7 @@ function renderSettings() {
     : said.waiting ? on(`Reading · ${thousands(said.waiting)} to go`)
     : on(`${thousands(said.count)} read · ${said.onThisMac ? "on this Mac" : said.where}`);
   const applied = snapshot?.suggestions?.applied || [];
-  const writer = model.ready ? (model.name === "Claude" ? "Claude" : `${model.name} · ${model.onThisMac ? "on this Mac" : model.where}`) : model.name === "Claude" ? "Claude not found" : "No model named";
+  const writer = model.ready ? (model.name === "Claude" ? "Claude" : `${model.name} · ${model.onThisMac ? "on this Mac" : model.where}`) : model.name === "Claude" ? "Claude not found" : model.name ? "APPRENTICE_LLM_EXTRA is not JSON" : "No model named";
   paint(node, JSON.stringify([prefs, applied, snapshot?.nudges]), `
     <label class="set"><span>Name</span><input id="set-name" type="text" value="${esc(settings.name || name)}" maxlength="40" autocomplete="off" spellcheck="false" /></label>
     ${row("speech", "Sound")}

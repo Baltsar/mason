@@ -16,6 +16,19 @@ const local = path.join(os.homedir(), ".local", "bin", "claude");
 const bin = process.env.APPRENTICE_LLM_BIN || (existsSync(local) ? local : "claude");
 const endpoint = () => (process.env.APPRENTICE_LLM_URL || "").trim().replace(/\/+$/, "");
 
+// What a provider wants beside the model and the messages, as one JSON object
+// in APPRENTICE_LLM_EXTRA: Venice's venice_parameters, a temperature. Null when
+// it is set but is not such an object: then nothing is asked at all, rather
+// than a request in another form than the one that was written down.
+function extraFields() {
+  const text = (process.env.APPRENTICE_LLM_EXTRA || "").trim();
+  if (!text) return {};
+  try {
+    const fields = JSON.parse(text);
+    return fields && typeof fields === "object" && !Array.isArray(fields) ? fields : null;
+  } catch { return null; }
+}
+
 export const modelAvailable = () => process.env.APPRENTICE_LLM !== "0";
 // Whether the Claude Code CLI is on this Mac at all.
 const claudeFound = () => existsSync(bin) || bin === "claude" && (process.env.PATH || "").split(":").some((folder) => existsSync(path.join(folder, "claude")));
@@ -27,7 +40,7 @@ export function modelStatus() {
   let host = url;
   try { host = new URL(url).host; } catch {}
   const name = (process.env.APPRENTICE_LLM_MODEL || "").trim();
-  return { name, where: host, ready: Boolean(name), onThisMac: /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(host) };
+  return { name, where: host, ready: Boolean(name) && extraFields() !== null, onThisMac:/^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(host) };
 }
 
 // The reply is the JSON that was asked for, with or without a fence around it
@@ -65,13 +78,14 @@ function askClaude(system, prompt, timeoutMs, model) {
 
 async function askEndpoint(system, prompt, timeoutMs) {
   const model = (process.env.APPRENTICE_LLM_MODEL || "").trim();
-  if (!model) return null;
+  const extra = extraFields();
+  if (!model || !extra) return null;
   try {
     const key = process.env.APPRENTICE_LLM_KEY;
     const response = await fetch(`${endpoint()}/chat/completions`, {
       method: "POST",
       headers: { "content-type": "application/json", ...(key ? { authorization: `Bearer ${key}` } : {}) },
-      body: JSON.stringify({ model, messages: [{ role: "system", content: system }, { role: "user", content: prompt }] }),
+      body: JSON.stringify({ ...extra, model, messages: [{ role: "system", content: system }, { role: "user", content: prompt }] }),
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!response.ok) return null;

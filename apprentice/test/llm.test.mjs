@@ -43,6 +43,31 @@ test("the summaries can be written by any model that speaks the OpenAI chat form
   assert.equal(modelStatus().name, "Claude");
 });
 
+test("what a provider wants beside the model and the messages goes with the request", async () => {
+  const other = await standIn("{\"ready\": true}");
+  Object.assign(process.env, {
+    APPRENTICE_LLM_URL: other.url, APPRENTICE_LLM_MODEL: "venice-uncensored-1-2",
+    APPRENTICE_LLM_EXTRA: "{\"venice_parameters\":{\"include_venice_system_prompt\":false},\"model\":\"another\"}",
+  });
+  try {
+    assert.deepEqual(await askModel("Reply with JSON.", "Ready?"), { ready: true });
+    const [request] = other.asked;
+    assert.deepEqual(request.body.venice_parameters, { include_venice_system_prompt: false });
+    // The extra fields never replace the model that was named.
+    assert.equal(request.body.model, "venice-uncensored-1-2");
+    assert.equal(modelStatus().ready, true);
+
+    // Unreadable, nothing is asked rather than something else than was written down.
+    process.env.APPRENTICE_LLM_EXTRA = "{venice_parameters";
+    assert.equal(await askModel("Reply with JSON.", "Ready?"), null);
+    assert.equal(other.asked.length, 1);
+    assert.equal(modelStatus().ready, false);
+  } finally {
+    for (const key of ["APPRENTICE_LLM_URL", "APPRENTICE_LLM_MODEL", "APPRENTICE_LLM_EXTRA"]) delete process.env[key];
+    other.close();
+  }
+});
+
 test("a reply that is not the JSON asked for is no answer", async () => {
   const other = await standIn("I am sorry, I cannot do that.");
   Object.assign(process.env, { APPRENTICE_LLM_URL: other.url, APPRENTICE_LLM_MODEL: "any" });

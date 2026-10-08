@@ -12,7 +12,8 @@ import { atomicJson, paths, readEvents, readJson } from "./store.mjs";
 // while, and the days should not go with them.
 
 // 2: the days are also read from Codex and Grok.
-const VERSION = 2;
+// 3: a minute in which two projects were worked on is counted once.
+const VERSION = 3;
 const file = () => path.join(paths.data, "days.json");
 // An agent that ran by itself for a few minutes is not a day's work.
 const WORTH_MINUTES = 10;
@@ -34,12 +35,20 @@ export function dayKey(at) {
 export function daysOf(projects, since = 0) {
   const days = {};
   const entry = (at, name) => ((days[dayKey(at)] ||= {})[name] ||= { minutes: 0, prompts: 0 });
+  // A minute is one minute of the day however many agents were at work in
+  // it: shared between the projects it belongs to, so that the projects of a
+  // day add up to the time that passed and not to more.
+  const sharing = new Map();
+  for (const project of projects) for (const minute of project.minutes) if (minute * 60_000 >= since) sharing.set(minute, (sharing.get(minute) || 0) + 1);
   for (const project of projects) {
-    for (const minute of project.minutes) if (minute * 60_000 >= since) entry(minute * 60_000, project.name).minutes += 1;
+    for (const minute of project.minutes) if (minute * 60_000 >= since) entry(minute * 60_000, project.name).minutes += 1 / sharing.get(minute);
     for (const prompt of project.prompts) if (prompt.at >= since) entry(prompt.at, project.name).prompts += 1;
   }
   for (const [day, worked] of Object.entries(days)) {
-    for (const [name, work] of Object.entries(worked)) if (!work.prompts && work.minutes < WORTH_MINUTES) delete worked[name];
+    for (const [name, work] of Object.entries(worked)) {
+      work.minutes = Math.round(work.minutes);
+      if (!work.prompts && work.minutes < WORTH_MINUTES) delete worked[name];
+    }
     if (!Object.keys(worked).length) delete days[day];
   }
   return days;
