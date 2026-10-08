@@ -20,7 +20,6 @@ import { saveShare } from "./share.mjs";
 import { nudgesPayload, offerNudge, openNudge, settleNudges } from "./nudge.mjs";
 import { beforeSaid, findSaid, forgetSaid, refreshSaid, repeatedSaid, saidStatus, unreadSaid } from "./said.mjs";
 import { applySuggestion, dismissSuggestion, refreshSuggestions, removeRule, suggestionsPayload } from "./suggest.mjs";
-import { mastery, reviewDecision } from "./teach-engine.mjs";
 import { buildGaps, buildTeachBack, confirmation, debriefProgress } from "./debrief.mjs";
 import { logSources, projectIndex, summarizeProjects } from "./projects.mjs";
 import { callContext, ensureAgent, recallContext, signedUrl, tutorContext } from "./agent.mjs";
@@ -464,7 +463,6 @@ async function statePayload() {
     presence: presence(runtime),
     voice: voiceStatus(),
     debrief: debriefProgress(map.debrief),
-    teach: mastery(map, sinceMorning),
     stats: {
       steps: map.decisions.length,
       judgementCalls: map.decisions.filter((item) => item.kind !== "guardrail").length,
@@ -954,21 +952,6 @@ const server = http.createServer(async (request, response) => {
       await writeWiki(map);
       broadcast("recap");
       return json(response, 200, map.recap);
-    }
-    if (url.pathname === "/api/teach" && post) {
-      const input = await body(request);
-      const prompt = String(input.prompt || "").trim().slice(0, 3000);
-      if (!prompt) return json(response, 400, { error: "Enter a decision to review" });
-      const map = await loadMap();
-      const { intervention, checked } = reviewDecision(prompt, map);
-      await appendEvent(intervention
-        ? { type: "teach-stop", ...intervention, source: "Teach · unseen case" }
-        : { type: "teach-pass", excerpt: prompt, afterStop: input.afterStop || null, source: "Teach · unseen case" });
-      await speak(intervention ? intervention.text : "That holds. Nothing the expert said stops this decision.", `teach-${Date.now()}`);
-      broadcast("teach");
-      return json(response, 200, intervention
-        ? { stopped: true, intervention, checked }
-        : { stopped: false, checked, message: `Checked against ${checked} guardrails in the expert’s words. Nothing stops this decision.` });
     }
     if (url.pathname === "/api/speak" && post) {
       const input = await body(request);

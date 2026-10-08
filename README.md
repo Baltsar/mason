@@ -37,6 +37,8 @@ ElevenLabs in the build: Agents (three), Scribe v2 Realtime, Text to Speech (Fla
 
 ## Against the brief
 
+This section describes what was submitted, the tag `hack-nation-7`. Two of its pages have since been taken out of the app window; see [After the hackathon](#after-the-hackathon).
+
 The challenge asks for three modules and five answers. One twist: the expert is me today, and the new hire is me in a month, and every agent I work with.
 
 | The brief requires | In Mason | Where |
@@ -116,7 +118,7 @@ npm test                           # 74 tests, no network, no data of yours need
 
 ## After the hackathon
 
-What was submitted to Hack-Nation 7 on 4 October 2026 is the tag `hack-nation-7`. Added after the deadline: Built, the look back, the proposals, Flow with the site of a tab and the picture to share, Days, Find by meaning with a model on the Mac, the switches for ElevenLabs, the agent logs and naming chat and mail, and the choice of model for summaries. Map, Teach (there called New person), Recap and Agents, built for the challenge, are under More.
+What was submitted to Hack-Nation 7 on 4 October 2026 is the tag `hack-nation-7`. Taken out of the app window after the deadline: the Map page and Teach, the test of a new person, with its written check. They were built for the brief and not for daily use. The Work Map itself is still filled by a capture session and the debrief call, still stops a prompt that breaks a rule, and is still what an agent reads over MCP. Added after the deadline: Built, the look back, the proposals, Flow with the site of a tab and the picture to share, Days, Find by meaning with a model on the Mac, the switches for ElevenLabs, the agent logs and naming chat and mail, and the choice of model for summaries. Map, Teach (there called New person), Recap and Agents, built for the challenge, are under More.
 
 ## What is not in this repository
 

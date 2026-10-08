@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { redact } from "../src/redact.mjs";
 import { rankQuestion, rankSwitch } from "../src/question-engine.mjs";
-import { catchGuardrail, mastery, reviewDecision } from "../src/teach-engine.mjs";
+import { catchGuardrail, reviewDecision } from "../src/teach-engine.mjs";
 import { aggregateActivity, classifyActivity, dayStart } from "../src/activity.mjs";
 import { buildGaps, buildTeachBack, confirmation, debriefProgress } from "../src/debrief.mjs";
 import { summarizeProjects } from "../src/projects.mjs";
@@ -146,8 +146,6 @@ test("the tutor stops an unseen case with a guardrail learned live, in the exper
   assert.match(stopped.intervention.text, /Never ship without running the tests first/);
   assert.equal(stopped.intervention.moment.app, "Codex");
   assert.equal(reviewDecision("Rename the settings page.", map).intervention, null);
-  const events = [{ type: "teach-stop", guardrailId: "learned-1" }, { type: "teach-pass", afterStop: "learned-1" }];
-  assert.equal(mastery(map, events).items[0].state, "mastered");
 });
 
 test("time inside a project is work whatever the window is called, and moves between projects are counted", () => {

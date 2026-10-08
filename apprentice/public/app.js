@@ -5,19 +5,10 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 const native = window.webkit?.messageHandlers?.apprentice;
 
-const VIEWS = ["today", "flow", "days", "built", "more", "find", "map", "teach", "recap", "agents", "settings"];
-const LEGACY = { now: "today", capture: "today", mcp: "agents" };
+const VIEWS = ["today", "flow", "days", "built", "more", "find", "recap", "agents", "settings"];
+// Names a view once had, or that led to a page that is gone.
+const LEGACY = { now: "today", capture: "today", mcp: "agents", map: "more", teach: "more" };
 const TONES = { work: "var(--lime)", social: "var(--red)", other: "var(--grey)" };
-// Cases to try in Teach are made from the rules that are really in the map:
-// two that go against a rule, in the owner's own words, and one that is safe.
-function presets() {
-  const rules = (snapshot?.map.decisions || []).filter((item) => item.kind !== "decision" && item.quote).slice(0, 2);
-  if (!rules.length) return [];
-  return [
-    ...rules.map((rule) => ({ label: short(rule.title, 30), text: `Do it anyway, although: ${rule.quote}` })),
-    { label: "Something safe", text: "Add a keyboard shortcut that opens the Work Map from the island." },
-  ];
-}
 const TOOLS = [
   ["what_happened_last", "What happened last?"],
   ["what_did_you_learn", "What did you learn?"],
@@ -30,12 +21,9 @@ const TOOLS = [
 let snapshot;
 let view = "today";
 // Which line of each result is pressed open.
-const drill = { today: null, map: null, flow: null };
-let verdict = null;
-let lastStop = null;
+const drill = { today: null, flow: null };
 let listening = null;
 let stream = null;
-let clockTimer = null;
 // The project whose recap is being read aloud right now, if any.
 let playing = null;
 let todayPlaying = false;
@@ -120,7 +108,6 @@ function renderBigs(container, rows, open) {
 }
 
 const momentChip = (moment) => moment?.at ? `<p class="moment"><b>Screen moment</b><span>${clock(moment.at, true)}</span>${moment.app ? `<span>${esc(moment.app)}</span>` : ""}<span>${esc(short(moment.window || moment.evidence, 70))}</span></p>` : "";
-const sourceText = (source) => source ? `${source.label || "Local signal"}${source.lines ? ` · lines ${source.lines}` : ""}` : "Local signal";
 const canVoice = () => snapshot.voice.scribe && canDictate();
 const voiceNote = () => canVoice() ? "press the microphone and say it" : "spoken by the Mac voice until ElevenLabs is connected";
 const MIC = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>`;
@@ -257,30 +244,6 @@ function renderProjects() {
 
 const placeCall = (kind = "call") => native ? native.postMessage({ type: "call", kind }) : (location.href = `/overview?mode=${kind}`);
 
-function tickClock() {
-  const session = snapshot?.runtime.session;
-  const node = $("#session-clock");
-  if (!session?.active || !node) return;
-  const elapsed = Math.max(0, Math.floor((Date.now() - Date.parse(session.startedAt)) / 1000));
-  node.textContent = `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
-}
-
-function renderSession() {
-  const node = $("#session-card");
-  const session = snapshot.runtime.session;
-  clearInterval(clockTimer);
-  if (session?.active) {
-    node.dataset.state = "active";
-    paint(node, `active-${session.id}`, `<p class="clock" id="session-clock">00:00</p><p class="count" id="session-count"></p><button class="primary" type="button" data-session="end">End</button>`);
-    $("#session-count").textContent = `${session.questions || 0}/5`;
-    tickClock();
-    clockTimer = setInterval(tickClock, 1000);
-    return;
-  }
-  node.dataset.state = "idle";
-  paint(node, "idle", `<h2>Capture session</h2><button class="primary" type="button" data-session="start">Start</button>`);
-}
-
 function renderQuestion() {
   const node = $("#question-card");
   const open = snapshot.map.questions.find((item) => item.status === "open");
@@ -388,116 +351,16 @@ function renderFind() {
     <ul>${entry.said.map((hit) => `<li><span>${esc(hit.text)}</span><time>${new Date(hit.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</time></li>`).join("")}</ul></article>`).join(""));
 }
 
-/* More: what was built for handing the work to someone else */
+/* More: what is not looked at every day */
 
 function renderMore() {
-  const { stats, podcast } = snapshot;
+  const { podcast } = snapshot;
   const doors = [
     ["find", "Find", "Something you said, by what it means"],
-    ["map", "Map", `${stats.steps} ${stats.steps === 1 ? "step" : "steps"}`],
-    ["teach", "New person", "Test someone on your rules"],
     ["recap", "Recap", podcast.episode ? podcast.episode.title : "The week as news"],
     ["agents", "Agents", "One memory, every agent"],
   ];
   paint($("#doors"), JSON.stringify(doors), doors.map(([name, title, note]) => `<button type="button" data-view="${name}"><b>${title}</b><span>${esc(note)}</span></button>`).join(""));
-}
-
-/* Map */
-
-function renderMap() {
-  const { stats } = snapshot;
-  renderBigs($("#map-bigs"), [
-    { key: "all", number: stats.steps, word: stats.steps === 1 ? "step" : "steps", meta: "", tone: "var(--paper)" },
-    { key: "calls", number: stats.judgementCalls, word: "judgement calls", meta: "", tone: "var(--lime)" },
-    { key: "guardrails", number: stats.guardrails, word: "guardrails", meta: "", tone: "var(--gold)" },
-  ], drill.map);
-  renderSession();
-  renderDebrief();
-  renderSteps();
-}
-
-function renderDebrief() {
-  const node = $("#debrief-card");
-  const debrief = snapshot.map.debrief;
-  const progress = snapshot.debrief;
-  const teachBack = debrief?.teachBack;
-  const byVoice = snapshot.voice.elevenLabs;
-  const start = `${byVoice ? `<button class="primary" type="button" data-call>Call</button>` : ""}<button class="${byVoice ? "secondary" : "primary"}" type="button" data-debrief="start">Write</button>`;
-  if (!debrief) {
-    node.dataset.state = "idle";
-    paint(node, `idle-${byVoice}`, `<h2>Debrief</h2><div class="row">${start}</div>`);
-  } else if (progress.current) {
-    const gap = progress.current;
-    node.dataset.state = "asking";
-    paint(node, `gap-${gap.id}`, `<p class="big-text">${esc(gap.text)}</p>${answerField("gap-answer", "Answer")}<div class="row"><button class="primary" type="button" data-debrief="answer" data-id="${gap.id}">Answer</button><button class="secondary" type="button" data-debrief="skip" data-id="${gap.id}">Skip</button><span class="note">${progress.closed + 1}/${progress.total}</span></div>`);
-  } else if (debrief.call) {
-    const call = debrief.call;
-    const confirmed = teachBack?.status === "confirmed";
-    node.dataset.state = confirmed ? "confirmed" : "call";
-    paint(node, `call-${call.startedAt}-${call.status}-${call.saved.length}-${teachBack?.status}`, `${confirmed ? `<p class="stamp">Confirmed · ${clock(teachBack.confirmedAt)}</p>` : `<h2>${call.status === "live" ? "On a call" : "Not confirmed"}</h2>`}<ul class="saved-list">${call.saved.map((step) => `<li>${esc(step.title)}</li>`).join("")}</ul><div class="row"><button class="secondary" type="button" data-call>Call again</button></div>`);
-  } else if (teachBack?.status === "confirmed") {
-    node.dataset.state = "confirmed";
-    paint(node, `confirmed-${teachBack.confirmedAt}`, `<p class="stamp">Confirmed · ${clock(teachBack.confirmedAt)}</p><div class="row">${start}</div>`);
-  } else if (teachBack) {
-    node.dataset.state = "teach-back";
-    paint(node, `teach-back-${teachBack.generatedAt}`, `<h2>Is this how it works?</h2><div class="row"><button class="secondary" type="button" data-debrief="repeat">Hear it</button><button class="primary" type="button" data-debrief="confirm">Yes</button><button class="secondary" type="button" data-correct>Correct</button>${canVoice() ? `<button class="secondary" type="button" data-hear>Say it</button>` : ""}</div><details class="read"><summary>Read</summary><p class="teach-back">${esc(teachBack.text)}</p></details><div id="correct-box" hidden>${answerField("correction", "What is wrong?")}<div class="row" style="margin-top:10px"><button class="primary" type="button" data-debrief="correct">Send</button></div></div>`);
-  }
-}
-
-function stepMarkup(item, index, all) {
-  const kind = item.kind === "discarded" ? "rejected" : item.kind;
-  const moment = item.moment?.at
-    ? `${clock(item.moment.at, true)} · ${esc(item.moment.app || "active app")}${item.moment.window ? `<br>${esc(short(item.moment.window, 90))}` : ""}`
-    : esc(sourceText(item.source));
-  const around = all.filter((other) => other.id !== item.id && other.kind !== "decision" && other.source?.label === item.source?.label).slice(0, 2);
-  const guardrail = item.kind === "guardrail" ? "Stops a new hire here." : item.kind === "discarded" ? "Stops anyone who picks it up again." : around.map((other) => esc(other.title)).join(" · ") || "None yet.";
-  return `<details class="step" id="step-${esc(item.id)}">
-    <summary><span class="num">${String(index + 1).padStart(2, "0")}</span><h3>${esc(item.title)}</h3><span class="kind" data-kind="${esc(item.kind)}">${esc(kind)}</span></summary>
-    <dl class="fields">
-      <div><dt>Moment</dt><dd>${moment}<br><button type="button" data-source="${esc(item.id)}">Source</button></dd></div>
-      <div><dt>Decision</dt><dd>${esc(item.title)}</dd></div>
-      <div><dt>Your words</dt><dd class="words">${item.quote ? `“${esc(item.quote)}”` : "–"}</dd></div>
-      <div><dt>Guardrail</dt><dd>${guardrail}</dd></div>
-    </dl>
-  </details>`;
-}
-
-function renderSteps() {
-  const filter = drill.map;
-  const all = snapshot.map.decisions;
-  const rows = all.map((item, index) => ({ item, index })).filter(({ item }) => filter === "guardrails" ? item.kind === "guardrail" : filter === "calls" ? item.kind !== "guardrail" : true);
-  paint($("#steps"), JSON.stringify([filter, all.length, all[0]?.id]), rows.map(({ item, index }) => stepMarkup(item, index, all)).join(""));
-}
-
-/* 03 · Teach */
-
-function renderTeach() {
-  const { teach } = snapshot;
-  const mastered = teach.items.filter((item) => item.state === "mastered").length;
-  renderBigs($("#teach-bigs"), [
-    { key: "stopped", number: teach.stops, word: "stopped", meta: "", tone: "var(--red)" },
-    { key: "cleared", number: teach.passes, word: "cleared", meta: "", tone: "var(--lime)" },
-    { key: "mastered", number: mastered, word: "mastered", meta: "", tone: "var(--gold)" },
-  ], null);
-  const cases = presets();
-  paint($("#case-presets"), JSON.stringify(cases.map((item) => item.label)), cases.map((preset, index) => `<button type="button" data-preset="${index}">${esc(preset.label)}</button>`).join(""));
-  $("#teach-prompt").placeholder = cases.length ? "A decision about to be made" : "No rules yet. Take the debrief call first.";
-  renderVerdict();
-  paint($("#mastery"), JSON.stringify(teach.items), teach.items.map((item) => `<div><span>${esc(item.title)}</span><span class="kind" data-kind="${item.state === "mastered" ? "decision" : item.state}">${item.state}</span></div>`).join(""));
-}
-
-function renderVerdict() {
-  const node = $("#teach-result");
-  node.hidden = !verdict;
-  if (!verdict) { delete node.dataset.sig; return; }
-  if (verdict.stopped) {
-    const stop = verdict.intervention;
-    node.dataset.state = "stopped";
-    paint(node, stop.id, `<h2>Stop.</h2><blockquote>“${esc(stop.quote)}”</blockquote><div class="row grow"><button class="secondary" type="button" data-source="${esc(stop.guardrailId)}">Source</button></div>`);
-    return;
-  }
-  node.dataset.state = "passed";
-  paint(node, `passed-${verdict.at}`, `<h2>Clear.</h2>`);
 }
 
 /* Flow: how the day moved between tools */
@@ -1083,7 +946,7 @@ function renderShell() {
 
 function render() {
   renderShell();
-  ({ today: renderToday, flow: renderFlow, days: renderDays, built: renderBuilt, more: renderMore, map: renderMap, teach: renderTeach, find: renderFind, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
+  ({ today: renderToday, flow: renderFlow, days: renderDays, built: renderBuilt, more: renderMore, find: renderFind, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
 }
 
 async function load() {
@@ -1094,7 +957,7 @@ async function load() {
 }
 
 function show(name, arg) {
-  view = VIEWS.includes(name) ? name : LEGACY[name] || "capture";
+  view = VIEWS.includes(name) ? name : LEGACY[name] || "today";
   $$("[data-page]").forEach((section) => { section.hidden = section.dataset.page !== view; });
   $$("[data-view]").forEach((button) => button.setAttribute("aria-current", button.dataset.view === view ? "page" : "false"));
   if (view === "flow") {
@@ -1123,31 +986,6 @@ window.apprenticeGo = (target) => {
   load();
 };
 
-async function openSource(id) {
-  const item = snapshot.map.decisions.find((decision) => decision.id === id);
-  if (!item) return;
-  $("#source-title").textContent = sourceText(item.source);
-  if (item.source?.path?.endsWith("HANDOVER.md")) {
-    const [from, to] = String(item.source.lines || "1-1").split("-").map(Number);
-    const lines = (await (await fetch("/source/handover")).text()).split("\n");
-    $("#source-body").innerHTML = lines.map((line, index) => {
-      const row = `${String(index + 1).padStart(3, " ")}  ${esc(line)}`;
-      return index + 1 >= from && index + 1 <= (to || from) ? `<mark>${row}</mark>` : row;
-    }).join("\n");
-  } else {
-    $("#source-body").textContent = [
-      item.moment?.at ? `Screen moment   ${clock(item.moment.at, true)} · ${item.moment.app || ""}` : null,
-      item.moment?.window ? `Window          ${item.moment.window}` : null,
-      item.moment?.evidence ? `Seen on screen  “${item.moment.evidence}”` : null,
-      `Asked           ${item.body}`,
-      `Expert’s words  “${item.quote || ""}”`,
-      item.source?.answeredBy ? `Answered by     ${item.source.answeredBy}` : null,
-    ].filter(Boolean).join("\n\n");
-  }
-  $("#source").showModal();
-  $("#source mark")?.scrollIntoView({ block: "center" });
-}
-
 /* Voice: press, speak, and ElevenLabs Scribe v2 Realtime writes it into the field. */
 
 async function speakInto(button) {
@@ -1174,30 +1012,6 @@ async function speakInto(button) {
   }
 }
 
-async function hearTeachBack(button) {
-  if (listening) return listening.stop();
-  const label = button.textContent;
-  button.textContent = "Listening… press when done";
-  try {
-    listening = await dictate({ language: snapshot.voice.language });
-    const text = await listening.done;
-    if (!text) return toast("Nothing was heard.");
-    const result = await post("/api/debrief", { action: "hear", text });
-    if (result.heard === "confirmed") toast("Confirmed by voice. The Work Map is ready to teach.");
-    else {
-      await load();
-      $("#correct-box").hidden = false;
-      $("#correction").value = text;
-      $("#correction").dataset.spoken = "true";
-      toast("That sounded like a correction. Check it and send.");
-    }
-  } catch (error) {
-    toast(error.message);
-  } finally {
-    listening = null;
-    button.textContent = label;
-  }
-}
 const sourceOf = (node) => node?.dataset.spoken ? "voice" : "typed";
 
 /* Events */
@@ -1294,17 +1108,9 @@ async function act(event) {
   const big = target.closest(".big");
   if (big) {
     if (view === "days") return;
-    if (view === "teach") return $("#mastery").scrollIntoView({ behavior: "smooth", block: "center" });
     const key = big.dataset.key === "all" ? null : big.dataset.key;
     drill[view] = drill[view] === key ? null : key;
     return render();
-  }
-
-  const session = target.closest("[data-session]");
-  if (session) {
-    await post("/api/session", { action: session.dataset.session });
-    if (session.dataset.session === "end") show("map");
-    return load();
   }
 
   const answer = target.closest("[data-answer]");
@@ -1332,14 +1138,12 @@ async function act(event) {
   if (target.closest("[data-find-on]")) { prefs = await post("/api/settings", { meaning: true }); return seek(""); }
   const reveal = target.closest("[data-reveal]");
   if (reveal) return post("/api/settings", { action: reveal.dataset.reveal });
-  if (target.closest("[data-tutor]")) return placeCall("tutor");
   const recallOn = target.closest("[data-recall]");
   if (recallOn) {
     // The call panel is told which project through the server, then opened.
     await post("/api/call", { action: "aim", kind: "recall", project: recallOn.dataset.recall });
     return placeCall("recall");
   }
-  if (target.closest("[data-call]")) return placeCall();
   const line = target.closest("[data-project]");
   if (line) { openProject = openProject === line.dataset.project ? null : line.dataset.project; return render(); }
   const recall = target.closest("[data-hear-project]");
@@ -1349,33 +1153,6 @@ async function act(event) {
     render();
     return post("/api/memory", { project: playing });
   }
-  if (target.closest("[data-correct]")) { $("#correct-box").hidden = false; return $("#correction").focus(); }
-  const debrief = target.closest("[data-debrief]");
-  if (debrief) {
-    const action = debrief.dataset.debrief;
-    const field = action === "answer" ? $("#gap-answer") : action === "correct" ? $("#correction") : null;
-    if (field && !field.value.trim()) return field.focus();
-    listening?.cancel();
-    await post("/api/debrief", { action, id: debrief.dataset.id, text: field?.value.trim(), source: sourceOf(field) });
-    if (action === "confirm") toast("Confirmed");
-    return load();
-  }
-
-  const preset = target.closest("[data-preset]");
-  if (preset) { $("#teach-prompt").value = presets()[Number(preset.dataset.preset)]?.text || ""; return $("#teach-prompt").focus(); }
-  if (target.closest("[data-revise]")) return $("#teach-prompt").focus();
-  if (target.closest("#teach-review")) {
-    const prompt = $("#teach-prompt").value.trim();
-    if (!prompt) return $("#teach-prompt").focus();
-    verdict = { ...(await post("/api/teach", { prompt, afterStop: lastStop })), at: Date.now() };
-    lastStop = verdict.stopped ? verdict.intervention.guardrailId : null;
-    return load();
-  }
-
-  const source = target.closest("[data-source]");
-  if (source) return openSource(source.dataset.source);
-  if (target.closest("#source-close")) return $("#source").close();
-
   if (target.closest("#play-week")) {
     const { podcast } = snapshot;
     const action = podcast.playing ? "stop" : podcast.episode ? "play" : "make";
@@ -1393,8 +1170,6 @@ async function act(event) {
 
   const mic = target.closest("[data-mic]");
   if (mic) return speakInto(mic);
-  const hear = target.closest("[data-hear]");
-  if (hear) { await hearTeachBack(hear); return load(); }
   if (target.closest("#presence")) {
     // Without access the pill is the way to get it: asked again for this build.
     if (snapshot.presence === "permission") { await post("/api/access", { action: "fix" }); return toast("Switch Mason on in the list"); }
@@ -1426,7 +1201,7 @@ document.addEventListener("keydown", (event) => {
   // A tool in the flow picture is pressed with the keyboard like any button.
   if ((event.key === "Enter" || event.key === " ") && event.target.matches?.(".flowmap .node, [data-again]")) { event.preventDefault(); return event.target.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
   if (event.key !== "Enter" || event.shiftKey) return;
-  const button = { "live-answer": "[data-answer]", "gap-answer": '[data-debrief="answer"]', correction: '[data-debrief="correct"]' }[event.target.id];
+  const button = { "live-answer": "[data-answer]" }[event.target.id];
   if (!button) return;
   event.preventDefault();
   $(button).click();
@@ -1448,7 +1223,7 @@ function connect() {
 }
 // A window that is closed or behind everything holds no connection.
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) { stream?.close(); stream = null; clearInterval(clockTimer); }
+  if (document.hidden) { stream?.close(); stream = null; }
   else { load().catch(() => {}); connect(); }
 });
 

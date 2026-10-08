@@ -25,8 +25,6 @@ Every surface is made to be read in one to three seconds: a figure or a few word
 2. **Numbers.** Press the island. The project you were last in, where you left it in six words, and today's split in large type: work, social, other. Two round buttons: hear where you left off, and the debrief call (lime when one is ready).
 3. **App.** Press a number. Three stages, each opening with its own figures:
    - **Capture**: `52% work / 48% social / 0% other`, then one line per project: name, where it was left, time, a play button. Press a line for the rest.
-   - **Map**: `14 steps / 3 judgement calls / 11 guardrails`, the debrief, and the Work Map.
-   - **Teach**: `1 stopped / 0 cleared / 0 mastered`. **Tutor call** puts a new hire on a voice call; **Check** tests one written decision: `Stop.` with your own words, or `Clear.`
    - **Recap**: this week's episode. One title, three headlines, Play.
 
 ## The look
