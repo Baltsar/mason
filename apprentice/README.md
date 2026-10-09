@@ -104,15 +104,6 @@ APPRENTICE_LLM_MODEL=llama3.2
 APPRENTICE_LLM_KEY=                             # only when the provider asks for one
 ```
 
-`APPRENTICE_LLM_EXTRA` is one line of JSON with anything else the provider wants in the request. Venice, for example, without its own system prompt on top of Mason's:
-
-```dotenv
-APPRENTICE_LLM_URL=https://api.venice.ai/api/v1
-APPRENTICE_LLM_MODEL=venice-uncensored-1-2
-APPRENTICE_LLM_KEY=...
-APPRENTICE_LLM_EXTRA={"venice_parameters":{"include_venice_system_prompt":false}}
-```
-
 Anything that answers in the OpenAI chat format works. With a model on the Mac and ElevenLabs switched off, nothing leaves it. **Summaries** in Settings shows which model is writing and switches it off (`APPRENTICE_LLM=0` does the same); the memory is then your own words.
 
 ## Finding what you said, by what it means
