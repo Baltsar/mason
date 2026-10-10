@@ -161,6 +161,14 @@ That file is a stranger's, and its rules go where an agent reads its instruction
 
 **The collection** is the folder [`workflows/`](../workflows/) of this repository, one file for each workflow and a page made from them. **Add to the collection** in the share dialog copies yours in the form the collection keeps and opens a form in the browser to paste it into; it is sent from there, by you, or not at all. A file is let in only in the one form a careful reading gives it, which `npm run workflows -- check` checks, here and on every pull request.
 
+## New versions
+
+Mason is not in a store that would say when a newer one is out, so it looks itself. Once a day it asks GitHub for the latest release of its own repository and compares the number with its own (`version` in `package.json`). It sends nothing of yours, and it installs nothing: **New versions** in Settings says which version is out, with a link to what is new, and the island says it once. To take it, `git pull` and `npm run build:reader`. The look has a switch under **Leaves this Mac**.
+
+## It is free
+
+After forty days of work a card says, the way an old archiver did, that the trial has ended and a license must be bought, and then that there is no license. It asks once for work for the man who built it. **Use evaluation copy** puts it away for good.
+
 ## Logos from the web
 
 Off until you switch it on in Settings. A tool that is a site has no app to lend it an icon, so it shows a lettered tile. Switched on, Mason asks each site you used for its own icon, once, over https, and keeps the picture in `data/icons/`. It asks only public names: never an address on this Mac or on the network at home, and it follows a site's redirects one step at a time for the same reason. Only pictures are kept, never an SVG.
