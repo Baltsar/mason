@@ -161,6 +161,13 @@ function renderToday() {
   })), drill.today);
   renderDrill();
 
+  // The first minutes after Mason is installed there is nothing to show of
+  // the screen yet, but the agents' logs were already read: how its owner
+  // works with agents is one press away.
+  const first = $("#today-first");
+  first.hidden = !(snapshot.trial?.day === 0 && snapshot.days > 0);
+  first.textContent = `Mason has read ${snapshot.days} ${snapshot.days === 1 ? "day" : "days"} of your work with agents. See how you work.`;
+
   // The one thing worth saying about today: an answer that is ready now, or
   // how long finished answers were left. Pressed, it shows where the time went.
   const said = $("#today-said");
