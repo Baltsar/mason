@@ -15,7 +15,8 @@ import { atomicJson, paths, readEvents, readJson } from "./store.mjs";
 // 3: a minute in which two projects were worked on is counted once.
 // 4: a session started in the home folder no longer takes every project into it.
 // 5: what the agents took in tokens is kept with each day.
-const VERSION = 5;
+// 6: what was asked in Cursor is read into the days as well.
+const VERSION = 6;
 const file = () => path.join(paths.data, "days.json");
 // An agent that ran by itself for a few minutes is not a day's work.
 const WORTH_MINUTES = 10;

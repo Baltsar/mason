@@ -1,13 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { appendFile, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
 // Its own folders for everything, set before anything is loaded. This file runs in its own process.
 const root = await mkdtemp(path.join(os.tmpdir(), "mason-others-"));
-Object.assign(process.env, { APPRENTICE_DATA: path.join(root, "data"), APPRENTICE_CLAUDE_DIR: path.join(root, "claude"), APPRENTICE_CODEX_DIR: path.join(root, "codex"), APPRENTICE_GROK_DIR: path.join(root, "grok") });
-const { codexLog, grokSession, otherProjects, otherSources } = await import("../src/others.mjs");
+Object.assign(process.env, { APPRENTICE_DATA: path.join(root, "data"), APPRENTICE_CLAUDE_DIR: path.join(root, "claude"), APPRENTICE_CODEX_DIR: path.join(root, "codex"), APPRENTICE_GROK_DIR: path.join(root, "grok"), APPRENTICE_CURSOR_DIR: path.join(root, "cursor") });
+const { codexLog, cursorLog, grokSession, otherProjects, otherSources } = await import("../src/others.mjs");
 const { logSources, projectIndex } = await import("../src/projects.mjs");
 
 const at = (minute, second = 0) => new Date(Date.UTC(2026, 9, 8, 10, minute, second)).toISOString();
@@ -154,5 +156,39 @@ test("what each agent took is read from its own count, an answer in several line
   const counted = (await projectIndex(0, { maxAgeMs: 0 })).list.find((project) => project.folder === "/Users/x/code/counted");
   assert.deepEqual([...counted.spent.values()], [{ fresh: 300, cached: 12_000, written: 900 }]);
   assert.deepEqual(counted.prompts.map((prompt) => prompt.text), ["Count what this takes, please"]);
+});
+
+test("what was asked in Cursor is read from its own list: the words and the moments, and nothing waits", () => {
+  const log = cursorLog(JSON.stringify([
+    { unixMs: Date.parse(at(12)), generationUUID: "g-2", type: "composer", textDescription: "And make the header stay in place, key sk_live_abcdefghijklmnop" },
+    { unixMs: Date.parse(at(10)), generationUUID: "g-1", type: "composer", textDescription: "Lay the pricing page out in three columns" },
+    { unixMs: Date.parse(at(13)), generationUUID: "g-3", type: "cmdk", textDescription: "ok" },
+    { unixMs: "not a time", textDescription: "A row that says no moment is left out" },
+    { unixMs: Date.parse(at(14)), textDescription: "   " },
+  ]));
+  assert.deepEqual(log.prompts.map((prompt) => [prompt.agent, prompt.text]), [["Cursor", "Lay the pricing page out in three columns"], ["Cursor", "And make the header stay in place, key [secret]"]]);
+  // A word is a turn but not something kept as said; no turn is ever finished, so no answer waits.
+  assert.equal(log.turns.length, 3);
+  assert.equal(log.turns.some((turn) => turn.ended), false);
+  assert.equal(log.minutes.size, 3);
+  assert.deepEqual(cursorLog("not a list").prompts, []);
+  assert.deepEqual(cursorLog("").prompts, []);
+});
+
+test("a workspace of Cursor is read into its project folder, and a window with no folder into none", { skip: existsSync("/usr/bin/sqlite3") ? false : "no sqlite3 here" }, async () => {
+  const store = (name, folder, rows) => {
+    const dir = path.join(root, "cursor", name);
+    execFileSync("mkdir", ["-p", dir]);
+    if (folder) execFileSync("/bin/sh", ["-c", `printf '%s' '${JSON.stringify({ folder: `file://${encodeURI(folder)}` })}' > "${path.join(dir, "workspace.json")}"`]);
+    const value = JSON.stringify(rows).replace(/'/g, "''");
+    execFileSync("/usr/bin/sqlite3", [path.join(dir, "state.vscdb"), `create table ItemTable (key text primary key, value blob); insert into ItemTable values ('aiService.generations', '${value}'); insert into ItemTable values ('other.thing', 'left alone');`]);
+  };
+  store("w-one", "/Users/x/code/price page", [{ unixMs: Date.parse(at(20)), type: "composer", textDescription: "Lay the pricing page out in three columns" }, { unixMs: Date.parse(at(26)), type: "composer", textDescription: "Now make it work on a phone as well" }]);
+  store("w-none", "", [{ unixMs: Date.parse(at(21)), type: "composer", textDescription: "Asked in a window with no folder open" }]);
+  const found = await otherProjects(0);
+  const project = found.get("/Users/x/code/price page");
+  assert.deepEqual(project.prompts.map((prompt) => [prompt.agent, prompt.text]), [["Cursor", "Lay the pricing page out in three columns"], ["Cursor", "Now make it work on a phone as well"]]);
+  assert.equal(project.minutes.size, 2);
+  assert.equal([...found.values()].some((item) => item.prompts.some((prompt) => prompt.text.includes("no folder open"))), false);
 });
 

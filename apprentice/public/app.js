@@ -1298,7 +1298,7 @@ function renderSettings() {
     ${settings.updates && update.latest ? `<p class="fine under">This is Mason ${esc(update.version)}. <a href="${esc(update.latest.url)}" target="_blank" rel="noopener">See what is new in ${esc(update.latest.version)}, and how to get it</a>. Mason installs nothing by itself.</p>` : ""}
     <p class="group">Stays on this Mac</p>
     <div class="set"><span>Screen</span>${status.access === "on" ? on("App, window, site") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
-    ${row("logs", "Agent logs", settings.logs ? on([`Claude Code ${logs.claude}`, logs.codex ? `Codex ${logs.codex}` : "", logs.grok ? `Grok ${logs.grok}` : ""].filter(Boolean).join(" · ")) : off("Not read"))}
+    ${row("logs", "Agent logs", settings.logs ? on([`Claude Code ${logs.claude}`, logs.codex ? `Codex ${logs.codex}` : "", logs.grok ? `Grok ${logs.grok}` : "", logs.cursor ? `Cursor ${logs.cursor}` : ""].filter(Boolean).join(" · ")) : off("Not read"))}
     ${row("meaning", "What you said, by meaning", reader)}
     ${row("chats", "Chat and mail by name", settings.chats ? on("Name and time") : off("Counted, not named"))}
     <p class="group">Look and sound</p>

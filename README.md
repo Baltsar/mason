@@ -6,7 +6,7 @@ Learning by doing, without the forgetting.
 
 I vibe-coded it. A month later I can't explain it. The code stays, but the knowledge of how and why stays in the prompts, somewhere in one of 120 agent sessions.
 
-Mason is a local macOS app for people who build with coding agents. It was there while you worked: it remembers how a project was built, shows how you work with your agents, and hands your habits to every agent you use. It reads the logs Claude Code, Codex and Grok already keep on your Mac. Nothing is recorded, what leaves the Mac has a switch, and it writes nothing outside its own folder.
+Mason is a local macOS app for people who build with coding agents. It was there while you worked: it remembers how a project was built, shows how you work with your agents, and hands your habits to every agent you use. It reads what Claude Code, Codex, Grok and Cursor already keep on your Mac. Nothing is recorded, what leaves the Mac has a switch, and it writes nothing outside its own folder.
 
 ![The island in the menu bar, today in large figures, a question at a pause, and Mason asking what you remember](docs/screens.png)
 
@@ -85,7 +85,7 @@ Every claim made in the films is tied to the code and a test in [docs/CLAIMS.md]
 flowchart LR
   subgraph mac["On your Mac"]
     reader["Reader, Swift<br/>front app, window, prompt"] --> collector["Collector<br/>events, never pixels"]
-    logs["Agent logs<br/>Claude Code, Codex, Grok"] --> memory["Project memory<br/>how it was built"]
+    logs["Agent logs<br/>Claude Code, Codex, Grok, Cursor"] --> memory["Project memory<br/>how it was built"]
     collector --> server["Local server<br/>Node, no dependencies"]
     memory --> server
     server --> map["Work Map<br/>decisions and rules, your words"]
@@ -125,7 +125,7 @@ Both run on every pull request. See [CONTRIBUTING](CONTRIBUTING.md) for how to a
 - Flow knows a site by the address of the front tab, of which only the host is kept ("figma.com"). Chat and mail are left out unless you switch on naming them; then their name and the time are kept, never a title. A site shows a lettered tile unless you switch on Logos from the web; then Mason asks each site once for its own icon, which is one more thing that leaves the Mac.
 - The local server listens on this Mac only, and answers only Mason's own window, the island and the agents that were given its address. A page in a browser that is not Mason's own is refused, so a link someone sends cannot switch a setting or read the memory. Another program on this Mac that only reaches the port is refused as well: everything but the pages themselves needs a key that is made anew at every start and handed to Mason's own windows, the island, and the agents you give it to. A program that runs as you and may read your files is not stopped by it; it could read the memory on disk without asking.
 - A rule from someone else's workflow is checked before it is offered, but the check is a net, not a judge: read the prompt before you send it to an agent.
-- Tokens are the agents' own count, and most of a month's are the same conversation read again from a cache. It is a count, not a cost, and Cursor's are not read.
+- Tokens are the agents' own count, and most of a month's are the same conversation read again from a cache. It is a count, not a cost. Of Cursor, Mason reads what you asked and when, not how long it worked and not its tokens. ChatGPT and Claude as chat apps keep nothing on disk that can be read; they are seen as tools in Flow and no more.
 - "How it is put together" and "what was decided" come from your prompts, what the agents reported and the names of the files they changed. File contents are never read, and a line can be wrong where an agent was, or where a model read a wish as a decision.
 - Live questions in a session and the written check in Teach are deterministic. The calls judge by meaning.
 - More in the app's [README](apprentice/README.md#boundaries-of-this-slice).
