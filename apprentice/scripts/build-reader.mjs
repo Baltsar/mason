@@ -1,4 +1,4 @@
-import { copyFile, mkdir, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { paths } from "../src/store.mjs";
@@ -8,6 +8,9 @@ const targets = [
   { source: path.join(paths.root, "native", "MasonIcons.swift"), output: paths.icons, frameworks: ["-framework", "AppKit"] },
   { source: path.join(paths.root, "native", "ApprenticeApp.swift"), output: paths.status, frameworks: ["-framework", "AppKit", "-framework", "WebKit"], bundle: true },
 ];
+
+// The app carries the version the package has, so that the two never say different things.
+const { version } = JSON.parse(await readFile(path.join(paths.root, "package.json"), "utf8"));
 
 // Mason.app is what is double-clicked. It knows where this folder is and
 // which Node to run, starts the local server itself, and has the usage texts
@@ -22,7 +25,7 @@ const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
   <key>CFBundleExecutable</key><string>Mason</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.3.0</string>
+  <key>CFBundleShortVersionString</key><string>${version}</string>
   <key>CFBundleVersion</key><string>3</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>

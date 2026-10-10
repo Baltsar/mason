@@ -82,6 +82,13 @@ test("a minute two projects shared counts once, and what falls outside the windo
   assert.equal(card.piece, null);
 });
 
+test("an agent that was said a word to and no more is not listed among the agents worked with", () => {
+  const prompts = [...Array.from({ length: 399 }, (_, index) => ({ at: at(9, 9) + index * 1000, text: "again" })), { at: at(9, 10), text: "once", agent: "Grok" }];
+  const card = cardOf([project("shop", { minutes: minutesFrom(at(9, 9), 90), prompts })], { from: at(9, 8), to: at(9, 20) });
+  assert.deepEqual(card.agents, [{ name: "Claude Code", prompts: 399, share: 100 }]);
+  assert.equal(card.prompts, 400);
+});
+
 test("how often something is asked is said once an hour of work is in the window", () => {
   const pace = (count, prompts) => cardOf([
     project("shop", { minutes: minutesFrom(at(9, 9), count), prompts: Array.from({ length: prompts }, (_, index) => ({ at: at(9, 9) + index * 60_000, text: "again" })) }),

@@ -124,7 +124,8 @@ export function cardOf(projects, { from, to }) {
     projects: projects.filter((project) => [...project.minutes].some((minute) => inside(minute * 60_000))).length,
     prompts: said.length,
     perHour: minutes >= 60 ? Math.round(said.length / (minutes / 60)) : null,
-    agents: Object.entries(byAgent).sort((a, b) => b[1] - a[1]).map(([name, prompts]) => ({ name, prompts, share: share(prompts, said.length) })),
+    // An agent that was said a word to and no more is not one of the agents worked with.
+    agents: Object.entries(byAgent).sort((a, b) => b[1] - a[1]).map(([name, prompts]) => ({ name, prompts, share: share(prompts, said.length) })).filter((agent) => agent.share >= 1),
     handed: Object.entries(handed).sort((a, b) => b[1] - a[1]).map(([name, sessions]) => ({ name, sessions })),
     // How many projects a day of work was spread over, and how much of the
     // time more than one of them had an agent at work.
