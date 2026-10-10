@@ -1,7 +1,5 @@
-import { constants } from "node:fs";
-import { copyFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
+import { agentsHere, handover, heldBy, rulesFile } from "./handover.mjs";
 import { askModel } from "./llm.mjs";
 import { fingerprint } from "./redact.mjs";
 import { ACTS_OUTWARD, heldBack, tidy } from "./rules.mjs";
@@ -10,17 +8,13 @@ import { atomicJson, paths, readJson } from "./store.mjs";
 // What is said to the agents again and again, in one project after another, is
 // a rule that was never written down where the agents read it. Mason finds it
 // in what it remembers of the projects and, once it has been said often enough,
-// proposes to write it there: one line, shown with the words it rests on, and
-// only when its owner presses. A line can be taken out again. Nothing here is
-// praise and nothing is done by itself.
+// proposes it: one line, shown with the words it rests on. Mason does not
+// write it. It hands the rule to an agent its owner chooses, as a prompt that
+// is ready and not sent, and sees for itself when the rule stands in the
+// agents' rules. Nothing here is praise and nothing is done by itself.
 
-// The file every Claude Code agent on this Mac reads. A test or a rehearsal
-// points this somewhere else.
-export const rulesFile = () => process.env.APPRENTICE_RULES_FILE || path.join(os.homedir(), ".claude", "CLAUDE.md");
+export { rulesFile };
 const file = () => path.join(paths.data, "suggestions.json");
-const HEADING = "## Learned by Mason";
-// The rules are habits, not laws: what is asked for in a prompt comes first.
-const NOTE = "Things I told my agents again and again, in several projects. Mason added each one when I said so. They are defaults: when a prompt asks for something else, the prompt wins.";
 // Said in at least this many projects, and this many times in all, before it is proposed.
 const ENOUGH_PROJECTS = 2;
 const ENOUGH_TIMES = 4;
@@ -152,70 +146,23 @@ function settle(store, proposal) {
   store.open = store.open.filter((item) => item.id !== proposal.id);
 }
 
-// Where Mason's heading stands in the file, as a line of its own and not as words inside another.
-const headingIn = (text) => { const found = /^## Learned by Mason[ \t]*$/m.exec(text); return found ? found.index : -1; };
+// The words a proposal is handed over in: its owner's own when they changed them, else the proposed ones.
+const wordsOf = (proposal) => proposal.wording || proposal.rule;
 
-// The text of the rules file with a line added under Mason's own heading,
-// everything else left exactly as it was.
-function withLine(text, line) {
-  const at = headingIn(text);
-  if (at < 0) return `${text.replace(/\s*$/, "")}${text.trim() ? "\n\n" : ""}${HEADING}\n\n${NOTE}\n\n${line}\n`;
-  const next = text.indexOf("\n## ", at + HEADING.length);
-  const end = next < 0 ? text.length : next;
-  return `${text.slice(0, end).replace(/\s*$/, "")}\n${line}\n${next < 0 ? "" : `\n${text.slice(next + 1)}`}`;
-}
-
-// The same text with one of Mason's lines taken out, and its heading too when
-// that was the last one.
-function withoutLine(text, line) {
-  const at = headingIn(text);
-  if (at < 0) return text;
-  const next = text.indexOf("\n## ", at + HEADING.length);
-  const end = next < 0 ? text.length : next + 1;
-  const rows = text.slice(at, end).split("\n");
-  const index = rows.indexOf(line);
-  if (index < 0) return text;
-  rows.splice(index, 1);
-  const before = text.slice(0, at);
-  const after = text.slice(end);
-  // The heading and its note go only when nothing else stands under them:
-  // what their owner, or an agent, wrote there later is not Mason's to take.
-  if (!rows.some((row) => row.trim() && row.trim() !== HEADING && row.trim() !== NOTE)) return `${before.replace(/\s*$/, "")}${after ? `\n\n${after}` : "\n"}`.replace(/^\n+/, "");
-  return `${before}${rows.join("\n")}${after}`;
-}
-
-async function writeRules(change) {
-  const target = rulesFile();
-  let text = "";
-  try { text = await readFile(target, "utf8"); } catch {}
-  // The file as it was before Mason first touched it is kept beside the memory.
-  if (text) await copyFile(target, path.join(paths.data, "rules-before-mason.md"), constants.COPYFILE_EXCL).catch(() => {});
-  const next = change(text);
-  if (next === text) return;
-  await mkdir(path.dirname(target), { recursive: true });
-  const draft = `${target}.${process.pid}.tmp`;
-  await writeFile(draft, next);
-  await rename(draft, target);
-}
-
-// Yes: the rule is written where every agent reads it, in the proposed words
-// or in the owner's own when they were changed first.
-export async function applySuggestion(id, wording = "") {
+// The words are changed before the rule is handed over. They are checked like
+// anyone's: whoever asks is not known to be the owner at their own window.
+// Says why not, when they are not words Mason hands on.
+export async function wordSuggestion(id, wording = "") {
   const store = await load();
   const proposal = store.open.find((item) => item.id === id);
-  if (!proposal) return false;
-  const rule = tidy(wording).replace(/^-\s*/, "").slice(0, 220) || proposal.rule;
-  // Whoever asks is not known to be the owner at their own window, so the
-  // words are checked like anyone's before they go where every agent reads.
-  if (heldBack(rule)) return false;
-  const line = `- ${rule}`;
-  let written = false;
-  await writeRules((text) => { if (text.split("\n").includes(line)) return text; written = true; return withLine(text, line); });
-  // A line that already stood there is its owner's, and is not Mason's to take out later.
-  if (written) store.applied.push({ id: proposal.id, rule, line, at: new Date().toISOString() });
-  settle(store, proposal);
+  if (!proposal) return "there is no such proposal";
+  const words = tidy(wording).replace(/^-\s*/, "").slice(0, 220);
+  const why = words ? heldBack(words) : "";
+  if (why) return why;
+  if (words && words !== proposal.rule) proposal.wording = words;
+  else delete proposal.wording;
   await atomicJson(file(), store);
-  return true;
+  return "";
 }
 
 // No: it is not proposed again.
@@ -228,20 +175,29 @@ export async function dismissSuggestion(id) {
   return true;
 }
 
-// A rule that was added is taken out of the file again.
-export async function removeRule(id) {
-  const store = await load();
-  const rule = store.applied.find((item) => item.id === id);
-  if (!rule) return false;
-  await writeRules((text) => withoutLine(text, rule.line));
-  store.applied = store.applied.filter((item) => item.id !== id);
-  await atomicJson(file(), store);
-  return true;
-}
-
-// What the window shows: what is proposed, and what was added.
+// What the window shows: what is proposed, each with the prompt that hands it
+// to an agent, and what already stands in the agents' rules. A proposal whose
+// rule is found there is done: Mason writes nothing, so it looks instead.
 export async function suggestionsPayload() {
   const store = await load();
-  const shown = rulesFile().replace(os.homedir(), "~");
-  return { open: store.open.map((proposal) => ({ ...proposal, file: shown })), applied: store.applied.map(({ id, rule, at }) => ({ id, rule, at })) };
+  let changed = false;
+  for (const proposal of [...store.open]) {
+    if (!(await heldBy(wordsOf(proposal))).length) continue;
+    store.applied.push({ id: proposal.id, rule: wordsOf(proposal), at: new Date().toISOString() });
+    settle(store, proposal);
+    changed = true;
+  }
+  // A rule that was taken out of every file again is no longer listed.
+  const standing = [];
+  for (const rule of store.applied) {
+    const by = await heldBy(rule.rule);
+    if (by.length) standing.push({ id: rule.id, rule: rule.rule, at: rule.at, by });
+    else changed = true;
+  }
+  if (changed) {
+    store.applied = standing.map(({ id, rule, at }) => ({ id, rule, at }));
+    await atomicJson(file(), store);
+  }
+  const agents = agentsHere();
+  return { open: store.open.map((proposal) => ({ ...proposal, rule: wordsOf(proposal), hand: handover(wordsOf(proposal), agents, "mine") })), applied: standing };
 }
