@@ -41,7 +41,8 @@ export async function speak(text) {
   const audio = await elevenLabsSpeech(clean).catch(() => null);
   const child = audio
     ? spawn("afplay", [audio], { stdio: "ignore" })
-    : spawn("say", ["-v", process.env.APPRENTICE_SYSTEM_VOICE || "Samantha", clean], { stdio: "ignore" });
+    // After "--" everything is words to say, also words that begin with a dash.
+    : spawn("say", ["-v", process.env.APPRENTICE_SYSTEM_VOICE || "Samantha", "--", clean], { stdio: "ignore" });
   return { engine: audio ? "ElevenLabs" : "Mac voice", done: track(child) };
 }
 

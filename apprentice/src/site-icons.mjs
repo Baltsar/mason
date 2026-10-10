@@ -205,6 +205,9 @@ export function isPublicHost(host) {
   if (!/^[a-z0-9.-]+$/.test(host)) return false;
   if (host === "localhost" || PRIVATE_TAIL.test(host)) return false;
   if (IPV4.test(host)) return false;
+  // A name ends in letters. One that ends in a figure is a number written
+  // short ("127.1"), which is read as an address on this Mac or at home.
+  if (!/[a-z]/.test(host.slice(host.lastIndexOf(".") + 1))) return false;
   return host.includes(".");
 }
 
@@ -220,7 +223,9 @@ export async function fetchSiteIcon(host, { timeoutMs = 4000, fetcher = fetch } 
     } catch {
       // The page did not answer. The two well-known icons are still worth asking for.
     }
-    const candidates = withFallbacks(iconsIn(html), base);
+    // An icon is named in the head of a page: the beginning is enough, and a
+    // page made to be slow to read is not read to its end.
+    const candidates = withFallbacks(iconsIn(html.slice(0, 65_536)), base);
     let tried = 0;
     for (const href of candidates) {
       if (tried >= MAX_ICONS) break;

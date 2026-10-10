@@ -47,6 +47,8 @@ const ask = (host, fetcher) => fetchSiteIcon(host, { fetcher, timeoutMs: FAST })
 test("a public site name may be asked, and a local or private one may not", () => {
   assert.equal(isPublicHost("figma.com"), true);
   assert.equal(isPublicHost("app.flora.ai"), true);
+  // A number written short is an address on this Mac or at home, however it is spelled.
+  for (const host of ["127.1", "0x7f.1", "10.1", "169.254.43518", "2130706433.0"]) assert.equal(isPublicHost(host), false, host);
   assert.equal(isPublicHost(`${"a".repeat(249)}.com`), true);
   for (const host of [
     "localhost", "localhost:3000", "127.0.0.1", "192.168.1.10", "10.0.0.1",
