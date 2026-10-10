@@ -1340,6 +1340,9 @@ function renderSettings() {
     ${row("speech", "Sound")}
     ${row("cues", "A word on the island", settings.cues ? on(nudged) : off("Silent"))}
     ${row("island", "Island by the notch", settings.island ? on("Shows the day") : off("An icon among the others"))}
+    <div class="barpicks" role="group" aria-label="Where Mason sits in the menu bar">${[[true, "Island", "Beside the notch, with the day in it"], [false, "Icon", "One mark among the others"]].map(([island, name, note]) => `<button type="button" class="barpick" data-island="${island}" aria-pressed="${settings.island === island}">
+      <span class="minibar" data-kind="${island ? "island" : "icon"}"><i class="menus"></i>${island ? `<i class="isle">${snapshot?.activity?.workPercent ?? 65}%</i>` : ""}<i class="notch"></i>${island ? `<i class="eye"></i>` : ""}<i class="gap"></i>${island ? "" : `<i class="mark"></i>`}<i class="dots"></i></span>
+      <b>${name}</b><small>${note}</small></button>`).join("")}</div>
     ${row("glass", "Liquid glass", settings.glass ? on("A look to try") : off("Dark"))}
     ${applied.length ? `<p class="group">In your agents' rules</p>${applied.map((rule) => `<div class="set rule"><span>${esc(rule.rule)}</span><b>${esc(rule.by.join(" · "))}</b></div>`).join("")}` : ""}
     <p class="group">Kept on this Mac</p>
@@ -1615,6 +1618,11 @@ async function act(event) {
   const later = target.closest("[data-later]");
   if (later) { await post("/api/answer", { id: later.dataset.later, action: "later" }); return load(); }
 
+  const barPicked = target.closest("[data-island]");
+  if (barPicked) {
+    prefs = await post("/api/settings", { island: barPicked.dataset.island === "true" });
+    return renderSettings();
+  }
   const setting = target.closest("[data-setting]");
   if (setting) {
     prefs = await post("/api/settings", { [setting.dataset.setting]: setting.getAttribute("aria-checked") !== "true" });
