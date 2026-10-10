@@ -1149,7 +1149,13 @@ function renderSettings() {
     : said.waiting ? on(`Reading · ${thousands(said.waiting)} to go`)
     : on(`${thousands(said.count)} read · ${said.onThisMac ? "on this Mac" : said.where}`);
   const applied = snapshot?.suggestions?.applied || [];
-  const writer = model.ready ? (model.name === "Claude" ? "Claude" : `${model.name} · ${model.onThisMac ? "on this Mac" : model.where}`) : model.name === "Claude" ? "Claude not found" : "No model named";
+  const writer = model.problem ? `${model.name || "Model"} · ${model.problem}`
+    : model.ready ? (model.name === "Claude" ? "Claude" : `${model.name} · ${model.onThisMac ? "on this Mac" : model.where}`) : model.name === "Claude" ? "Claude not found" : "No model named";
+  // A model that refuses is said with what to do about it: nothing else shows it.
+  const mend = !model.problem || !settings.summaries ? ""
+    : model.problem !== "login expired" ? `${model.name || "The model"} gave no answer the last time it was asked. Summaries, proposals and the recap wait until it does.`
+    : model.name === "Claude" ? "Summaries, proposals and the recap wait for a login. Open a terminal, run claude, then /login."
+    : `Summaries, proposals and the recap wait: ${model.where} did not take the key in APPRENTICE_LLM_KEY.`;
   paint(node, JSON.stringify([prefs, applied, snapshot?.nudges]), `
     <label class="set"><span>Name</span><input id="set-name" type="text" value="${esc(settings.name || name)}" maxlength="40" autocomplete="off" spellcheck="false" /></label>
     ${row("speech", "Sound")}
@@ -1162,6 +1168,7 @@ function renderSettings() {
     ${row("meaning", "What you said, by meaning", reader)}
     <p class="group">Sends</p>
     ${row("summaries", "Summaries", settings.summaries ? (model.ready ? on(writer) : off(writer)) : off("Your own words"))}
+    ${mend ? `<p class="fine mend">${esc(mend)}</p>` : ""}
     ${row("logos", "Logos from the web", settings.logos ? on("Asks each site once") : off("Lettered tiles"))}
     ${status.elevenLabsKey
       ? row("elevenlabs", "ElevenLabs voice", settings.elevenlabs ? (status.credits ? on(`${thousands(status.credits.left)} credits left`) : "") : off("Mac voice, no calls"))

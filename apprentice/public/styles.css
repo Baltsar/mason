@@ -510,3 +510,4 @@ html[data-shell="desktop"] :is(dialog, .toast) { background: #17171a; }
 .told li span { color: var(--muted); font: 12px var(--mono); white-space: nowrap; }
 @media (max-width: 720px) { .told li { grid-template-columns: 1fr; } }
 
+.settings .fine.mend { margin: 2px 0 10px; color: var(--gold); }
