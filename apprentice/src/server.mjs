@@ -28,6 +28,7 @@ import { MEMORY_VERSION, mergeInferred, projectMemory, savedMemory } from "./mem
 import { makeEpisode, playEpisode, podcastBusy, podcastState } from "./podcast.mjs";
 import { hasElevenLabsKey, loadSettings, ownerName, saveSettings, settings } from "./settings.mjs";
 import { modelStatus } from "./llm.mjs";
+import { fileOf, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
 
 useMemoryStore();
 await loadLocalEnv();
@@ -119,6 +120,23 @@ async function flowPayload(asked, span = "day") {
   Object.assign(icons, fromSites);
   const known = await loadDays();
   return { ...flow, span: span === "week" ? "week" : "day", day: span === "week" ? current : day, fromDay, today: current, owner: ownerName(), days: [...new Set([...Object.keys(known.moves), current])].sort(), tools: flow.tools.map((tool) => ({ ...tool, icon: icons[tool.name] || null })) };
+}
+
+// How the last thirty days were worked, for the window and for the file that
+// is shared. A month of logs takes a few seconds to read the first time, so
+// it is worked out once and kept for a minute.
+let workflowMemo = { at: 0, value: null };
+function workflow() {
+  if (workflowMemo.value && Date.now() - workflowMemo.at < 60_000) return workflowMemo.value;
+  const from = dayStart() - (WORKFLOW_DAYS - 1) * 86_400_000;
+  const value = (async () => {
+    const [index, events, suggestions] = await Promise.all([projectIndex(from, { maxAgeMs: 60_000 }), readEventsSince(from), suggestionsPayload()]);
+    const memories = Object.fromEntries(await Promise.all(index.list.map(async (project) => [project.name, await savedMemory(project.name)])));
+    return workflowPayload({ index, events, memories, suggestions, owner: ownerName(), from });
+  })();
+  workflowMemo = { at: Date.now(), value };
+  value.catch(() => { if (workflowMemo.value === value) workflowMemo = { at: 0, value: null }; });
+  return value;
 }
 
 // Today's answers from the agents: how long finished ones were left waiting,
@@ -545,6 +563,19 @@ const server = http.createServer(async (request, response) => {
       return json(response, 200, { ...found, waiting: saidWaiting, repeated: found.query ? [] : (await repeatedDemands()).slice(0, 8) });
     }
     if (url.pathname === "/api/flow" && request.method === "GET") return json(response, 200, await flowPayload(url.searchParams.get("day"), url.searchParams.get("span") || "day"));
+    if (url.pathname === "/api/workflow") {
+      if (!post) return json(response, 200, await workflow());
+      // Kept as a file to hand to someone, with the picture of it beside it.
+      // Only the rules that were left in go with it.
+      const input = await body(request, 12_000_000);
+      const purpose = String(input.purpose || "all");
+      const made = fileOf(await workflow(), purpose, Array.isArray(input.rules) ? input.rules.map(String) : []);
+      if (!made) return json(response, 400, { error: "No such workflow" });
+      const file = await saveWorkflow(made, purpose);
+      const picture = await saveShare(input.image, `workflow ${purpose}`);
+      if (process.env.APPRENTICE_COLLECT !== "0") spawn("open", ["-R", picture || file], { stdio: "ignore", detached: true }).once("error", () => {}).unref();
+      return json(response, 200, { file: file.replace(process.env.HOME || "\u0000", "~"), picture: Boolean(picture) });
+    }
     if (url.pathname === "/api/share" && post) {
       // The picture drawn in the window is kept as a file and shown in the Finder.
       const input = await body(request, 12_000_000);

@@ -22,6 +22,7 @@
         <button type="button" data-view="today" aria-current="page"><span>Today</span><b id="nav-today">–</b></button>
         <button type="button" data-view="flow"><span>Flow</span><b id="nav-flow">–</b></button>
         <button type="button" data-view="days"><span>Days</span><b id="nav-days">–</b></button>
+        <button type="button" data-view="workflow"><span>Workflow</span><b id="nav-workflow">–</b></button>
         <button type="button" data-view="built"><span>Built</span><b id="nav-built">–</b></button>
       </nav>
       <div class="top-actions">
@@ -64,6 +65,14 @@
         <div class="month" id="days-month"></div>
         <div class="drill" id="days-drill" hidden></div>
         <section class="lanes" id="days-lanes" aria-label="Projects this month"></section>
+      </section>
+
+      <section class="view" data-page="workflow" hidden>
+        <p class="eyebrow walk"><span id="workflow-meta"></span><button class="quiet" type="button" id="workflow-share" hidden>Share</button></p>
+        <div class="chips purposes" id="workflow-purposes" aria-label="What the work was for" hidden></div>
+        <div class="bigs" id="workflow-bigs"></div>
+        <div class="drill" id="workflow-drill" hidden></div>
+        <section class="told" id="workflow-rules" aria-label="What you tell your agents" hidden></section>
       </section>
 
       <section class="view" data-page="built" hidden>
@@ -125,6 +134,17 @@
           <p class="note" id="replay-note"></p>
           <button class="primary" type="button" id="replay-save">Save page</button>
           <button class="secondary" type="button" id="replay-copy">Copy as text</button>
+        </div>
+      </div>
+    </dialog>
+    <dialog id="wshare">
+      <header><p class="label">A workflow to share</p><button type="button" id="wshare-close" aria-label="Close">Close</button></header>
+      <div class="share-body">
+        <canvas id="wshare-canvas" width="1080" height="1350" aria-label="How you work with agents, as a picture"></canvas>
+        <div class="share-side">
+          <div class="cuts" id="wshare-rules" aria-live="polite"></div>
+          <p class="note" id="wshare-note"></p>
+          <button class="primary" type="button" id="wshare-save">Save picture and file</button>
         </div>
       </div>
     </dialog>

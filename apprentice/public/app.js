@@ -5,7 +5,7 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 const native = window.webkit?.messageHandlers?.apprentice;
 
-const VIEWS = ["today", "flow", "days", "built", "more", "find", "recap", "agents", "settings"];
+const VIEWS = ["today", "flow", "days", "workflow", "built", "more", "find", "recap", "agents", "settings"];
 // Names a view once had, or that led to a page that is gone.
 const LEGACY = { now: "today", capture: "today", mcp: "agents", map: "more", teach: "more" };
 const TONES = { work: "var(--lime)", social: "var(--red)", other: "var(--grey)" };
@@ -30,7 +30,7 @@ function applyLook() {
 applyLook();
 let view = "today";
 // Which line of each result is pressed open.
-const drill = { today: null, flow: null };
+const drill = { today: null, flow: null, workflow: null };
 let listening = null;
 let stream = null;
 // The project whose recap is being read aloud right now, if any.
@@ -787,6 +787,207 @@ async function drawShare() {
   if (mark) pen.drawImage(mark, width - left - 46, 1262, 46, 43);
 }
 
+/* Workflow: how the work with agents is done, to keep and to hand on */
+
+// Thirty days of the agents' logs, as one workflow for all of the work and
+// one for each thing the work was for. Reading them takes a few seconds.
+let workflow = null;
+let workflowPurpose = "all";
+// The rules left out of what is shared. Until a rule is pressed, the three
+// said most often go with it and the rest stay behind.
+let workflowOut = null;
+const RULES_SHARED = 3;
+const AGENT_TONES = ["var(--lime)", "var(--paper)", "var(--gold)", "var(--cyan)"];
+const lasted = (seconds) => seconds >= 3600 ? `${(seconds / 3600).toFixed(1)} h` : seconds >= 600 ? `${Math.round(seconds / 60)} min` : mmss(seconds);
+const purposeWord = (key) => workflow.purposes.find((purpose) => purpose.key === key)?.word || "all of it";
+const workflowCard = () => workflow.cards.find((card) => card.purpose === workflowPurpose) || workflow.cards[0];
+const factsOf = (rows) => `<ul class="facts">${rows.filter(Boolean).map(([figure, words]) => `<li><b>${esc(figure)}</b><span>${esc(words)}</span></li>`).join("")}</ul>`;
+const often = (rule) => rule.written ? "written in your rules" : `${rule.times} times · ${rule.projects} projects`;
+
+async function loadWorkflow() {
+  if (!workflow) renderWorkflow();
+  workflow = await api("/api/workflow");
+  if (view === "workflow") renderWorkflow();
+}
+
+function renderWorkflow() {
+  const share = $("#workflow-share");
+  if (!workflow) {
+    $("#workflow-meta").textContent = "Reading thirty days of what you said to your agents";
+    share.hidden = true;
+    return;
+  }
+  const card = workflowCard();
+  $("#nav-workflow").textContent = workflow.cards[0].perHour ?? "–";
+  $("#workflow-meta").textContent = card.prompts ? `${dates(workflow.from, workflow.to)} · ${card.days} ${card.days === 1 ? "day" : "days"} with agents` : "Nothing was said to an agent in thirty days.";
+  share.hidden = !card.prompts;
+
+  // One workflow for all of the work, and one for each thing it was for.
+  const purposes = $("#workflow-purposes");
+  purposes.hidden = workflow.cards.length < 2;
+  paint(purposes, JSON.stringify([workflow.cards.map((item) => item.purpose), card.purpose]), workflow.cards.map((item) => `<button type="button" data-purpose="${item.purpose}" aria-pressed="${item.purpose === card.purpose}">${esc(item.purpose === "all" ? "All of it" : purposeWord(item.purpose).replace(/^./, (letter) => letter.toUpperCase()))}</button>`).join(""));
+
+  const most = card.agents[0];
+  const screen = card.screen;
+  renderBigs($("#workflow-bigs"), card.prompts ? [
+    { key: "agents", number: most.share, unit: "%", word: most.name, meta: card.agents.length > 1 ? `${card.agents.length - 1} more` : "", tone: "var(--lime)" },
+    { key: "pace", number: card.perHour ?? "–", word: "prompts an hour", meta: "", tone: "var(--paper)" },
+    { key: "spread", number: card.parallel.usual ?? "–", word: card.parallel.usual === 1 ? "project a day" : "projects a day", meta: "", tone: "var(--gold)" },
+    ...(screen?.waitSeconds ? [{ key: "wait", number: lasted(screen.waitSeconds), word: "an answer waits", meta: "", tone: "var(--cyan)" }] : []),
+  ] : [], drill.workflow);
+
+  const open = $("#workflow-drill");
+  const name = card.prompts ? drill.workflow : null;
+  open.hidden = !name;
+  if (!name) delete open.dataset.sig;
+  else {
+    const head = (title, note) => `<header><h2>${title}</h2><p>${esc(note)}</p></header>`;
+    const html = {
+      agents: () => `${head("Who you say it to", `${card.prompts} prompts in ${card.days} days`)}
+        <div class="drill-grid">
+          <div>${barsOf(card.agents, (item) => item.name, (item) => item.prompts, "var(--lime)", (item) => `${item.share}%`)}</div>
+          <div>${card.handed.length ? `<h3>Started by another agent, not by you</h3>${barsOf(card.handed, (item) => item.name, (item) => item.sessions, "var(--paper)", (item) => `${item.sessions}`)}` : ""}</div>
+        </div>`,
+      pace: () => `${head("A piece of work", card.piece ? `${card.piece.count} of them in ${card.days} days` : "too few to say what is usual")}
+        ${factsOf([
+          card.piece && [card.piece.prompts, `prompts, over ${card.piece.minutes} minutes`],
+          card.piece && [`${card.piece.opener}${card.piece.atLeast ? "+" : ""}`, `words in the first prompt, ${card.piece.follower} in the ones after`],
+          card.turn && [lasted(card.turn.seconds), "the agent works on one prompt"],
+          card.turn && [lasted(card.turn.long), "on a long one: one in ten takes this or more"],
+        ])}`,
+      spread: () => `${head("How it is spread", `${Math.round(card.minutes / 60)} hours with agents`)}
+        ${factsOf([
+          [card.projects, `${card.projects === 1 ? "project" : "projects"} in ${card.days} days`],
+          [card.parallel.usual, "on a usual day"],
+          [`${card.parallel.share}%`, "of the time agents were at work in two projects at once"],
+        ])}`,
+      wait: () => `${head("Around a prompt", `from the ${screen.days} days Mason was watching`)}
+        <div class="drill-grid">
+          <div>${factsOf([
+            [lasted(screen.waitSeconds), "a finished answer is usually left"],
+            screen.left !== null && [`${screen.left}%`, "of your prompts: somewhere else within a minute"],
+            screen.perHour && [screen.perHour, "changes of tool an hour"],
+          ])}</div>
+          <div><h3>Where the hands were</h3>${barsOf(screen.tools, (item) => `${item.name} · ${item.role}`, (item) => item.share, "var(--cyan)", (item) => `${item.share}%`)}</div>
+        </div>`,
+    }[name];
+    paint(open, JSON.stringify([card.purpose, name, workflow.to, card.prompts]), html());
+  }
+
+  // What the agents were told again and again: the part someone else can take over.
+  const told = $("#workflow-rules");
+  told.hidden = !card.rules.length;
+  if (told.hidden) delete told.dataset.sig;
+  else paint(told, JSON.stringify(card.rules), `<p class="label">What you tell your agents, again and again</p><ol>${card.rules.map((rule) => `<li><p>${esc(rule.rule)}</p><span>${often(rule)}</span></li>`).join("")}</ol>`);
+}
+
+// The workflow as a picture: who is talked to, three figures, and the rules
+// that were left in. No project, no file, nothing that was said.
+async function drawWorkflow() {
+  const card = workflowCard();
+  workflowOut ||= new Set(card.rules.slice(RULES_SHARED).map((rule) => rule.id));
+  const kept = card.rules.filter((rule) => !workflowOut.has(rule.id));
+  $("#wshare-note").textContent = card.rules.length ? `${kept.length} of ${card.rules.length} rules go with it. Press one to put it in or leave it out. Read each: this is what others will see. The picture shows the first three.` : "The figures and the names of well-known tools. No project, no file, nothing you said.";
+  paint($("#wshare-rules"), JSON.stringify([card.purpose, card.rules.map((rule) => rule.id), [...workflowOut]]), card.rules.map((rule) => `<article class="cut" data-wrule="${esc(rule.id)}" role="button" tabindex="0" aria-pressed="${!workflowOut.has(rule.id)}"><p>${esc(rule.rule)}</p><footer>${often(rule)}</footer></article>`).join(""));
+
+  const canvas = $("#wshare-canvas");
+  const pen = canvas.getContext("2d");
+  const { width, height, left, ink, paper, lime, muted, line } = POSTER;
+  const inner = width - left * 2;
+  const colours = [lime, paper, "#d6a647", "#6fe4ff"];
+  const write = (text, x, y, { size, weight = 720, color = paper, align = "left", spacing = 0 }) => {
+    pen.font = `${weight} ${size}px ${FACE}`;
+    pen.fillStyle = color;
+    pen.textAlign = align;
+    pen.textBaseline = "alphabetic";
+    if ("letterSpacing" in pen) pen.letterSpacing = `${spacing}px`;
+    pen.fillText(text, x, y);
+    return pen.measureText(text).width;
+  };
+  // The size at which a line fits the width, starting from the one asked for.
+  const fitted = (text, size, spacing) => {
+    for (let now = size; now > 40; now -= 4) {
+      pen.font = `720 ${now}px ${FACE}`;
+      if ("letterSpacing" in pen) pen.letterSpacing = `${spacing * (now / size)}px`;
+      if (pen.measureText(text).width <= inner) return now;
+    }
+    return 40;
+  };
+  pen.setTransform(1, 0, 0, 1, 0, 0);
+  pen.globalAlpha = 1;
+  pen.fillStyle = ink;
+  pen.fillRect(0, 0, width, height);
+
+  write("How I work", left, 212, { size: 136, spacing: -9 });
+  const second = card.purpose === "all" ? "with agents." : `on ${purposeWord(card.purpose)}.`;
+  const size = fitted(second, 136, -9);
+  write(second, left, 340, { size, spacing: -9 * (size / 136), color: lime });
+
+  // Who it is said to: one bar, shared out by the prompts each agent got.
+  write(`${card.prompts} prompts · ${card.days} days`, left, 446, { size: 26, weight: 500, color: muted });
+  const agents = card.agents.filter((agent) => agent.share >= 1).slice(0, 4);
+  let x = left;
+  agents.forEach((agent, index) => {
+    const wide = Math.max(10, Math.round((agent.share / 100) * inner) - 6);
+    pen.beginPath();
+    pen.roundRect(x, 478, Math.min(wide, left + inner - x), 34, 10);
+    pen.fillStyle = colours[index];
+    pen.fill();
+    x += wide + 6;
+  });
+  x = left;
+  agents.forEach((agent, index) => {
+    const share = write(`${agent.share}%`, x, 584, { size: 50, spacing: -2.5, color: colours[index] });
+    const named = write(agent.name, x + share + 14, 584, { size: 30, weight: 600, color: muted, spacing: -.6 });
+    x += share + named + 54;
+  });
+
+  const figures = [[card.perHour ?? "–", "prompts an hour"], [card.turn ? lasted(card.turn.seconds) : "–", "an agent works on one"], [card.parallel.usual ?? "–", card.parallel.usual === 1 ? "project a day" : "projects a day"]];
+  figures.forEach(([figure, words], index) => {
+    const at = left + [0, 328, 668][index];
+    write(String(figure), at, 760, { size: 92, spacing: -5, color: index === 0 ? lime : paper });
+    write(words, at, 804, { size: 25, weight: 500, color: muted });
+  });
+
+  // The rules that go with it, or, with none, how a piece of work runs.
+  const shown = kept.slice(0, RULES_SHARED);
+  pen.fillStyle = line;
+  pen.fillRect(left, 866, inner, 2);
+  if (shown.length) {
+    write("What I tell them every time", left, 914, { size: 25, weight: 500, color: muted });
+    let y = 964;
+    for (const rule of shown) {
+      // At most two lines for a rule; the rest of a long one is cut with a mark.
+      pen.font = `620 32px ${FACE}`;
+      if ("letterSpacing" in pen) pen.letterSpacing = "-1px";
+      const rows = [""];
+      for (const word of rule.rule.split(/\s+/)) {
+        const tried = rows.at(-1) ? `${rows.at(-1)} ${word}` : word;
+        if (pen.measureText(tried).width <= inner - 44) rows[rows.length - 1] = tried;
+        else rows.push(word);
+      }
+      if (rows.length > 2) { rows.length = 2; rows[1] = `${rows[1].replace(/[.,;:]$/, "")}…`; }
+      pen.fillStyle = lime;
+      pen.fillRect(left, y - 25, 6, rows.length * 40 - 10);
+      rows.forEach((row, index) => write(row, left + 28, y + index * 40, { size: 32, weight: 620, spacing: -1 }));
+      y += rows.length * 40 + 20;
+    }
+    // With a rule or two there is room to say how a piece of work runs.
+    if (shown.length < RULES_SHARED && card.piece) write(`A piece of work: ${card.piece.prompts} prompts over ${card.piece.minutes} minutes.`, left, 1190, { size: 30, weight: 600, color: muted, spacing: -.6 });
+  } else if (card.piece) {
+    write("A piece of work", left, 920, { size: 25, weight: 500, color: muted });
+    write(`${card.piece.prompts} prompts over ${card.piece.minutes} minutes.`, left, 990, { size: 50, spacing: -2.5 });
+    write(`${card.piece.opener}${card.piece.atLeast ? "+" : ""} words first, then ${card.piece.follower}.`, left, 1056, { size: 50, spacing: -2.5, color: muted });
+  }
+
+  pen.fillStyle = line;
+  pen.fillRect(left, 1238, inner, 2);
+  write(`${workflow.owner} · ${dates(workflow.from, workflow.to)}`, left, 1294, { size: 30, weight: 600 });
+  const mark = await pictureOf("/brand/mason-mark.png");
+  write("made with Mason", width - left - (mark ? 58 : 0), 1294, { size: 26, weight: 500, color: muted, align: "right" });
+  if (mark) pen.drawImage(mark, width - left - 46, 1262, 46, 43);
+}
+
 /* Days: the long view */
 
 // The four biggest projects of a month have a colour of their own. Red is
@@ -1003,7 +1204,7 @@ function renderShell() {
 function render() {
   applyLook();
   renderShell();
-  ({ today: renderToday, flow: renderFlow, days: renderDays, built: renderBuilt, more: renderMore, find: renderFind, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
+  ({ today: renderToday, flow: renderFlow, days: renderDays, workflow: renderWorkflow, built: renderBuilt, more: renderMore, find: renderFind, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
 }
 
 async function load() {
@@ -1025,6 +1226,7 @@ function show(name, arg) {
   history.replaceState(null, "", `#${view}`);
   if (view === "settings") loadPrefs().catch(() => {});
   if (view === "days") loadDays().catch(() => {});
+  if (view === "workflow") loadWorkflow().catch(() => {});
   if (view === "built") loadBuilt().catch(() => {});
   if (view === "find") {
     // Opened from a nudge about work done before: what was just said is looked for.
@@ -1120,6 +1322,17 @@ async function act(event) {
     return loadShare();
   }
   if (target.closest("#share-close")) return $("#share").close();
+  const purpose = target.closest("[data-purpose]");
+  if (purpose) { workflowPurpose = purpose.dataset.purpose; drill.workflow = null; workflowOut = null; return renderWorkflow(); }
+  if (target.closest("#workflow-share")) { $("#wshare").showModal(); return drawWorkflow(); }
+  if (target.closest("#wshare-close")) return $("#wshare").close();
+  const told = target.closest("[data-wrule]");
+  if (told) { if (!workflowOut.delete(told.dataset.wrule)) workflowOut.add(told.dataset.wrule); return drawWorkflow(); }
+  if (target.closest("#wshare-save")) {
+    const card = workflowCard();
+    const saved = await post("/api/workflow", { purpose: card.purpose, rules: card.rules.filter((rule) => !workflowOut.has(rule.id)).map((rule) => rule.id), image: $("#wshare-canvas").toDataURL("image/png") });
+    return toast(`Saved: ${saved.file}`);
+  }
   if (target.closest("#flow-replay")) { replayPiece = null; replayOut.clear(); $("#replay").showModal(); return loadReplay(); }
   if (target.closest("#replay-close")) return $("#replay").close();
   const piece = target.closest("[data-replay-piece]");
@@ -1271,7 +1484,7 @@ document.addEventListener("input", (event) => {
 });
 document.addEventListener("keydown", (event) => {
   // A tool in the flow picture is pressed with the keyboard like any button.
-  if ((event.key === "Enter" || event.key === " ") && event.target.matches?.(".flowmap .node, [data-again], [data-replay-line]")) { event.preventDefault(); return event.target.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
+  if ((event.key === "Enter" || event.key === " ") && event.target.matches?.(".flowmap .node, [data-again], [data-replay-line], [data-wrule]")) { event.preventDefault(); return event.target.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
   if (event.key !== "Enter" || event.shiftKey) return;
   const button = { "live-answer": "[data-answer]" }[event.target.id];
   if (!button) return;

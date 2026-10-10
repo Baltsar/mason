@@ -209,7 +209,10 @@ export function otherProjects(since) {
     for (const log of [...await codexLogs(since), ...await grokLogs(since)]) {
       if (!log.cwd || TEMPORARY.test(log.cwd)) continue;
       const project = found.get(log.cwd) || { name: path.basename(log.cwd), folder: log.cwd, prompts: [], minutes: new Set(), turns: [], source: log.source };
-      for (const minute of log.minutes) if (minute * 60_000 >= since - 60_000) project.minutes.add(minute);
+      let worked = false;
+      for (const minute of log.minutes) if (minute * 60_000 >= since - 60_000) { project.minutes.add(minute); worked = true; }
+      // A session another agent started is work that was handed over to this one.
+      if (!log.byHand && worked) (project.handed ||= {})[log.source] = (project.handed[log.source] || 0) + 1;
       // Only what its owner typed is said by them, and only its answers wait for them.
       if (log.byHand) {
         for (const prompt of log.prompts) if (prompt.at >= since) project.prompts.push(prompt);
