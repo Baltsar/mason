@@ -973,7 +973,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url else { decisionHandler(.cancel); return }
-        if url.absoluteString.hasPrefix(baseURL) || url.scheme == "about" {
+        if isOwn(url) || url.scheme == "about" {
             decisionHandler(.allow)
         } else {
             NSWorkspace.shared.open(url)
@@ -994,7 +994,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { loadRetries = 0 }
 
     func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping (WKPermissionDecision) -> Void) {
-        decisionHandler(.grant)
+        // The microphone is for Mason's own page, whatever else may come to be shown here.
+        decisionHandler(isOwn(scheme: origin.protocol, host: origin.host, port: origin.port == 0 ? nil : origin.port) ? .grant : .deny)
     }
 
     // MARK: Menus
