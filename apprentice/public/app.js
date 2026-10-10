@@ -797,6 +797,13 @@ let workflowPurpose = "all";
 // said most often go with it and the rest stay behind.
 let workflowOut = null;
 const RULES_SHARED = 3;
+// Where the collection of workflows is kept, and the form that proposes one.
+// Mason sends nothing there: it copies the file, and the form opens in the browser.
+const REPOSITORY = "https://github.com/Baltsar/mason";
+const COLLECTION = `${REPOSITORY}/tree/main/workflows`;
+const COLLECTION_FORM = `${REPOSITORY}/issues/new?template=workflow.yml`;
+// The workflow that is open in the share dialog, in the form the collection keeps.
+let workflowCollect = null;
 const AGENT_TONES = ["var(--lime)", "var(--paper)", "var(--gold)", "var(--cyan)"];
 const lasted = (seconds) => seconds >= 3600 ? `${(seconds / 3600).toFixed(1)} h` : seconds >= 600 ? `${Math.round(seconds / 60)} min` : mmss(seconds);
 const purposeWord = (key) => workflow.purposes.find((purpose) => purpose.key === key)?.word || "all of it";
@@ -851,6 +858,8 @@ function renderWorkflow() {
   const share = $("#workflow-share");
   $("#workflow-open").hidden = !workflow;
   $("#workflow-back").hidden = !workflowOpened;
+  $("#workflow-collection").hidden = !workflow;
+  $("#workflow-collection").href = COLLECTION;
   if (!workflow) {
     $("#workflow-meta").textContent = "Reading thirty days of what you said to your agents";
     share.hidden = true;
@@ -931,6 +940,16 @@ async function drawWorkflow() {
   const kept = card.rules.filter((rule) => !workflowOut.has(rule.id));
   $("#wshare-note").textContent = card.rules.length ? `${kept.length} of ${card.rules.length} rules go with it. Press one to put it in or leave it out. Read each: this is what others will see. The picture shows the first three.` : "The figures and the names of well-known tools. No project, no file, nothing you said.";
   paint($("#wshare-rules"), JSON.stringify([card.purpose, card.rules.map((rule) => rule.id), [...workflowOut]]), card.rules.map((rule) => `<article class="cut" data-wrule="${esc(rule.id)}" role="button" tabindex="0" aria-pressed="${!workflowOut.has(rule.id)}"><p>${esc(rule.rule)}</p><footer>${often(rule)}</footer></article>`).join(""));
+
+  // The same workflow as the collection would keep it, ready for when that is pressed.
+  workflowCollect = null;
+  $("#wshare-collect").disabled = true;
+  post("/api/workflow/collect", { purpose: card.purpose, rules: kept.map((rule) => rule.id) }).then((ready) => {
+    if (workflowCard() !== card) return;
+    workflowCollect = ready;
+    $("#wshare-collect").disabled = false;
+    if (ready.dropped.length) $("#wshare-note").textContent += ` The collection leaves out ${ready.dropped.length === 1 ? "one of them" : `${ready.dropped.length} of them`}: ${ready.dropped[0].why}.`;
+  }).catch(() => {});
 
   const canvas = $("#wshare-canvas");
   const pen = canvas.getContext("2d");
@@ -1384,6 +1403,13 @@ async function act(event) {
   const purpose = target.closest("[data-purpose]");
   if (purpose) { workflowPurpose = purpose.dataset.purpose; drill.workflow = null; workflowOut = null; return renderWorkflow(); }
   if (target.closest("#workflow-share")) { $("#wshare").showModal(); return drawWorkflow(); }
+  if (target.closest("#wshare-collect") && workflowCollect) {
+    // The file is copied here; the form it is pasted into opens in the browser, and is sent from there or not at all.
+    const copying = copyText(workflowCollect.text);
+    const link = Object.assign(document.createElement("a"), { href: COLLECTION_FORM, target: "_blank", rel: "noopener" });
+    link.click();
+    return toast(await copying ? "Copied. Paste it in the form that opened, and send it from there." : "Could not copy. Save the file instead, and paste what is in it.");
+  }
   if (target.closest("#workflow-open")) return $("#workflow-file").click();
   if (target.closest("#workflow-back")) { workflowOpened = null; return renderWorkflow(); }
   const adopt = target.closest("[data-adopt]");

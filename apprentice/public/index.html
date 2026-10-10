@@ -68,7 +68,7 @@
       </section>
 
       <section class="view" data-page="workflow" hidden>
-        <p class="eyebrow walk"><span id="workflow-meta"></span><button class="quiet" type="button" id="workflow-share" hidden>Share</button><button class="quiet" type="button" id="workflow-open" hidden>Open one</button><button class="quiet" type="button" id="workflow-back" hidden>Back to mine</button><input type="file" id="workflow-file" accept=".json,application/json" hidden /></p>
+        <p class="eyebrow walk"><span id="workflow-meta"></span><button class="quiet" type="button" id="workflow-share" hidden>Share</button><button class="quiet" type="button" id="workflow-open" hidden>Open one</button><button class="quiet" type="button" id="workflow-back" hidden>Back to mine</button><a class="quiet" id="workflow-collection" target="_blank" rel="noopener" hidden>Collection</a><input type="file" id="workflow-file" accept=".json,application/json" hidden /></p>
         <div class="chips purposes" id="workflow-purposes" aria-label="What the work was for" hidden></div>
         <div class="bigs" id="workflow-bigs"></div>
         <div class="drill" id="workflow-drill" hidden></div>
@@ -145,6 +145,7 @@
           <div class="cuts" id="wshare-rules" aria-live="polite"></div>
           <p class="note" id="wshare-note"></p>
           <button class="primary" type="button" id="wshare-save">Save picture and file</button>
+          <button class="secondary" type="button" id="wshare-collect">Add to the collection</button>
         </div>
       </div>
     </dialog>
