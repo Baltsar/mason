@@ -531,3 +531,18 @@ html[data-shell="desktop"] :is(dialog, .toast) { background: #17171a; }
 .told .where { max-width: 760px; margin: 4px 0 16px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; line-height: 1.45; }
 a.quiet { display: inline-flex; align-items: center; text-decoration: none; }
 
+/* The trial has ended: said once, after forty days of work */
+.trial { margin: 0 0 28px; padding: 26px 28px 26px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); }
+.trial h2 { margin: 8px 0 14px; font-size: clamp(30px, 4vw, 52px); line-height: 1; letter-spacing: -.05em; font-weight: 720; }
+.trial .ask { margin: 0 0 6px; color: var(--muted); font-size: clamp(17px, 1.8vw, 21px); letter-spacing: -.02em; }
+.trial .none { margin: 0 0 22px; font-size: clamp(17px, 1.8vw, 21px); letter-spacing: -.02em; font-weight: 640; }
+.trial .figures { display: flex; flex-wrap: wrap; gap: 14px 64px; margin: 0 0 20px; padding: 18px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--muted); font-size: 15px; }
+.trial .figures span { display: grid; gap: 2px; }
+.trial .figures b { color: var(--paper); font-size: 34px; font-weight: 720; letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+.trial .row { margin-top: 18px; gap: 12px; }
+.trial .row a { display: inline-flex; align-items: center; text-decoration: none; }
+.trial .row a.secondary { color: var(--paper); }
+.trial .row .link { border: 0; background: none; color: var(--muted); font-size: 14px; }
+.trial .row .link:hover { color: var(--paper); }
+.settings .fine a { color: var(--paper); }
+

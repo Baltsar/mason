@@ -30,6 +30,8 @@ import { hasElevenLabsKey, loadSettings, ownerName, saveSettings, settings } fro
 import { modelStatus, onUse } from "./llm.mjs";
 import { fromHere, holdsKey, makeKey, needsKey, usableKey } from "./guard.mjs";
 import { collectable } from "./collection.mjs";
+import { lookForUpdate, newer, ownVersion, updatePayload } from "./updates.mjs";
+import { endTrial, trialPayload } from "./trial.mjs";
 import { recordUse, usagePayload } from "./usage.mjs";
 import { fileOf, handover, heldBy, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
 
@@ -210,13 +212,18 @@ async function nudgeFor(waiting, runtime, index) {
   const todays = index.prompts();
   // What was said before is settled first: back where answers are read, or
   // the other project named in the next prompt, is acting on it.
+  const [version, update] = await Promise.all([ownVersion(), updatePayload()]);
+  // A new version is acted on by being this version or a later one.
   const changed = await settleNudges((nudge) => nudge.kind === "waited" ? reading
+    : nudge.kind === "version" ? !newer(nudge.key, version)
     : nudge.kind === "before" ? todays.some((prompt) => prompt.project === nudge.project && prompt.at > Date.parse(nudge.at) && prompt.text.toLowerCase().includes(String(nudge.other).toLowerCase()))
     : false, now);
   if (changed) broadcast("nudge");
   // Only someone who is at the Mac is nudged.
   if (state !== "watching" && state !== "private-surface") return null;
   const candidates = [];
+  // Said once for each version, at a moment its owner is at the Mac.
+  if (update.latest) candidates.push({ kind: "version", key: update.latest.version, text: `Mason ${update.latest.version} is out` });
   if (!reading) {
     const patience = Math.min(WAITED_AT_MOST_MS, Math.max(WAITED_FROM_MS, ((await usualWaitMs()) || 0) * 2));
     const late = waiting.ready.find((answer) => { const left = now - Date.parse(answer.since); return left >= patience && left < WAITED_TOO_LONG_MS; });
@@ -487,6 +494,7 @@ async function statePayload() {
     look: settings().glass ? "glass" : "",
     // The nudge that was just said, and how the last week of them went.
     nudges: await nudgesPayload(),
+    trial: await trialPayload({ moves: days.moves, days: days.days, rules: suggestions.applied.length }),
     // The figures the top bar shows for the two views that load by themselves.
     flow: { jumps: (await today()).flow.jumps },
     days: Object.keys(days.days).length,
@@ -602,6 +610,11 @@ const server = http.createServer(async (request, response) => {
       // and with the agents whose rules already hold it. Mason writes it nowhere.
       const rules = await Promise.all(theirs.rules.map(async (rule) => ({ ...rule, hand: handover(rule.rule), told: rule.held ? [] : await heldBy(rule.rule) })));
       return json(response, 200, { theirs: { ...theirs, rules }, mine: own.cards.find((card) => card.purpose === theirs.purpose) || own.cards[0] });
+    }
+    if (url.pathname === "/api/trial" && post) {
+      // "Use evaluation copy": the card about the trial is put away for good.
+      await endTrial();
+      return json(response, 200, { ok: true });
     }
     if (url.pathname === "/api/workflow/collect" && post) {
       // One's own workflow in the form the collection keeps: read back with
@@ -1000,6 +1013,8 @@ const server = http.createServer(async (request, response) => {
         if ("logs" in input) { await projectIndex(dayStart(), { maxAgeMs: 0 }); activityMemo.at = 0; }
         // Switched on, the reading starts now; switched off, the model is stopped.
         if ("meaning" in input) { saidAt = 0; if (settings().meaning) catchUpSaid(); else stopEmbedder(); }
+        // Switched on, the look for a new version is made now.
+        if (input.updates === true) await lookForUpdate({ soon: true });
         broadcast("settings");
       }
       const runtime = await loadRuntime();
@@ -1013,6 +1028,7 @@ const server = http.createServer(async (request, response) => {
           credits: await elevenLabsCredits(),
           model: modelStatus(),
           usage: await usagePayload(),
+          update: await updatePayload(),
           // The model that places what was said, and how much it has read.
           said: { ...embedStatus(), ...(await saidStatus()), waiting: saidWaiting },
           logs: await logSources(),
@@ -1125,6 +1141,9 @@ server.listen(port, "127.0.0.1", () => {
   // The long view is caught up once Mason is running, not while it starts.
   setTimeout(catchUpDays, 15_000).unref();
   setInterval(catchUpDays, 10 * 60_000).unref();
+  // A new version is looked for a little after the start, and then a few times a day; a look is made at most once a day.
+  setTimeout(() => lookForUpdate().catch(() => {}), 30_000).unref();
+  setInterval(() => lookForUpdate().catch(() => {}), 6 * 3_600_000).unref();
   setTimeout(catchUpSaid, 30_000).unref();
   setInterval(catchUpSaid, 10 * 60_000).unref();
   // The desktop app has the key already, and what it starts writes to a log

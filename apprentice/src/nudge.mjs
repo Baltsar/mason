@@ -17,7 +17,8 @@ const file = () => path.join(paths.data, "nudges.json");
 const APART_MS = 10 * 60_000;
 const IN_A_DAY = 6;
 // How long there is to act on each kind before it counts as ignored.
-const TIME_TO_FOLLOW = { waited: 90_000, before: 10 * 60_000 };
+// A new version is acted on when there is time for it: a week.
+const TIME_TO_FOLLOW = { waited: 90_000, before: 10 * 60_000, version: 7 * 86_400_000 };
 // Ignored this many times in a row, a kind is quiet for this long. After
 // that it is tried again, in case the days have changed.
 const IGNORED_IN_A_ROW = 3;

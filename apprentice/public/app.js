@@ -175,6 +175,7 @@ function renderToday() {
   if (where.hidden) delete where.dataset.sig;
   else paint(where, JSON.stringify(waiting.waited), `<header><h2>Answers waited ${minutes(waiting.waited.seconds)}</h2><p>${waiting.waited.answers} finished while you were somewhere else</p></header>${barsOf(waiting.waited.where, (item) => item.tool, (item) => item.seconds, "var(--gold)", (item) => minutes(item.seconds))}`);
 
+  renderTrial();
   renderLookback();
   renderPropose();
   renderProjects();
@@ -194,6 +195,24 @@ function renderDrill() {
       <div>${group.apps.length ? `<ul class="bars">${group.apps.map((item) => `<li style="--w:${Math.round((item.seconds / longest) * 100)}%;--tone:${item.color}"><span>${esc(item.app)}</span><i></i><b>${minutes(item.seconds)}</b></li>`).join("")}</ul>` : `<p class="empty">Nothing.</p>`}</div>
       <div>${group.windows.length ? `<ul class="windows">${group.windows.slice(0, 5).map((item) => `<li><span>${esc(item.window || item.app)}</span><b>${minutes(item.seconds)}</b></li>`).join("")}</ul>` : ""}</div>
     </div>`);
+}
+
+// After forty days of work Mason says, the way an old archiver did, that the
+// trial has ended and a license must be bought, and then that there is none.
+// It asks once for a coffee for the man who built it, or for work for him.
+function renderTrial() {
+  const node = $("#trial");
+  const trial = snapshot.trial;
+  node.hidden = !trial?.due;
+  if (node.hidden) { delete node.dataset.sig; return; }
+  const second = trial.rules ? [trial.rules, trial.rules === 1 ? "rule handed to your agents" : "rules handed to your agents"] : [trial.projects, trial.projects === 1 ? "project remembered" : "projects remembered"];
+  paint(node, JSON.stringify(trial), `<p class="label">Day ${trial.day} of ${trial.of}</p>
+    <h2>Your trial has ended.</h2>
+    <p class="ask">Buy a license or remove Mason from this Mac.</p>
+    <p class="none">There is no license. I’ll be at work tomorrow.</p>
+    <p class="figures"><span><b>${thousands(trial.prompts)}</b>prompts remembered</span><span><b>${second[0]}</b>${second[1]}</span></p>
+    <p class="ask">The man who built me runs on coffee.</p>
+    <div class="row">${trial.coffee ? `<a class="primary" href="${esc(trial.coffee)}" target="_blank" rel="noopener">Buy him a coffee</a>` : ""}<a class="${trial.coffee ? "secondary" : "primary"}" href="${esc(trial.hire)}" target="_blank" rel="noopener">Hire him</a><button class="link" type="button" data-trial-end>Use evaluation copy</button></div>`);
 }
 
 // After a few days of work Mason says how it was done: up to three plain
@@ -1256,7 +1275,7 @@ function renderSettings() {
     : model.name === "Claude" ? "Summaries, proposals and the recap wait for a login. Open a terminal, run claude, then /login."
     : `Summaries, proposals and the recap wait: ${model.where} did not take the key in APPRENTICE_LLM_KEY.`;
   // What the model took, where the switch for it is: today in the row, the week under it.
-  const { usage } = status;
+  const { usage, update } = status;
   const spent = usage.today.tokens ? ` · ${tokens(usage.today.tokens)} tokens today` : "";
   const most = usage.week.by[0];
   const week = usage.week.calls ? `7 days: ${tokens(usage.week.tokens)} tokens in ${usage.week.calls} ${usage.week.calls === 1 ? "call" : "calls"}${most && usage.week.by.length > 1 ? `, ${Math.round((most.tokens / usage.week.tokens) * 100)}% of it ${most.purpose}` : ""}. A summary is written an hour after you leave a project, not while you work in it.` : "";
@@ -1268,6 +1287,8 @@ function renderSettings() {
     ${mend ? `<p class="fine mend">${esc(mend)}</p>` : settings.summaries && week ? `<p class="fine under">${esc(week)}</p>` : ""}
     ${status.elevenLabsKey ? row("elevenlabs", "Voice", voice) : `<div class="set"><span>Voice</span>${voice}</div>`}
     ${row("logos", "Logos from the web", settings.logos ? on("Asks each site once") : off("Lettered tiles"))}
+    ${row("updates", "New versions", !settings.updates ? off("Not looked for") : update.latest ? on(`${update.latest.version} is out`) : on(`Up to date · ${update.version}`))}
+    ${settings.updates && update.latest ? `<p class="fine under">This is Mason ${esc(update.version)}. <a href="${esc(update.latest.url)}" target="_blank" rel="noopener">See what is new in ${esc(update.latest.version)}, and how to get it</a>. Mason installs nothing by itself.</p>` : ""}
     <p class="group">Stays on this Mac</p>
     <div class="set"><span>Screen</span>${status.access === "on" ? on("App, window, site") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
     ${row("logs", "Agent logs", settings.logs ? on([`Claude Code ${logs.claude}`, logs.codex ? `Codex ${logs.codex}` : "", logs.grok ? `Grok ${logs.grok}` : ""].filter(Boolean).join(" · ")) : off("Not read"))}
@@ -1281,7 +1302,8 @@ function renderSettings() {
     <p class="group">Kept on this Mac</p>
     <div class="set files"><span>Open</span><span class="with"><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Memory</button><button class="secondary" type="button" data-reveal="notes">Notes for Obsidian</button></span></div>
     ${said.count ? `<div class="set files"><span>${thousands(said.count)} prompts, read by meaning</span><button class="secondary" type="button" data-forget-said>Forget</button></div>` : ""}
-    <p class="fine">No screenshots, no keystrokes, and of a page in a browser only the site. With everything under Leaves this Mac switched off, nothing does.</p>`);
+    <p class="fine">No screenshots, no keystrokes, and of a page in a browser only the site. With everything under Leaves this Mac switched off, nothing does.</p>
+    <p class="fine">Evaluation copy. Has been since day one.</p>`);
 }
 
 async function loadPrefs() {
@@ -1410,6 +1432,11 @@ async function act(event) {
   if (proposed) {
     snapshot.suggestions = await post("/api/suggestions", { action: proposed.dataset.propose, id: proposed.dataset.id });
     proposeOpen = false;
+    return render();
+  }
+  if (target.closest("[data-trial-end]")) {
+    await post("/api/trial");
+    snapshot.trial.due = false;
     return render();
   }
   if (target.closest("[data-propose-copy]")) {
