@@ -34,8 +34,9 @@ jobs:
       # The check below is the pull request's own copy. So a pull request that
       # adds a workflow may change nothing else: then the check that read it is
       # the one on main. One that changes the check itself is read by a person.
+      # The owner of the repository is that person, and may change both at once.
       - name: A workflow comes alone
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.author_association != 'OWNER'
         working-directory: .
         run: |
           changed=$(git diff --name-only HEAD^1 HEAD)
