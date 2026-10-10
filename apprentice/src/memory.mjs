@@ -13,11 +13,21 @@ import { askModel } from "./llm.mjs";
 const DAYS = 21;
 const MAX_PROMPTS = 70;
 // Raised when the shape of a memory changes, so saved ones are written again.
-const VERSION = 4;
+const VERSION = 5;
+export const MEMORY_VERSION = VERSION;
 const words = (text, count) => String(text ?? "").replace(/\s+/g, " ").trim().split(" ").slice(0, count).join(" ").replace(/[.,;:]+$/, "");
 // A silence this long between two prompts is a new visit to the project.
 const VISIT_GAP_MS = 6 * 3_600_000;
 const JUST_ARRIVED_MS = 30 * 60_000;
+// A memory says where a project was left, so it is written when the project
+// is left: once nothing has been said in it for this long. Each one sends
+// some six thousand tokens of prompts; written every ten minutes while the
+// work went on, a week of work asked for over two hundred of them, and after
+// an hour of silence for some eighty.
+const SETTLED_MS = 60 * 60_000;
+// A summary that could not be written is not tried again for this long.
+const TRY_AGAIN_MS = 10 * 60_000;
+const tried = new Map();
 const memoryDir = () => path.join(paths.data, "memory");
 const fileFor = (name) => path.join(memoryDir(), `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "project"}.json`);
 const short = (text, max) => {
@@ -37,6 +47,7 @@ Reply with JSON only, no code fence, in exactly this shape:
   "one_line": "what this project is, at most 12 words",
   "how": ["at most 4 statements of how it is put together: a main part and what it does, each naming a real file or folder from the list, at most 16 words each"],
   "built": ["at most 3 short statements of what was built or changed, newest first"],
+  "decided": ["at most 3 decisions that were made about how to build it, each with the reason when one was given, at most 22 words each"],
   "left_off": "where they stopped the last time they worked on it, one sentence",
   "open": ["at most 3 things that were still unfinished or unanswered when they stopped"],
   "keeps_saying": [{"rule": "rule in their voice, at most 6 words", "times": 2, "example": "verbatim quote"}],
@@ -44,6 +55,8 @@ Reply with JSON only, no code fence, in exactly this shape:
 }
 
 Rules for keeps_saying: only a demand or correction they gave the agent on at least two separate occasions. Phrase it as a rule of at most 6 words in their own voice. "example" must be copied word for word from one prompt, at most 12 words. If nothing repeats, return an empty list. At most 3 items.
+
+Rules for decided: a decision is a choice between ways of doing it that the prompts or the reports show was made ("use X instead of Y", "drop Z", "keep it on one page"). Say what was chosen and, when a reason was given, why. A wish or a complaint is not a decision. If no choice shows, return an empty list.
 
 Rules for how: describe the parts someone would need to know to explain how this was built. Take what a part does from the agents' reports; a file name alone is not enough to say what a file does. Name the file or folder. Name a framework or service only when a report, a prompt or a file name shows it. If no files are listed, return an empty list.
 
@@ -59,6 +72,7 @@ function fromOwnWords(name, prompts) {
     one_line: null,
     how: [],
     built: prompts.slice(-3).reverse().map((prompt) => short(prompt.text, 110)),
+    decided: [],
     left_off: last ? `You said: “${short(last.text, 180)}”` : null,
     open: [],
     keeps_saying: [],
@@ -70,7 +84,7 @@ function fromOwnWords(name, prompts) {
 async function digest(name, prompts, work, reports) {
   const lines = prompts.slice(-MAX_PROMPTS).map((prompt) => `[${stamp(prompt.at)}] ${short(prompt.text, 420)}`);
   const files = work.slice(0, 40).map((item) => `${item.file} (${item.edits})`);
-  const reply = await askModel(SYSTEM, `Project: ${name}\nToday is ${stamp(Date.now())}.\n\nPrompts, oldest first:\n${lines.join("\n")}\n\nFiles the agents changed, most changed first, with the number of changes:\n${files.join("\n") || "(none recorded)"}\n\nWhat the agents reported back, oldest first:\n${reports.map((report) => `[${stamp(report.at)}] ${short(report.text, 600)}`).join("\n") || "(nothing recorded)"}`);
+  const reply = await askModel(SYSTEM, `Project: ${name}\nToday is ${stamp(Date.now())}.\n\nPrompts, oldest first:\n${lines.join("\n")}\n\nFiles the agents changed, most changed first, with the number of changes:\n${files.join("\n") || "(none recorded)"}\n\nWhat the agents reported back, oldest first:\n${reports.map((report) => `[${stamp(report.at)}] ${short(report.text, 600)}`).join("\n") || "(nothing recorded)"}`, { purpose: "summaries" });
   if (!reply || typeof reply.left_off !== "string") return null;
   const said = prompts.map((prompt) => prompt.text.toLowerCase().replace(/\s+/g, " "));
   const list = (value, max) => (Array.isArray(value) ? value : []).filter((item) => typeof item === "string" && item.trim()).slice(0, max).map((item) => short(item, 200));
@@ -80,6 +94,7 @@ async function digest(name, prompts, work, reports) {
     // A part only counts when it names something the agents really changed.
     how: list(reply.how, 6).filter((line) => work.some((item) => item.file.split("/").some((piece) => piece.length > 3 && line.includes(piece)))).slice(0, 4),
     built: list(reply.built, 3),
+    decided: list(reply.decided, 3),
     left_off: short(reply.left_off, 260),
     open: list(reply.open, 3),
     // A rule only counts when its example really is something they said.
@@ -92,6 +107,10 @@ async function digest(name, prompts, work, reports) {
     source: "model",
   };
 }
+
+// The last memory written for a project, as it is on disk: nothing is read
+// from the logs and no model is asked.
+export const savedMemory = (name) => readJson(fileFor(name), null);
 
 // The memory of one project. Answers at once with what it has; a newer one is
 // written in the background when the project has been spoken to since.
@@ -120,9 +139,12 @@ export async function projectMemory(project, { wait = false } = {}) {
   };
   if (!last) return { ...facts, ...fromOwnWords(project.name, prompts), building: false };
   const fresh = saved?.basedOn === last.at && saved?.version === VERSION;
-  // A project in full swing is not summarised after every single prompt.
-  const recentlyBuilt = saved?.version === VERSION && saved?.generatedAt && Date.now() - Date.parse(saved.generatedAt) < 10 * 60_000;
-  if (!fresh && !recentlyBuilt && !building.has(project.name)) {
+  // A project in full swing is not summarised: its memory is written once
+  // the work in it has stopped. One that has no memory yet gets its first now.
+  const settled = Date.now() - last.at >= SETTLED_MS || !saved;
+  const justTried = Date.now() - (tried.get(project.name) || 0) < TRY_AGAIN_MS;
+  if (!fresh && settled && !justTried && !building.has(project.name)) {
+    tried.set(project.name, Date.now());
     const job = digest(project.name, prompts, work, reports).then(async (result) => {
       if (!result) return null;
       await mkdir(memoryDir(), { recursive: true });

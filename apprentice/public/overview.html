@@ -67,9 +67,20 @@
       .big b { min-width: 2.05ch; font-size: 96px; line-height: .9; letter-spacing: -.075em; font-weight: 720; font-variant-numeric: tabular-nums; text-align: right; }
       .big b i { margin-left: 1px; font-size: .36em; font-style: normal; letter-spacing: -.02em; }
       .big > span { font-size: 34px; line-height: 1; letter-spacing: -.05em; font-weight: 680; }
+      .big > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .big[data-group="work"] b { color: var(--lime); }
       .big[data-group="social"] b { color: var(--red); }
       .big[data-group="other"] b { color: #8a8a90; }
+
+      /* The one thing worth saying: an answer that is ready, how long answers
+         waited, or how the last days were worked when that has just been written. */
+      .said:empty { display: none; }
+      .said { margin: 12px 0 4px; padding-left: 12px; border-left: 3px solid var(--grey); font-size: 17px; line-height: 1.25; letter-spacing: -.02em; font-weight: 620; }
+      .said[data-tone="off"] { border-color: var(--red); }
+      .said[data-tone="on"] { border-color: var(--lime); }
+      .said[data-tone="ready"] { border-color: var(--gold); color: var(--gold); }
+      html:is([data-mode="ask"], [data-mode="call"]) .said { display: none; }
+      html[data-access="needed"][data-mode="full"] .said { display: none; }
 
       /* A question: the question, a field to answer in, a way out. */
       .ask { position: relative; margin: 0 0 16px; padding: 16px 16px 18px; overflow: hidden; border-radius: 17px; background: var(--gold); color: var(--night); animation: arrive .42s var(--ease) both; }
@@ -159,6 +170,7 @@
       @keyframes ring { to { transform: scale(1.35); opacity: 0; } }
       @media (prefers-reduced-motion: reduce) { .big { opacity: 1; transform: none; } * { animation: none !important; } }
     </style>
+    <link rel="stylesheet" href="/glass-panel.css" />
   </head>
   <body>
     <div class="wrap">
@@ -185,6 +197,7 @@
         <button class="fix" type="button" id="fix-access">Fix access</button>
       </section>
       <div class="bigs" id="bigs"></div>
+      <p class="said" id="said"></p>
     </div>
     <script type="module">
       import { canDictate, dictate, drawLevels, hearing } from "/voice.js";
@@ -458,6 +471,11 @@
 
       function render() {
         const { activity, map, runtime } = state;
+        // The look follows the window's: the dark one, or liquid glass.
+        const asked = new URLSearchParams(location.search);
+        if (asked.get("wall")) document.documentElement.dataset.wall = asked.get("wall");
+        const look = asked.get("look") ?? state.look ?? "";
+        if (look) document.documentElement.dataset.look = look; else delete document.documentElement.dataset.look;
         const question = map.questions.find((item) => item.status === "open");
         // The form is rebuilt only for a new question, so a half-said or
         // half-typed answer survives every live update.
@@ -497,6 +515,17 @@
         $("#bigs").innerHTML = activity.totalSeconds
           ? ["work", "social", "other"].map((name, index) => `<button class="big" type="button" data-group="${name}" style="--i:${index}"><b>${activity.groups[name].percent}<i>%</i></b><span>${name}</span></button>`).join("")
           : "";
+        // An answer that is ready comes first; then how long answers waited
+        // today; then, for a day after it was written, how the last days went.
+        const { waiting, lookback } = state;
+        const answered = [...new Set(waiting.ready.map((answer) => answer.project))];
+        const fresh = lookback && Date.now() - Date.parse(lookback.writtenAt) < 86_400_000 ? lookback.lines[0] : "";
+        // A piece of work that was done before in another project: said for a
+        // few minutes after the prompt, and a press shows where.
+        const earlier = !answered.length && state.nudges?.latest?.kind === "before" && !state.nudges.latest.outcome ? state.nudges.latest : null;
+        if (earlier) $("#said").dataset.nudge = earlier.id; else delete $("#said").dataset.nudge;
+        $("#said").dataset.tone = answered.length ? "ready" : earlier ? "on" : waiting.sentence?.tone || "plain";
+        $("#said").textContent = answered.length ? `Answer ready · ${answered.join(", ")}` : earlier ? `You did this in ${earlier.other}` : waiting.sentence?.text || fresh || "";
         reportHeight();
       }
 
@@ -576,8 +605,10 @@
           return call?.cutIn();
         }
         const big = event.target.closest(".big");
-        if (big) return open(`capture/${big.dataset.group}`);
-        if (event.target.closest(".headline, .who") && state.presence !== "permission") return open("capture");
+        if (big) return open(`today/${big.dataset.group}`);
+        const pressed = event.target.closest(".said[data-nudge]");
+        if (pressed) { post("/api/nudge", { id: pressed.dataset.nudge }).catch(() => {}); return open("find"); }
+        if (event.target.closest(".headline, .who, .said") && state.presence !== "permission") return open("today");
       });
       document.addEventListener("submit", (event) => {
         event.preventDefault();

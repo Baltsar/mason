@@ -85,26 +85,3 @@ export function catchGuardrail(prompt, map, { live = true, voice = "self" } = {}
 export function reviewDecision(prompt, map) {
   return { intervention: catchGuardrail(prompt, map, { live: false, voice: "tutor" }), checked: rulesOf(map).length };
 }
-
-// What the new hire was stopped on, and what they got right on the second try.
-export function mastery(map, events) {
-  const stopped = new Set();
-  const mastered = new Set();
-  let stops = 0;
-  let passes = 0;
-  for (const event of events) {
-    if (event.type === "teach-stop") { stops += 1; stopped.add(event.guardrailId); }
-    if (event.type === "teach-pass") { passes += 1; if (event.afterStop) mastered.add(event.afterStop); }
-  }
-  const rules = rulesOf(map);
-  return {
-    stops,
-    passes,
-    guardrails: rules.length,
-    items: rules.map((item) => ({
-      id: item.id,
-      title: item.title,
-      state: mastered.has(item.id) ? "mastered" : stopped.has(item.id) ? "practice" : "untested",
-    })),
-  };
-}

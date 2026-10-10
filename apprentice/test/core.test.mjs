@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { redact } from "../src/redact.mjs";
 import { rankQuestion, rankSwitch } from "../src/question-engine.mjs";
-import { catchGuardrail, mastery, reviewDecision } from "../src/teach-engine.mjs";
+import { catchGuardrail, reviewDecision } from "../src/teach-engine.mjs";
 import { aggregateActivity, classifyActivity, dayStart } from "../src/activity.mjs";
 import { buildGaps, buildTeachBack, confirmation, debriefProgress } from "../src/debrief.mjs";
 import { summarizeProjects } from "../src/projects.mjs";
@@ -15,6 +15,28 @@ test("redacts local secrets before persistence", () => {
   assert.equal(value.includes("gustaf@example.com"), false);
   assert.equal(value.includes("hunter2"), false);
   assert.equal(value.includes("abcdefghijklmnop"), false);
+});
+
+test("a secret is masked in the shapes it is usually written in, and a long text is cut before it is read", () => {
+  // Put together here from pieces, so that no line of this file looks like a key to a scanner.
+  const keyId = `AKIA${"IOSFODNN7"}EXAMPLE`;
+  const keyValue = `wJalrXUtnFEMI/K7MDENG/${"bPxRfiCY"}EXAMPLEKEY`;
+  const hook = `hooks.slack${".com"}/services/T0000/B0000/${"X".repeat(24)}`;
+  for (const [said, secret] of [
+    ["my password is hunter2", "hunter2"],
+    ["lösenord: hemligt123", "hemligt123"],
+    [`AWS_SECRET_ACCESS_KEY=${keyValue}`, "wJalrXUtnFEMI"],
+    [`use ${keyId} for the bucket`, keyId],
+    [`postgres://admin:${"S3cret"}Pass@localhost:5432/app`, "S3cretPass"],
+    [`post to ${hook}`, "B0000"],
+    ["born 850101-1234 in Lund", "850101-1234"],
+  ]) assert.equal(redact(said).includes(secret), false, said);
+  assert.equal(redact("password: hunter2").includes("$1"), false);
+  assert.equal(redact("keep the first screen quiet"), "keep the first screen quiet");
+  // A very long run of letters and dots is cut first, and takes no time to speak of.
+  const started = Date.now();
+  assert.equal(redact("a.".repeat(200_000), 100).length, 100);
+  assert.ok(Date.now() - started < 1000);
 });
 
 test("asks a guardrail question only after a pause", () => {
@@ -146,8 +168,6 @@ test("the tutor stops an unseen case with a guardrail learned live, in the exper
   assert.match(stopped.intervention.text, /Never ship without running the tests first/);
   assert.equal(stopped.intervention.moment.app, "Codex");
   assert.equal(reviewDecision("Rename the settings page.", map).intervention, null);
-  const events = [{ type: "teach-stop", guardrailId: "learned-1" }, { type: "teach-pass", afterStop: "learned-1" }];
-  assert.equal(mastery(map, events).items[0].state, "mastered");
 });
 
 test("time inside a project is work whatever the window is called, and moves between projects are counted", () => {

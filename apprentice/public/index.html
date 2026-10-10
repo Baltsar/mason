@@ -8,65 +8,87 @@
     <title>Mason</title>
     <link rel="icon" type="image/png" href="/brand/mason-mark.png" />
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/glass.css" />
     <script type="module" src="/app.js"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
     <header class="topbar">
-      <a class="brand" href="#capture" aria-label="Mason">
+      <a class="brand" href="#today" aria-label="Mason">
         <img src="/brand/mason-mark.png" alt="" />
         <span>MASON</span>
       </a>
       <nav class="stages" aria-label="Stages">
-        <button type="button" data-view="capture" aria-current="page"><span>Capture</span><b id="nav-capture">–</b></button>
-        <button type="button" data-view="map"><span>Map</span><b id="nav-map">–</b></button>
-        <button type="button" data-view="teach"><span>Teach</span><b id="nav-teach">–</b></button>
+        <button type="button" data-view="today" aria-current="page"><span>Today</span><b id="nav-today">–</b></button>
+        <button type="button" data-view="flow"><span>Flow</span><b id="nav-flow">–</b></button>
+        <button type="button" data-view="days"><span>Days</span><b id="nav-days">–</b></button>
+        <button type="button" data-view="workflow"><span>Workflow</span><b id="nav-workflow">–</b></button>
+        <button type="button" data-view="built"><span>Built</span><b id="nav-built">–</b></button>
       </nav>
       <div class="top-actions">
-        <button class="link" type="button" data-view="recap">Recap</button>
-        <button class="link" type="button" data-view="agents">Agents</button>
+        <button class="link more" type="button" data-view="more">More</button>
         <button class="link gear" type="button" data-view="settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z" /></svg></button>
         <button class="pill presence" id="presence" type="button"><i></i><span>Starting</span></button>
       </div>
     </header>
 
     <main id="main" tabindex="-1">
-      <section class="view" data-page="capture">
-        <p class="eyebrow"><span id="capture-meta"></span></p>
-        <div class="bigs" id="capture-bigs"></div>
-        <div class="drill" id="capture-drill" hidden></div>
+      <section class="view" data-page="today">
+        <p class="eyebrow"><span id="today-meta"></span></p>
+        <div class="bigs" id="today-bigs"></div>
+        <div class="drill" id="today-drill" hidden></div>
+        <button class="said" type="button" id="today-said" hidden></button>
+        <div class="drill" id="today-waited" hidden></div>
+        <section class="lookback" id="lookback" aria-live="polite" hidden></section>
+        <section class="propose" id="propose" aria-live="polite" hidden></section>
         <section class="projects" id="projects-card" aria-live="polite" hidden></section>
-        <div class="pair">
-          <section class="card session" id="session-card" aria-live="polite"></section>
-          <section class="card ask" id="question-card" aria-live="polite" hidden></section>
-        </div>
+        <section class="card ask" id="question-card" aria-live="polite" hidden></section>
         <details class="log">
           <summary>Log<span id="trust-line"></span></summary>
           <ol id="signals"></ol>
         </details>
       </section>
 
-      <section class="view" data-page="map" hidden>
-        <div class="bigs" id="map-bigs"></div>
-        <section class="card debrief" id="debrief-card" aria-live="polite"></section>
-        <section class="timeline" aria-label="Work Map">
-          <div id="steps"></div>
-        </section>
+      <section class="view" data-page="flow" hidden>
+        <p class="eyebrow walk"><button type="button" data-flow-step="-1" aria-label="The day before">‹</button><span id="flow-meta"></span><button type="button" data-flow-step="1" aria-label="The day after">›</button><button class="quiet" type="button" id="flow-share">Share</button><button class="quiet" type="button" id="flow-replay">Replay</button></p>
+        <div class="bigs" id="flow-bigs"></div>
+        <div class="drill" id="flow-drill" hidden></div>
+        <figure class="flowmap" id="flow-map" aria-label="How the day moved between tools"></figure>
+        <div class="toolstrip" id="flow-tools" aria-label="Every tool of the day" hidden></div>
+        <div class="ribbon" id="flow-ribbon" aria-label="The day in order"></div>
+        <div class="drill" id="flow-tool" hidden></div>
       </section>
 
-      <section class="view" data-page="teach" hidden>
-        <div class="bigs" id="teach-bigs"></div>
-        <div class="pair teach-pair">
-          <section class="card case" aria-label="A decision to check">
-            <div class="chips" id="case-presets"></div>
-            <textarea id="teach-prompt" rows="3" aria-label="Decision about to be saved"></textarea>
-            <div class="row"><button class="primary" type="button" data-tutor>Tutor call</button><button class="secondary" id="teach-review" type="button">Check</button></div>
-          </section>
-          <section class="card verdict" id="teach-result" aria-live="polite" hidden></section>
-        </div>
-        <section class="timeline" aria-label="Rules">
-          <div class="mastery" id="mastery"></div>
-        </section>
+      <section class="view" data-page="days" hidden>
+        <p class="eyebrow walk"><button type="button" data-month-step="-1" aria-label="The month before">‹</button><span id="days-meta"></span><button type="button" data-month-step="1" aria-label="The month after">›</button></p>
+        <div class="bigs" id="days-bigs"></div>
+        <div class="month" id="days-month"></div>
+        <div class="drill" id="days-drill" hidden></div>
+        <section class="lanes" id="days-lanes" aria-label="Projects this month"></section>
+      </section>
+
+      <section class="view" data-page="workflow" hidden>
+        <p class="eyebrow walk"><span id="workflow-meta"></span><button class="quiet" type="button" id="workflow-share" hidden>Share</button><button class="quiet" type="button" id="workflow-open" hidden>Open one</button><button class="quiet" type="button" id="workflow-back" hidden>Back to mine</button><a class="quiet" id="workflow-collection" target="_blank" rel="noopener" hidden>Collection</a><input type="file" id="workflow-file" accept=".json,application/json" hidden /></p>
+        <div class="chips purposes" id="workflow-purposes" aria-label="What the work was for" hidden></div>
+        <div class="bigs" id="workflow-bigs"></div>
+        <div class="drill" id="workflow-drill" hidden></div>
+        <section class="told" id="workflow-rules" aria-label="What you tell your agents" hidden></section>
+      </section>
+
+      <section class="view" data-page="built" hidden>
+        <p class="eyebrow"><span id="built-meta"></span></p>
+        <div class="asked" id="built-card" aria-live="polite"></div>
+        <div class="chips" id="built-projects"></div>
+      </section>
+
+      <section class="view" data-page="find" hidden>
+        <p class="eyebrow"><span id="find-meta"></span></p>
+        <input class="seek" id="find-query" type="text" enterkeyhint="search" placeholder="What are you looking for?" autocomplete="off" spellcheck="false" aria-label="Find something you said, by what it means" />
+        <div class="found" id="find-results" aria-live="polite"></div>
+      </section>
+
+      <section class="view" data-page="more" hidden>
+        <div class="doors" id="doors"></div>
       </section>
 
       <section class="view" data-page="recap" hidden>
@@ -102,9 +124,42 @@
       </section>
     </main>
 
-    <dialog id="source">
-      <header><p class="label" id="source-title">Source</p><button type="button" id="source-close" aria-label="Close">Close</button></header>
-      <pre id="source-body"></pre>
+    <dialog id="replay">
+      <header><p class="label">A replay to share</p><button type="button" id="replay-close" aria-label="Close">Close</button></header>
+      <div class="replay-body">
+        <div class="cuts" id="replay-lines" aria-live="polite"></div>
+        <div class="share-side">
+          <div class="chips" id="replay-span"></div>
+          <div class="set"><span>Names of projects and sites</span><button class="switch" type="button" role="switch" id="replay-names" aria-checked="false" aria-label="Names of projects and sites"></button></div>
+          <p class="note" id="replay-note"></p>
+          <button class="primary" type="button" id="replay-save">Save page</button>
+          <button class="secondary" type="button" id="replay-copy">Copy as text</button>
+        </div>
+      </div>
+    </dialog>
+    <dialog id="wshare">
+      <header><p class="label">A workflow to share</p><button type="button" id="wshare-close" aria-label="Close">Close</button></header>
+      <div class="share-body">
+        <canvas id="wshare-canvas" width="1080" height="1350" aria-label="How you work with agents, as a picture"></canvas>
+        <div class="share-side">
+          <div class="cuts" id="wshare-rules" aria-live="polite"></div>
+          <p class="note" id="wshare-note"></p>
+          <button class="primary" type="button" id="wshare-save">Save picture and file</button>
+          <button class="secondary" type="button" id="wshare-collect">Add to the collection</button>
+        </div>
+      </div>
+    </dialog>
+    <dialog id="share">
+      <header><p class="label">A picture to share</p><button type="button" id="share-close" aria-label="Close">Close</button></header>
+      <div class="share-body">
+        <canvas id="share-canvas" width="1080" height="1350" aria-label="How you built, as a picture"></canvas>
+        <div class="share-side">
+          <div class="chips" id="share-span"></div>
+          <div class="toolstrip" id="share-tools" aria-label="The tools in the picture"></div>
+          <p class="note" id="share-note"></p>
+          <button class="primary" type="button" id="share-save">Save picture</button>
+        </div>
+      </div>
     </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   </body>

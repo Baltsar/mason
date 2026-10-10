@@ -1,0 +1,741 @@
+<title>Mason USP Film</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=swap">
+<style>
+  /* One 16:9 stage at the top of a dark page, a slim transport under it, one line saying where the figures come from.
+     The film has one look, Mason's own, so the page keeps it in either theme. */
+  :root {
+    color-scheme: dark;
+    --ink: #0e0d0b; --panel: #171512; --line: #2e2b25;
+    --paper: #f3eee2; --muted: #a39d90; --lime: #d7ff42; --on-lime: #101100;
+    --font: Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ink); color: var(--paper); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+  .page { display: flex; flex-direction: column; gap: 18px; width: 100%; max-width: 1240px; margin-inline: auto; padding-inline: clamp(16px, 4vw, 40px); padding-block: clamp(18px, 3vw, 36px); }
+  .top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .name { font-size: 15px; font-weight: 800; letter-spacing: .2em; }
+  .label { color: var(--muted); font: 600 11px/1.3 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+  .stage { display: block; width: 100%; max-width: 100%; height: auto; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 14px; background: var(--ink); }
+  .transport { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .transport button { flex: none; min-width: 84px; height: 44px; padding: 0 18px; border: 0; border-radius: 22px; background: var(--lime); color: var(--on-lime); font: 700 15px/1 var(--font); letter-spacing: -.01em; cursor: pointer; }
+  .transport input { flex: 1; min-width: 0; height: 44px; accent-color: var(--lime); cursor: pointer; }
+  .transport output { flex: none; color: var(--muted); font: 600 13px/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .beats { display: flex; flex-wrap: wrap; gap: 8px; }
+  .beats button { height: 36px; padding: 0 14px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: var(--paper); font: 600 13px/1 var(--font); cursor: pointer; }
+  .beats button:hover { border-color: var(--muted); }
+  .note { max-width: 68ch; margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
+  .note b { color: var(--paper); font-weight: 600; }
+  :focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
+</style>
+
+<main class="page">
+  <header class="top">
+    <span class="name">MASON</span>
+    <span class="label">What it does, in 22 seconds</span>
+  </header>
+  <canvas class="stage" id="stage" width="1920" height="1080" role="img" aria-label="A lime dot jumps between tools 57 times in an hour. An agent's finished answer waits 27 minutes a day. The same request is made 14 times, Mason proposes one line, and one press tells every agent."></canvas>
+  <div class="transport">
+    <button id="play" type="button">Pause</button>
+    <input id="scrub" type="range" min="0" max="22" step="0.01" value="0" aria-label="Position in the film">
+    <output id="clock" for="scrub">0.0 / 22.0</output>
+  </div>
+  <div class="beats" aria-label="Jump to a part of the film">
+    <button type="button" data-at="1">The hour</button>
+    <button type="button" data-at="4.5">57</button>
+    <button type="button" data-at="7">The wait</button>
+    <button type="button" data-at="12.5">Said again</button>
+    <button type="button" data-at="15.5">The proposal</button>
+    <button type="button" data-at="19">Mason</button>
+  </div>
+  <p class="note"><b>The figures are Gustaf's own, read by Mason.</b> The opening replays one real hour, 4 October from 22:16, tool by tool in the order it happened: 57 changes. Over three days finished answers waited 27 minutes a day. "Boot up localhost" was said 14 times in 10 projects.</p>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  // Every frame is drawn from a time: seek(t) puts the whole film at second t, so a
+  // renderer can ask for the frames one by one and the film is the same on any machine.
+  // The film runs at 120 beats a minute and everything that lands, lands on a beat.
+  const W = 1920, H = 1080, FPS = 60, BEAT = 0.5, DURATION = 22;
+  const b = (beats) => beats * BEAT;
+  const TAU = Math.PI * 2;
+  const MAXR = Math.hypot(W, H);
+  const C = { ink: "#0e0d0b", panel: "#171512", line: "#2e2b25", paper: "#f3eee2", muted: "#a39d90", lime: "#d7ff42", gold: "#d6a647", red: "#ff6b5f", onLime: "#101100", stone: "#18110a" };
+  const SANS = 'Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+  const MONO = 'ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace';
+
+  // One real hour of Gustaf's work, 4 Oct 2026 from 22:16: the tool in front, in order. 57 changes.
+  const HOUR = ["Calendar", "Discord", "Calendar", "Discord", "Calendar", "Discord", "Calendar", "Discord", "Calendar", "Discord", "Cursor", "Discord", "Facebook", "Comet", "Cursor", "Comet", "Cursor", "Discord", "Comet", "Discord", "Comet", "Claude", "Discord", "Comet", "Claude", "Discord", "Comet", "Discord", "Claude", "Discord", "Claude", "Discord", "Claude", "Discord", "Claude", "Discord", "Cursor", "Comet", "X", "Discord", "Comet", "Cursor", "Discord", "Comet", "Cursor", "Comet", "Cursor", "Discord", "Cursor", "X", "Discord", "Cursor", "Comet", "Cursor", "Comet", "Cursor", "X", "Comet"];
+  const MONOGRAM = { Calendar: "Ca", Discord: "Di", Cursor: "Cu", Facebook: "Fb", Comet: "Co", Claude: "Cl", X: "X", Codex: "Cx", Grok: "Gr", Gemini: "Ge" };
+  const PHRASE = "“boot up localhost”";
+  // The agents the same thing was said to, and the ones that are told once.
+  const AGENTS = ["Claude", "Cursor", "Codex", "Claude", "Grok", "Cursor", "Claude", "Codex", "Gemini", "Claude", "Cursor", "Grok", "Codex", "Claude"];
+  const EVERY = ["Claude", "Cursor", "Codex", "Grok", "Gemini"];
+
+  const canvas = document.getElementById("stage");
+  const ctx = canvas.getContext("2d");
+
+  // --- Time and curves ---------------------------------------------------------------------
+
+  const clamp = (v, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
+  const lerp = (a, c, p) => a + (c - a) * p;
+  const span = (t, from, to) => clamp((t - from) / (to - from));
+  const inCubic = (p) => p * p * p;
+  const outCubic = (p) => 1 - Math.pow(1 - p, 3);
+  const inOut = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+  const outExpo = (p) => (p >= 1 ? 1 : 1 - Math.pow(2, -10 * p));
+  const outBack = (p, s = 1.7) => 1 + (s + 1) * Math.pow(p - 1, 3) + s * Math.pow(p - 1, 2);
+  // Something struck: it swings and comes to rest.
+  const ring = (since, size, decay, speed) => (since < 0 ? 0 : size * Math.exp(-decay * since) * Math.cos(speed * since));
+  const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const rgba = (hex, a) => { const [r, g, c] = rgb(hex); return `rgba(${r}, ${g}, ${c}, ${a})`; };
+  const mix = (from, to, p) => { const a = rgb(from), c = rgb(to); return `rgb(${a.map((v, i) => Math.round(lerp(v, c[i], p))).join(", ")})`; };
+
+  // --- Type ---------------------------------------------------------------------------------
+  // Letters are set one by one, so tracking and lining figures look the same in every browser.
+
+  const widths = new Map();
+  const fontOf = (o) => `${o.weight ?? 700} ${o.size}px ${o.family ?? SANS}`;
+  function glyph(ch, font) {
+    const key = font + ch;
+    let w = widths.get(key);
+    if (w === undefined) { ctx.font = font; w = ctx.measureText(ch).width; widths.set(key, w); }
+    return w;
+  }
+  const isDigit = (ch) => ch >= "0" && ch <= "9";
+  function measure(str, o) {
+    const font = fontOf(o), track = (o.track ?? 0) * o.size, digit = o.tab ? glyph("0", font) : 0;
+    let w = 0;
+    for (const ch of str) w += (o.tab && isDigit(ch) ? digit : glyph(ch, font)) + track;
+    return w - track;
+  }
+  function text(str, x, y, o) {
+    const alpha = o.alpha ?? 1;
+    if (alpha <= 0 || !str) return 0;
+    const font = fontOf(o), track = (o.track ?? 0) * o.size, digit = o.tab ? glyph("0", font) : 0;
+    const w = measure(str, o);
+    let at = o.align === "center" ? x - w / 2 : o.align === "right" ? x - w : x;
+    ctx.save();
+    ctx.globalAlpha *= alpha;
+    ctx.font = font;
+    ctx.fillStyle = o.color;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    for (const ch of str) {
+      const own = glyph(ch, font);
+      const step = o.tab && isDigit(ch) ? digit : own;
+      ctx.fillText(ch, at + (step - own) / 2, y);
+      at += step + track;
+    }
+    ctx.restore();
+    return w;
+  }
+  // A line pushed up from behind an edge.
+  function rise(str, x, y, o, p) {
+    if (p <= 0) return;
+    const w = measure(str, o);
+    const left = o.align === "center" ? x - w / 2 : o.align === "right" ? x - w : x;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(left - o.size * 0.2, y - o.size * 1.02, w + o.size * 0.4, o.size * 1.34);
+    ctx.clip();
+    text(str, x, y + (1 - p) * o.size * 1.3, o);
+    ctx.restore();
+  }
+  const label = (size, color, more = {}) => ({ size, color, weight: 600, family: MONO, track: 0.14, ...more });
+
+  // --- Shapes -------------------------------------------------------------------------------
+
+  function box(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  // The same outline, begun at the middle of the top edge, so a stroke can run round it like a clock.
+  function boxFromTop(s, r) {
+    const h = s / 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -h);
+    ctx.arcTo(h, -h, h, h, r);
+    ctx.arcTo(h, h, -h, h, r);
+    ctx.arcTo(-h, h, -h, -h, r);
+    ctx.arcTo(-h, -h, h, -h, r);
+    ctx.lineTo(0, -h);
+  }
+
+  // A tool. Its two letters, its name underneath.
+  function tile(o) {
+    const { x, y, size: s, name, scale = 1, flip = 1, alpha = 1, lit = 0, litColor = C.lime, progress = -1, check = 0, fill = C.panel, edge = C.line, ink = C.paper, nameColor = C.muted, glyphAlpha = 1, bar = 0 } = o;
+    if (alpha <= 0 || scale < 0.02) return;
+    const r = s * 0.22;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale * flip);
+    ctx.globalAlpha *= alpha;
+    box(-s / 2, -s / 2, s, s, r);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = edge;
+    ctx.stroke();
+    if (lit > 0) {
+      ctx.save();
+      ctx.globalAlpha *= lit;
+      ctx.lineWidth = 9;
+      ctx.strokeStyle = litColor;
+      box(-s / 2, -s / 2, s, s, r);
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (progress >= 0) {
+      const around = 4 * (s - 2 * r) + TAU * r;
+      boxFromTop(s, r);
+      ctx.lineWidth = 9;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = litColor;
+      ctx.setLineDash([Math.max(0.01, progress * around), around * 2]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    if (check > 0) {
+      const pts = [[-0.17 * s, 0.02 * s], [-0.045 * s, 0.14 * s], [0.19 * s, -0.13 * s]];
+      const first = Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]);
+      const second = Math.hypot(pts[2][0] - pts[1][0], pts[2][1] - pts[1][1]);
+      const drawn = check * (first + second);
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      const p1 = clamp(drawn / first);
+      ctx.lineTo(lerp(pts[0][0], pts[1][0], p1), lerp(pts[0][1], pts[1][1], p1));
+      if (drawn > first) { const p2 = clamp((drawn - first) / second); ctx.lineTo(lerp(pts[1][0], pts[2][0], p2), lerp(pts[1][1], pts[2][1], p2)); }
+      ctx.lineWidth = s * 0.075;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = o.checkColor ?? C.lime;
+      ctx.stroke();
+    } else {
+      const size = Math.round(s * 0.4);
+      text(MONOGRAM[name] ?? name.slice(0, 2), 0, size * 0.36 - (bar > 0 ? s * 0.05 : 0), { size, weight: 720, color: ink, align: "center", track: -0.04, alpha: glyphAlpha });
+    }
+    if (bar > 0) {
+      const w = s * 0.46 * bar, h = s * 0.05;
+      box(-w / 2, s * 0.27, w, h, h / 2);
+      ctx.fillStyle = C.lime;
+      ctx.fill();
+    }
+    ctx.restore();
+    // The name does not flip with the tile.
+    text(name, x, y + (s / 2) * scale + 62, { size: 40, weight: 600, color: nameColor, align: "center", track: -0.01, alpha: alpha * (o.nameAlpha ?? 1) * clamp(flip * 1.4) * clamp((scale - 0.4) / 0.4) });
+  }
+
+  function ripple(x, y, since, o) {
+    const length = o.length ?? 0.7;
+    if (since < 0 || since > length) return;
+    const p = since / length;
+    ctx.save();
+    ctx.globalAlpha *= (1 - p) * (o.alpha ?? 1);
+    ctx.beginPath();
+    ctx.arc(x, y, lerp(o.from, o.to, outCubic(p)), 0, TAU);
+    ctx.lineWidth = lerp(o.width ?? 7, 1, p);
+    ctx.strokeStyle = o.color ?? C.lime;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // --- The timetable ------------------------------------------------------------------------
+
+  // The hour: every landing is a tool change. Two slow, then twice as fast, and again, until it is one line.
+  const PONG = (() => {
+    const hits = [];
+    const run = (from, to, count) => { for (let i = 1; i <= count; i += 1) hits.push(lerp(from, to, i / count)); };
+    run(b(3), b(5), 2);
+    run(b(5), b(6), 2);
+    run(b(6), b(7), 4);
+    run(b(7), b(8), 8);
+    run(b(8), b(8.75), HOUR.length - 1 - 16);
+    return { start: b(3), hits, blur: b(8), end: b(8.75), cut: b(9), left: 570, right: 1350, y: 520 };
+  })();
+  // The same thing said fourteen times: two slow, then twice as fast, and again.
+  const REPS = [26, 27, 27.5, 28, 28.5, 29, 29.25, 29.5, 29.75, 30, 30.125, 30.25, 30.375, 30.5].map(b);
+  const SENT = b(15), DONE = b(18), PROPOSE = b(31), PRESS = b(33), CLOSE = b(38);
+  const BOUNCE = 0.25;
+
+  const SPOT = {
+    intro: { x: 330, y: 540 }, left: { x: PONG.left, y: PONG.y }, iris: { x: 960, y: 530 }, ask: { x: 770, y: 540 },
+    away: { x: 1400, y: 410 }, back: { x: 610, y: 540 }, speak: { x: 250, y: 540 }, row: { x: 250, y: 790 }, press: { x: 760, y: 696 }, button: { x: 760, y: 790 },
+  };
+  const TAGLINE = { str: "Knows how you build", x: 950, y: 610, o: { size: 164, weight: 720, track: -0.055, color: C.paper, align: "center" } };
+  const period = () => ({ x: TAGLINE.x + measure(TAGLINE.str, TAGLINE.o) / 2 + 34, y: TAGLINE.y - 21 });
+
+  const landings = [];
+  const knocks = [];
+  PONG.hits.slice(0, 16).forEach((at, i) => { landings.push({ at, axis: "x" }); knocks.push({ at, size: lerp(1.5, 5, i / 15) }); });
+  for (let at = PONG.blur; at < PONG.end; at += 0.05) knocks.push({ at, size: 4.5 });
+  knocks.push({ at: PONG.cut, size: 20 }, { at: DONE, size: 4 }, { at: b(24.5), size: 13 }, { at: PROPOSE, size: 8 }, { at: PRESS, size: 18 }, { at: b(34.5), size: 9 });
+  landings.push({ at: SENT, axis: "x" }, { at: b(24.5), axis: "x" }, { at: PRESS, axis: "y" }, { at: CLOSE, axis: "y" });
+  for (let at = b(16.5); at < b(20.4); at += BOUNCE) landings.push({ at, axis: "y" });
+  REPS.forEach((at, i) => { landings.push({ at, axis: "x" }); knocks.push({ at, size: lerp(2, 7, i / 13) }); });
+  landings.sort((a, c) => a.at - c.at);
+
+  function shake(t) {
+    let x = 0, y = 0;
+    for (const k of knocks) {
+      const since = t - k.at;
+      if (since < 0 || since > 0.45) continue;
+      const size = k.size * Math.exp(-since * 13);
+      x += size * Math.sin(since * 96 + k.at * 7);
+      y += size * Math.cos(since * 83 + k.at * 3);
+    }
+    return [x, y];
+  }
+  function squash(t) {
+    let hit = null;
+    for (const l of landings) { if (l.at > t) break; hit = l; }
+    if (!hit || t - hit.at > 0.3) return [1, 1];
+    const s = ring(t - hit.at, 0.36, 19, 34);
+    return hit.axis === "x" ? [1 - s, 1 + s * 0.75] : [1 + s * 0.75, 1 - s];
+  }
+
+  // --- The dot: the person -----------------------------------------------------------------
+
+  function pongAt(t) {
+    const { hits, left, right, y } = PONG;
+    if (t <= PONG.start) return { x: left, y, landed: 0 };
+    let landed = 0;
+    while (landed < hits.length && hits[landed] <= t) landed += 1;
+    if (landed >= hits.length) return { x: hits.length % 2 ? right : left, y, landed };
+    const from = landed === 0 ? PONG.start : hits[landed - 1];
+    const p = (t - from) / (hits[landed] - from);
+    const arc = 190 * clamp(1 - landed / 5);
+    return { x: landed % 2 === 0 ? lerp(left, right, p) : lerp(right, left, p), y: y - arc * 4 * p * (1 - p), landed };
+  }
+  const hop = (t, from, to, a, c, height) => { const p = span(t, from, to); return { x: lerp(a.x, c.x, p), y: lerp(a.y, c.y, p) - height * 4 * p * (1 - p) }; };
+  function lunge(t) {
+    let most = 0;
+    for (const at of REPS) {
+      const since = t - at;
+      let v = 0;
+      if (since >= -0.09 && since < 0) v = inCubic((since + 0.09) / 0.09);
+      else if (since >= 0 && since < 0.16) v = 1 - outCubic(since / 0.16);
+      if (v > most) most = v;
+    }
+    return most;
+  }
+  function dotAt(t) {
+    const r = 30;
+    if (t < b(2) - 0.1) return { ...SPOT.intro, r: r * Math.max(0, outBack(span(t, 0.05, 0.42), 2.4)), show: t >= 0.05 };
+    if (t < PONG.start) { const p = inOut(span(t, b(2) - 0.1, b(2) + 0.3)); return { x: lerp(SPOT.intro.x, SPOT.left.x, p), y: lerp(SPOT.intro.y, SPOT.left.y, p), r, show: true }; }
+    if (t < PONG.blur) { const q = pongAt(t); return { x: q.x, y: q.y, r, show: true }; }
+    if (t < b(14) - 0.32) return { ...SPOT.iris, r, show: false };
+    if (t < b(14) + 0.04) return { ...SPOT.iris, r, show: true };
+    if (t < SENT) return { ...hop(t, b(14) + 0.04, SENT, SPOT.iris, SPOT.ask, 150), r, show: true };
+    if (t < b(15.5)) return { ...SPOT.ask, r, show: true };
+    if (t < b(16.5)) return { ...hop(t, b(15.5), b(16.5), SPOT.ask, SPOT.away, 270), r, show: true };
+    if (t < b(21)) return { x: SPOT.away.x + 900 * inOut(span(t, b(20), b(21))), y: SPOT.away.y - 48 * Math.abs(Math.sin((Math.PI * (t - b(16.5))) / BOUNCE)), r, show: true };
+    if (t < b(24)) return { x: 2300, y: 240, r, show: false };
+    if (t < b(24.5)) { const p = Math.pow(span(t, b(24), b(24.5)), 1.8); return { x: lerp(2060, SPOT.back.x, p), y: lerp(250, SPOT.back.y, p), r, show: true }; }
+    if (t < b(25.5)) return { x: lerp(SPOT.back.x, SPOT.speak.x, inOut(span(t, b(24.6), b(25.4)))), y: SPOT.back.y, r, show: true };
+    if (t < PROPOSE) return { x: SPOT.speak.x + 110 * lunge(t), y: SPOT.speak.y, r, show: true };
+    if (t < b(32)) return { x: SPOT.row.x, y: lerp(SPOT.speak.y, SPOT.row.y, inOut(span(t, PROPOSE, PROPOSE + 0.4))), r, show: true };
+    if (t < PRESS) return { ...hop(t, b(32), PRESS, SPOT.row, SPOT.press, 90), r, show: true };
+    if (t < CLOSE) return { ...SPOT.press, r, show: t < PRESS + 0.05 };
+    return { ...period(), r: 20, show: true };
+  }
+  function drawDot(t) {
+    const now = dotAt(t);
+    if (!now.show || now.r <= 0) return;
+    // The way it came, tapering to nothing behind it.
+    const steps = 12, length = 0.05, trail = [];
+    for (let i = 0; i <= steps; i += 1) { const q = dotAt(t - length * (1 - i / steps)); if (!q.show) { trail.length = 0; break; } trail.push(q); }
+    if (trail.length) {
+      const tail = trail[0];
+      const travelled = Math.hypot(now.x - tail.x, now.y - tail.y);
+      if (travelled > now.r * 0.7) {
+        const side = (sign) => trail.map((p, i) => {
+          const next = trail[Math.min(steps, i + 1)], prev = trail[Math.max(0, i - 1)];
+          let nx = -(next.y - prev.y), ny = next.x - prev.x;
+          const n = Math.hypot(nx, ny) || 1;
+          const half = now.r * (0.12 + 0.88 * (i / steps));
+          return [p.x + (sign * nx * half) / n, p.y + (sign * ny * half) / n];
+        });
+        const up = side(1), down = side(-1).reverse();
+        const fade = ctx.createLinearGradient(tail.x, tail.y, now.x, now.y);
+        fade.addColorStop(0, rgba(C.lime, 0));
+        fade.addColorStop(1, rgba(C.lime, 0.75));
+        ctx.beginPath();
+        ctx.moveTo(up[0][0], up[0][1]);
+        for (const [x, y] of up) ctx.lineTo(x, y);
+        for (const [x, y] of down) ctx.lineTo(x, y);
+        ctx.closePath();
+        ctx.fillStyle = fade;
+        ctx.fill();
+      }
+    }
+    const before = dotAt(t - 1 / 240);
+    const vx = (now.x - before.x) * 240, vy = (now.y - before.y) * 240;
+    const stretch = before.show ? 1 + clamp(Math.hypot(vx, vy) / 7000, 0, 0.55) : 1;
+    const [sx, sy] = squash(t);
+    ctx.save();
+    ctx.translate(now.x, now.y);
+    ctx.scale(sx, sy);
+    ctx.rotate(Math.atan2(vy, vx));
+    ctx.scale(stretch, 1 / Math.sqrt(stretch));
+    ctx.beginPath();
+    ctx.arc(0, 0, now.r, 0, TAU);
+    ctx.fillStyle = C.lime;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // --- Scenes -------------------------------------------------------------------------------
+
+  // "Me, building with AI." The dot is the person.
+  function sceneIntro(t) {
+    if (t >= b(2)) return;
+    const o = { size: 128, weight: 720, track: -0.05, color: C.paper };
+    const leave = inCubic(span(t, b(2) - 0.2, b(2)));
+    let x = 410 - 220 * leave;
+    ctx.save();
+    ctx.globalAlpha = 1 - leave;
+    for (const [i, word] of ["Me,", "building", "with", "AI."].entries()) {
+      rise(word, x, 540 + 46, o, outExpo(span(t, 0.16 + i * 0.07, 0.62 + i * 0.07)));
+      x += measure(word, o) + 0.24 * o.size;
+    }
+    ctx.restore();
+  }
+
+  // One real hour: the dot goes between two tools, and the tool it lands on is the one he went to.
+  function scenePong(t) {
+    if (t < b(2) || t >= PONG.cut) return;
+    const { hits, left, right, y } = PONG;
+    const { landed } = pongAt(t);
+    const shut = inCubic(span(t, PONG.end, PONG.cut));
+    const each = (isRight) => {
+      const index = isRight ? Math.max(1, landed % 2 ? landed : landed - 1) : landed % 2 ? landed - 1 : landed;
+      const hit = index > 0 && index <= landed ? hits[index - 1] : -9;
+      const changed = index >= 2 && HOUR[index] !== HOUR[index - 2];
+      const home = isRight ? 1520 : 400;
+      tile({
+        x: lerp(home, isRight ? 1050 : 870, shut) + (isRight ? 1 : -1) * ring(t - hit, 20, 11, 42),
+        y,
+        size: 280,
+        name: HOUR[index],
+        scale: Math.max(0, outBack(span(t, b(2) + (isRight ? 0.08 : 0), b(2) + (isRight ? 0.46 : 0.38)), 1.6)) * lerp(1, 0.2, shut),
+        flip: changed ? lerp(index > 16 ? 0.7 : 0.1, 1, outCubic(span(t, hit, hit + 0.1))) : 1,
+        alpha: 1 - shut * shut,
+        nameAlpha: 1 - span(shut, 0, 0.3),
+      });
+    };
+    each(false);
+    each(true);
+    // Fast enough, the dot is a line between the two.
+    const beam = span(t, hits[11], PONG.blur);
+    if (beam > 0) {
+      const from = lerp(left, SPOT.iris.x, shut), to = lerp(right, SPOT.iris.x, shut);
+      ctx.save();
+      ctx.globalAlpha = lerp(0, 1, beam * beam);
+      ctx.lineCap = "round";
+      ctx.lineWidth = 60 + 5 * Math.sin(t * 190);
+      ctx.strokeStyle = C.lime;
+      ctx.beginPath();
+      ctx.moveTo(from, lerp(y, SPOT.iris.y, shut));
+      ctx.lineTo(to + 0.01, lerp(y, SPOT.iris.y, shut));
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // A sheet of paper opens from where the line shut: the count.
+  function scene57(t) {
+    if (t < PONG.cut || t >= b(14)) return;
+    const open = outExpo(span(t, PONG.cut, PONG.cut + 0.5));
+    const shut = inOut(span(t, b(14) - 0.32, b(14)));
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(SPOT.iris.x, SPOT.iris.y, Math.max(0.01, MAXR * open * (1 - shut)), 0, TAU);
+    ctx.fillStyle = C.paper;
+    ctx.fill();
+    ctx.clip();
+    const figure = { size: 640, weight: 720, track: -0.07, color: C.stone, align: "center", tab: true };
+    const slam = lerp(1.6, 1, outExpo(span(t, PONG.cut, PONG.cut + 0.35))) * (1 + 0.035 * span(t, PONG.cut, b(14)));
+    ctx.save();
+    ctx.translate(960, 500);
+    ctx.scale(slam, slam);
+    text("57", 0, 232, figure);
+    ctx.restore();
+    text("MASON SAW  ·  ONE REAL HOUR", 960, 150, label(30, rgba(C.stone, 0.62), { align: "center", alpha: span(t, PONG.cut + 0.2, PONG.cut + 0.45) }));
+    rise("tool changes an hour", 960, 950, { size: 100, weight: 700, track: -0.045, color: C.stone, align: "center" }, outExpo(span(t, b(9.5), b(9.5) + 0.5)));
+    ctx.restore();
+  }
+
+  // He asks, and is somewhere else before the answer. The answer is done and waits.
+  function sceneWait(t) {
+    if (t < b(14) || t >= b(25.1)) return;
+    const shift = inOut(span(t, b(20), b(21)));
+    const leave = inCubic(span(t, b(24.62), b(25.05)));
+    const x = lerp(-240, 600, outBack(span(t, b(14), b(14) + 0.42), 1.1)) - 160 * shift;
+    const edge = mix(C.lime, C.red, span(t, b(20.5), b(23)));
+    const working = t >= SENT && t < DONE;
+    for (const [at, strength] of [[DONE, 0.9], [b(19), 0.6], [b(20), 0.42]]) ripple(x, 540, t - at, { from: 160, to: 390, alpha: strength, color: C.lime });
+    for (const [at, strength] of [[b(22), 0.5], [b(23), 0.36]]) ripple(x, 540, t - at, { from: 160, to: 290, alpha: strength, color: C.red });
+    ripple(SPOT.ask.x - 20, 540, t - SENT, { from: 20, to: 120, alpha: 0.8, length: 0.4, width: 5 });
+    ripple(SPOT.back.x - 20, 540, t - b(24.5), { from: 20, to: 200, alpha: 0.9, length: 0.45, width: 8 });
+    tile({
+      x: x - ring(t - SENT, 18, 10, 40) - ring(t - b(24.5), 26, 10, 40),
+      y: 540,
+      size: 280,
+      name: "Claude",
+      scale: (1 + ring(t - DONE, 0.1, 8, 26)) * (1 - leave),
+      alpha: 1 - leave,
+      progress: working ? span(t, SENT, DONE) : -1,
+      lit: t >= DONE ? 1 : 0,
+      litColor: edge,
+      check: t >= DONE ? outCubic(span(t, DONE, DONE + 0.22)) : 0,
+      checkColor: edge,
+      glyphAlpha: working ? 0.5 + 0.5 * Math.cos((t - SENT) * 12.566) ** 2 : 1,
+    });
+    if (t >= b(15.5) && t < b(21)) {
+      const since = t >= b(16.5) ? (t - b(16.5)) % BOUNCE : 9;
+      tile({ x: lerp(2260, 1400, outExpo(span(t, b(15.5), b(16.4)))) + 900 * shift, y: 560 + ring(since, 10, 16, 55), size: 240, name: "Discord" });
+    }
+    // What it cost.
+    const show = span(t, b(20.5), b(20.5) + 0.3);
+    if (show <= 0) return;
+    const figure = { size: 500, weight: 720, track: -0.07, color: C.red, tab: true };
+    const unit = { size: 170, weight: 700, track: -0.04, color: C.paper };
+    const wide = measure("27", figure), gap = 30, total = wide + gap + measure("min", unit);
+    const start = 1210 - total / 2;
+    ctx.save();
+    ctx.globalAlpha = show * (1 - leave);
+    ctx.translate(140 * (1 - outExpo(show)) + 500 * leave, 0);
+    text(String(Math.round(27 * outCubic(span(t, b(20.5), b(22.5))))), start + wide, 660, { ...figure, align: "right" });
+    text("min", start + wide + gap, 660, unit);
+    text("MASON SAW  ·  OVER THREE DAYS", 1210, 200, label(28, C.muted, { align: "center" }));
+    rise("a day, answers left waiting", 1210, 820, { size: 68, weight: 650, track: -0.035, color: C.paper, align: "center" }, outExpo(span(t, b(21), b(21) + 0.5)));
+    ctx.restore();
+  }
+
+  // The same thing, to agent after agent. Then Mason speaks, in gold, and there is one thing to press.
+  function sceneNudge(t) {
+    if (t < b(25) || t >= PRESS + 0.6) return;
+    const said = REPS.filter((at) => at <= t).length;
+    const last = said ? REPS[said - 1] : -9;
+    const gone = inCubic(span(t, b(30.75), PROPOSE));
+    if (t < b(31.3)) {
+      const k = Math.max(0, said - 1);
+      tile({
+        x: 520 + ring(t - last, 20, 11, 42),
+        y: lerp(-280, 540, outBack(span(t, b(25), b(25) + 0.42), 1.2)) + 900 * inCubic(span(t, b(30.75), b(31.3))),
+        size: 260,
+        name: AGENTS[k],
+        flip: said > 1 && AGENTS[k] !== AGENTS[k - 1] ? lerp(said > 10 ? 0.6 : 0.1, 1, outCubic(span(t, last, last + 0.1))) : 1,
+      });
+    }
+    if (said > 0 && gone < 1) {
+      const count = { size: 360, weight: 720, track: -0.06, color: C.lime, tab: true };
+      const pulse = 1 + 0.16 * Math.exp(-(t - last) * 15);
+      ctx.save();
+      ctx.globalAlpha = 1 - gone;
+      ctx.translate(-90 * gone, 0);
+      text(PHRASE.slice(0, Math.ceil(PHRASE.length * span(t, REPS[0], REPS[0] + 0.3))), 780 + ring(t - last, 8, 14, 60), 420, { size: 100, weight: 700, track: -0.04, color: C.paper });
+      ctx.translate(776, 810);
+      ctx.scale(pulse, pulse);
+      text("×" + said, 0, 0, count);
+      if (said === REPS.length) rise("in 10 projects", measure("×14", count) + 46, 0, { size: 72, weight: 650, track: -0.03, color: C.muted }, outExpo(span(t, last + 0.12, last + 0.55)));
+      ctx.restore();
+    }
+    const card = span(t, PROPOSE, PROPOSE + 0.42);
+    if (card > 0) {
+      const s = lerp(0.82, 1, outBack(card, 1.9));
+      ctx.save();
+      ctx.translate(1040, 420);
+      ctx.scale(s, s);
+      ctx.globalAlpha = clamp(card * 5);
+      box(-640, -180, 1280, 360, 50);
+      ctx.fillStyle = C.gold;
+      ctx.fill();
+      text("MASON PROPOSES  ·  SAID 14 TIMES IN 10 PROJECTS", -562, -84, label(27, rgba(C.stone, 0.72)));
+      text(PHRASE, -570, 84, { size: 116, weight: 720, track: -0.05, color: C.stone });
+      ctx.restore();
+    }
+    const button = span(t, b(31.5), b(31.5) + 0.36);
+    if (button > 0) {
+      const since = t - PRESS;
+      const give = since >= 0 ? 0.26 * Math.exp(-since * 12) * Math.cos(since * 30) : 0;
+      const s = Math.max(0, outBack(button, 2.1));
+      ctx.save();
+      ctx.translate(SPOT.button.x, SPOT.button.y + (since >= 0 ? 12 * Math.exp(-since * 9) : 0));
+      ctx.scale(s * (1 + give * 0.5), s * (1 - give));
+      box(-330, -64, 660, 128, 64);
+      ctx.fillStyle = C.lime;
+      ctx.fill();
+      text("Tell every agent", 0, 20, { size: 58, weight: 700, track: -0.03, color: C.onLime, align: "center" });
+      ctx.restore();
+    }
+  }
+
+  // The press floods the frame: said once, and every agent has the line.
+  function sceneOnce(t) {
+    if (t < PRESS || t >= CLOSE) return;
+    const open = outExpo(span(t, PRESS, PRESS + 0.55));
+    const shut = inOut(span(t, CLOSE - 0.42, CLOSE));
+    const end = period();
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(lerp(SPOT.button.x, end.x, shut), lerp(SPOT.button.y, end.y, shut), lerp(Math.max(30, MAXR * open), 20, shut), 0, TAU);
+    ctx.fillStyle = C.lime;
+    ctx.fill();
+    ctx.clip();
+    ctx.globalAlpha = 1 - span(shut, 0, 0.35);
+    rise("Said 14 times.", 150, 380, { size: 124, weight: 700, track: -0.045, color: rgba(C.onLime, 0.6) }, outExpo(span(t, b(33.5), b(33.5) + 0.5)));
+    const now = span(t, b(34.5), b(34.5) + 0.38);
+    if (now > 0) {
+      const s = lerp(1.35, 1, outExpo(now)) * (1 + 0.03 * span(t, b(34.5), CLOSE));
+      ctx.save();
+      ctx.translate(140, 690);
+      ctx.scale(s, s);
+      text("Now once.", 0, 0, { size: 270, weight: 720, track: -0.06, color: C.onLime, alpha: clamp(now * 4) });
+      ctx.restore();
+    }
+    const turn = Math.max(0, Math.floor((t - b(34.5)) / 0.25));
+    const turned = b(34.5) + turn * 0.25;
+    tile({
+      x: 1640,
+      y: 500,
+      size: 300,
+      name: EVERY[turn % EVERY.length],
+      scale: Math.max(0, outBack(span(t, b(34), b(34) + 0.4), 1.8)),
+      flip: t >= b(34.5) + 0.25 ? lerp(0.3, 1, outCubic(span(t, turned, turned + 0.1))) : 1,
+      fill: C.ink,
+      edge: C.ink,
+      nameColor: rgba(C.onLime, 0.72),
+      bar: t >= b(34.5) ? 1 + 0.35 * Math.exp(-(t - turned) * 14) : outCubic(span(t, b(34.2), b(34.5))),
+    });
+    ctx.restore();
+  }
+
+  // The dot comes to rest as the full stop.
+  function sceneEnd(t) {
+    if (t < CLOSE - 0.42) return;
+    text(TAGLINE.str, TAGLINE.x, TAGLINE.y, TAGLINE.o);
+    text("MASON", 950, 360, { size: 58, weight: 800, track: 0.2, color: C.paper, align: "center", alpha: outCubic(span(t, CLOSE, CLOSE + 0.4)) });
+    const end = period();
+    for (const at of [CLOSE + 0.02, b(40), b(42)]) ripple(end.x, end.y, t - at, { from: 22, to: 110, alpha: 0.7, length: 0.9, width: 5 });
+    const facts = label(27, C.muted), where = { size: 30, weight: 600, family: MONO, track: 0.02, color: C.paper };
+    const first = "NATIVE MAC APP  ·  OPEN SOURCE  ·  ", second = "github.com/Baltsar/mason";
+    const wide = measure(first, facts) + measure(second, where);
+    const show = outCubic(span(t, b(39.5), b(39.5) + 0.5));
+    ctx.save();
+    ctx.globalAlpha = show;
+    ctx.translate(0, 16 * (1 - show));
+    text(first, 960 - wide / 2, 800, facts);
+    text(second, 960 - wide / 2 + measure(first, facts), 800, where);
+    ctx.restore();
+  }
+
+  function draw(t) {
+    const [sx, sy] = shake(t);
+    ctx.fillStyle = C.ink;
+    ctx.fillRect(0, 0, W, H);
+    ctx.save();
+    ctx.translate(sx, sy);
+    sceneIntro(t);
+    scenePong(t);
+    sceneWait(t);
+    sceneNudge(t);
+    sceneEnd(t);
+    // Under the paper while it shuts, the dot is already there.
+    if (t >= b(14) - 0.32 && t < b(14)) drawDot(t);
+    scene57(t);
+    sceneOnce(t);
+    if (!(t >= b(14) - 0.32 && t < b(14))) drawDot(t);
+    ctx.restore();
+  }
+
+  // --- The page: play, pause, scrub ----------------------------------------------------------
+
+  const play = document.getElementById("play");
+  const scrub = document.getElementById("scrub");
+  const clock = document.getElementById("clock");
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let now = still ? 5.6 : 0;
+  let playing = !still;
+  let rendering = false;
+  let stamp = 0;
+  let held = 0;
+  let dirty = true;
+
+  function fit() {
+    if (rendering) return;
+    const wide = Math.max(320, Math.min(2560, Math.round(canvas.clientWidth * (window.devicePixelRatio || 1))));
+    if (canvas.width !== wide) { canvas.width = wide; canvas.height = Math.round((wide * H) / W); }
+    dirty = true;
+  }
+  function paint() {
+    const k = canvas.width / W;
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    draw(now);
+    scrub.value = String(now);
+    clock.textContent = `${now.toFixed(1)} / ${DURATION.toFixed(1)}`;
+    play.textContent = playing ? "Pause" : "Play";
+    dirty = false;
+  }
+  function tick(time) {
+    if (playing && !rendering) {
+      const passed = Math.min(0.05, (time - stamp) / 1000);
+      if (now >= DURATION) { held += passed; if (held > 1.6) { now = 0; held = 0; } }
+      else now = Math.min(DURATION, now + passed);
+      dirty = true;
+    }
+    stamp = time;
+    if (dirty && !rendering) paint();
+    requestAnimationFrame(tick);
+  }
+  function seek(t) {
+    now = clamp(Number(t) || 0, 0, DURATION);
+    held = 0;
+    paint();
+  }
+
+  play.addEventListener("click", () => { playing = !playing; if (playing && now >= DURATION) now = 0; dirty = true; });
+  scrub.addEventListener("input", () => { playing = false; seek(scrub.value); });
+  for (const jump of document.querySelectorAll(".beats button")) jump.addEventListener("click", () => { seek(jump.dataset.at); playing = true; });
+  new ResizeObserver(fit).observe(canvas);
+
+  // Type is measured, so the film waits for its face before the first frame counts.
+  const ready = Promise.race([
+    Promise.all(["600", "650", "700", "720", "800"].map((weight) => document.fonts.load(`${weight} 100px Inter`))).catch(() => {}),
+    new Promise((done) => setTimeout(done, 4000)),
+  ]).then(() => { widths.clear(); dirty = true; });
+
+  window.film = {
+    duration: DURATION,
+    fps: FPS,
+    ready,
+    seek,
+    // For the renderer: the stage alone, at its real size.
+    stage() {
+      rendering = true;
+      playing = false;
+      document.body.style.cssText = "margin:0;overflow:hidden;background:#0e0d0b";
+      for (const el of document.querySelectorAll(".top, .transport, .beats, .note")) el.hidden = true;
+      document.querySelector(".page").style.cssText = "display:block;max-width:none;padding:0;margin:0";
+      canvas.style.cssText = "position:fixed;left:0;top:0;width:1920px;height:1080px;max-width:none;border:0;border-radius:0";
+      canvas.width = W;
+      canvas.height = H;
+      widths.clear();
+      paint();
+      return `${DURATION} s at ${FPS} frames a second`;
+    },
+  };
+  window.seek = seek;
+
+  fit();
+  requestAnimationFrame(tick);
+})();
+</script>

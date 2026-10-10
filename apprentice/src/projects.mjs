@@ -2,6 +2,8 @@ import { open, readdir, readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { redact } from "./redact.mjs";
+import { addSpent, otherProjects, otherSources, spend } from "./others.mjs";
+import { settings } from "./settings.mjs";
 
 // A project is a folder the work happens in. Mason never asks for a list:
 // it reads the traces the tools already leave on this Mac.
@@ -9,10 +11,16 @@ import { redact } from "./redact.mjs";
 //   and every file its agent wrote.
 //   Cursor keeps the folder of every workspace and when it was last used.
 // Nothing is copied out of those files except a redacted excerpt of a prompt.
+// With "Agent logs" switched off in Settings, none of them is opened.
 
-const CLAUDE_DIR = path.join(os.homedir(), ".claude", "projects");
+// A test points this at a folder of its own.
+const CLAUDE_DIR = process.env.APPRENTICE_CLAUDE_DIR || path.join(os.homedir(), ".claude", "projects");
 const CURSOR_DIR = path.join(os.homedir(), "Library", "Application Support", "Cursor", "User", "workspaceStorage");
 const ACTIVE_WITHIN_MS = 8 * 60_000;
+// The home folder, and what lies above it, holds every project there is. A
+// session started there is no project around them, only a session.
+const HOME = os.homedir();
+const aboveProjects = (folder) => folder === HOME || HOME.startsWith(folder.endsWith(path.sep) ? folder : `${folder}${path.sep}`);
 const GENERIC = new Set(`hackathon hackaton project projects demo site sajt website new app apps web test tests main src the cursor documents users
 frontend backend server client mcp bot final copy old public assets components scripts docs output outputs node_modules dist build data
 images design native wiki video videos notes tmp temp misc code repo engine binary`.split(/\s+/));
@@ -27,20 +35,28 @@ function tokensOf(name) {
 // Each log is read once and then only its new lines, so a scan stays cheap
 // even when a session file has grown to many megabytes.
 const logs = new Map();
+// A log is read a piece at a time: months of sessions are more than a
+// gigabyte, and the whole of a file never has to be in memory at once.
+const PIECE_BYTES = 4 * 1024 * 1024;
+const NEWLINE = 10;
 
-async function readNewLines(file, size) {
-  const known = logs.get(file) || { offset: 0, rest: "", cwd: null, root: null, prompts: [], minutes: new Set(), files: new Map(), reports: [] };
-  if (size < known.offset) Object.assign(known, { offset: 0, rest: "", prompts: [], minutes: new Set(), files: new Map(), reports: [] });
+async function readNewLines(file, size, absorb = absorbAll) {
+  const known = logs.get(file) || { offset: 0, rest: Buffer.alloc(0), cwd: null, root: null, prompts: [], minutes: new Set(), files: new Map(), reports: [], turns: [], spent: new Map() };
+  if (size < known.offset) Object.assign(known, { offset: 0, rest: Buffer.alloc(0), prompts: [], minutes: new Set(), files: new Map(), reports: [], turns: [], spent: new Map() });
   if (size > known.offset) {
     const handle = await open(file, "r");
     try {
-      const buffer = Buffer.alloc(size - known.offset);
-      await handle.read(buffer, 0, buffer.length, known.offset);
-      const text = known.rest + buffer.toString("utf8");
-      const lines = text.split("\n");
-      known.rest = lines.pop();
-      known.offset = size;
-      for (const line of lines) absorb(known, line);
+      const buffer = Buffer.alloc(Math.min(PIECE_BYTES, size - known.offset));
+      while (known.offset < size) {
+        const { bytesRead } = await handle.read(buffer, 0, Math.min(buffer.length, size - known.offset), known.offset);
+        if (!bytesRead) break;
+        known.offset += bytesRead;
+        const piece = known.rest.length ? Buffer.concat([known.rest, buffer.subarray(0, bytesRead)]) : buffer.subarray(0, bytesRead);
+        // Cut at the last line end: a line, and a character in it, is never split.
+        const end = piece.lastIndexOf(NEWLINE);
+        if (end >= 0) for (const line of piece.toString("utf8", 0, end).split("\n")) absorb(known, line);
+        known.rest = Buffer.from(piece.subarray(end + 1));
+      }
     } finally {
       await handle.close();
     }
@@ -49,12 +65,32 @@ async function readNewLines(file, size) {
   return known;
 }
 
-function absorb(log, line) {
+// What one answer took. An answer in several parts is written as several
+// lines, each with the count for the whole of it, so it is counted once.
+function absorbSpent(log, row, at) {
+  const took = row.type === "assistant" && row.message?.usage;
+  if (!took || row.message.id === log.counted) return;
+  log.counted = row.message.id;
+  spend(log.spent, at, (took.input_tokens || 0) + (took.cache_creation_input_tokens || 0), took.cache_read_input_tokens, took.output_tokens);
+}
+
+// The log of a helper an agent started: only what it took is read from it.
+// What was said in it is a brief the agent wrote, not something its owner said.
+function absorbHelper(log, line) {
+  if (!line || !line.includes('"usage"')) return;
+  let row;
+  try { row = JSON.parse(line); } catch { return; }
+  const at = Date.parse(row.timestamp);
+  if (Number.isFinite(at)) absorbSpent(log, row, at);
+}
+
+function absorbAll(log, line) {
   if (!line) return;
   let row;
   try { row = JSON.parse(line); } catch { return; }
   const at = Date.parse(row.timestamp);
   if (!Number.isFinite(at)) return;
+  absorbSpent(log, row, at);
   if (row.cwd) {
     log.cwd = row.cwd;
     // The project is where the session began, not the subfolder it later moved into.
@@ -62,8 +98,12 @@ function absorb(log, line) {
   }
   if (row.isSidechain) return;
   log.minutes.add(Math.floor(at / 60_000));
+  // A turn is one thing said and the work that follows. It lasts until the
+  // model says it has ended its turn; a step with a tool is still work.
+  const turn = log.turns.at(-1);
   // What the agent built: the files it wrote, and when. Names only, never contents.
   if (row.type === "assistant") {
+    if (turn) { turn.done = at; turn.ended = row.message?.stop_reason === "end_turn"; }
     for (const part of Array.isArray(row.message?.content) ? row.message.content : []) {
       // What it reported back when it was done: the agent's own account of
       // what it built. Short remarks between two steps are not that.
@@ -82,15 +122,21 @@ function absorb(log, line) {
   if (row.type !== "user" || row.isMeta) return;
   const content = row.message?.content;
   const raw = typeof content === "string" ? content : Array.isArray(content) ? content.find((part) => part?.type === "text")?.text : null;
-  if (!raw) return;
+  // The result of a tool coming back: the agent goes on working.
+  if (!raw) { if (turn) { turn.done = at; turn.ended = false; } return; }
   // What the person said, not what the harness wrapped around it.
   const said = raw.replace(/<pasted_content[^>]*>|<\/pasted_content[^>]*>/g, " ").trim();
-  if (!said || said.startsWith("<") || said.startsWith("[") || said.length < 12) return;
+  if (!said || said.startsWith("<") || said.startsWith("[")) return;
+  // Even a word ("go") starts a turn; only a real sentence is kept as said.
+  log.turns.push({ prompt: at, done: at, ended: false });
+  if (log.turns.length > 400) log.turns.shift();
+  if (said.length < 12) return;
   log.prompts.push({ at, text: redact(said, 600) });
 }
 
 async function claudeProjects(since) {
   const found = new Map();
+  if (!settings().logs) return found;
   let folders = [];
   try { folders = await readdir(CLAUDE_DIR); } catch { return found; }
   for (const folder of folders) {
@@ -104,8 +150,18 @@ async function claudeProjects(since) {
       const log = await readNewLines(file, info.size).catch(() => null);
       // Work in a temporary folder is a tool running, not a project of its owner.
       if (!log?.root || /^(\/private)?\/(tmp|var\/folders)\//.test(log.root)) continue;
-      const project = found.get(log.root) || { name: path.basename(log.root), folder: log.root, prompts: [], minutes: new Set(), source: "Claude Code" };
+      const project = found.get(log.root) || { name: path.basename(log.root), folder: log.root, prompts: [], minutes: new Set(), turns: [], spent: new Map(), source: "Claude Code" };
+      addSpent(project.spent, log.spent, since);
+      // The helpers the session started keep their logs in a folder beside it.
+      const beside = path.join(CLAUDE_DIR, folder, name.slice(0, -".jsonl".length), "subagents");
+      for (const helper of await readdir(beside, { recursive: true }).catch(() => [])) {
+        if (!helper.endsWith(".jsonl")) continue;
+        const size = await stat(path.join(beside, helper)).then((found) => found.mtimeMs >= since ? found.size : 0, () => 0);
+        if (size) addSpent(project.spent, (await readNewLines(path.join(beside, helper), size, absorbHelper).catch(() => null))?.spent, since);
+      }
       for (const prompt of log.prompts) if (prompt.at >= since) project.prompts.push(prompt);
+      // Each turn with the moment the next thing was said in the same session, if anything was.
+      log.turns.forEach((turn, index) => { if (turn.done >= since) project.turns.push({ ...turn, next: log.turns[index + 1]?.prompt ?? null }); });
       for (const minute of log.minutes) if (minute * 60_000 >= since - 60_000) project.minutes.add(minute);
       found.set(log.root, project);
     }
@@ -115,6 +171,7 @@ async function claudeProjects(since) {
 
 async function cursorWorkspaces(since) {
   const found = [];
+  if (!settings().logs) return found;
   let folders = [];
   try { folders = await readdir(CURSOR_DIR); } catch { return found; }
   for (const folder of folders) {
@@ -134,6 +191,7 @@ async function cursorWorkspaces(since) {
 // project is there from the first day it was worked on, not from the day
 // Mason was installed.
 async function logsOf(folder, since) {
+  if (!settings().logs) return [];
   const directory = path.join(CLAUDE_DIR, folder.replace(/[^A-Za-z0-9]/g, "-"));
   let files = [];
   try { files = (await readdir(directory)).filter((name) => name.endsWith(".jsonl")); } catch { return []; }
@@ -147,6 +205,14 @@ async function logsOf(folder, since) {
     if (log) found.push(log);
   }
   return found;
+}
+
+// What there is to read on this Mac, for the settings screen: how many
+// project folders Claude Code keeps logs for, how many Cursor workspaces, and
+// how many sessions Codex and Grok keep.
+export async function logSources() {
+  const count = async (folder) => { try { return (await readdir(folder)).filter((name) => !name.startsWith(".")).length; } catch { return 0; } };
+  return { claude: await count(CLAUDE_DIR), cursor: await count(CURSOR_DIR), ...(await otherSources()) };
 }
 
 // Everything said to an agent in one project folder, as far back as asked.
@@ -189,13 +255,24 @@ const cached = new Map();
 export async function projectIndex(since, { maxAgeMs = 20_000 } = {}) {
   const known = cached.get(since);
   if (known && Date.now() - known.at < maxAgeMs) return known.index;
-  const [claude, cursor] = await Promise.all([claudeProjects(since), cursorWorkspaces(since)]);
+  const [claude, cursor, others] = await Promise.all([claudeProjects(since), cursorWorkspaces(since), otherProjects(since)]);
   const projects = new Map();
   // A log that was only touched today, with nothing said or done in it, is not today's work.
   for (const project of claude.values()) if (project.minutes.size) projects.set(project.folder, project);
+  // What was said to Codex or Grok in a folder belongs to the same project.
+  for (const other of others.values()) {
+    if (!other.minutes.size) continue;
+    const known = projects.get(other.folder);
+    if (!known) { projects.set(other.folder, other); continue; }
+    known.prompts.push(...other.prompts);
+    known.turns.push(...other.turns);
+    for (const minute of other.minutes) known.minutes.add(minute);
+    addSpent(known.spent ||= new Map(), other.spent);
+    known.handed = other.handed;
+  }
   // Cursor touches many workspaces when it starts; the two newest are the ones in use.
   for (const workspace of cursor.slice(0, 2)) {
-    if (!projects.has(workspace.folder)) projects.set(workspace.folder, { name: path.basename(workspace.folder), folder: workspace.folder, prompts: [], minutes: new Set(), source: "Cursor" });
+    if (!projects.has(workspace.folder)) projects.set(workspace.folder, { name: path.basename(workspace.folder), folder: workspace.folder, prompts: [], minutes: new Set(), turns: [], source: "Cursor" });
     projects.get(workspace.folder).cursorUsedAt = workspace.usedAt;
   }
   for (const project of projects.values()) project.tokens = tokensOf(project.name);
@@ -203,10 +280,13 @@ export async function projectIndex(since, { maxAgeMs = 20_000 } = {}) {
   // inside HACKNATION), and the subfolder's name is one more way to recognise it.
   const outermost = [...projects.values()].sort((a, b) => a.folder.length - b.folder.length);
   for (const child of [...outermost].reverse()) {
-    const parent = outermost.find((other) => other !== child && child.folder.startsWith(`${other.folder}${path.sep}`));
+    const parent = outermost.find((other) => other !== child && !aboveProjects(other.folder) && child.folder.startsWith(`${other.folder}${path.sep}`));
     if (!parent) continue;
     parent.prompts.push(...child.prompts);
+    parent.turns.push(...child.turns);
     for (const minute of child.minutes) parent.minutes.add(minute);
+    addSpent(parent.spent ||= new Map(), child.spent);
+    for (const [agent, sessions] of Object.entries(child.handed || {})) (parent.handed ||= {})[agent] = (parent.handed[agent] || 0) + sessions;
     parent.tokens = [...new Set([...parent.tokens, ...child.tokens])];
     projects.delete(child.folder);
   }
@@ -254,6 +334,11 @@ export async function projectIndex(since, { maxAgeMs = 20_000 } = {}) {
     },
     prompts() {
       return list.flatMap((project) => project.prompts.map((prompt) => ({ ...prompt, project: project.name }))).sort((a, b) => a.at - b.at);
+    },
+    // Every turn of every project: when it was asked for, when the work on it
+    // last moved, and whether the answer is finished.
+    turns() {
+      return list.flatMap((project) => project.turns.map((turn) => ({ ...turn, project: project.name }))).sort((a, b) => a.done - b.done);
     },
   };
   for (const [key, entry] of cached) if (Date.now() - entry.at > 600_000) cached.delete(key);

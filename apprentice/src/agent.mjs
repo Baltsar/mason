@@ -275,6 +275,7 @@ export function recallContext({ memory, expert = "the expert" }) {
     block("How it is put together (from the files the agents changed)", memory.how),
     block("Files changed most", (memory.parts || []).map((item) => `${item.file}, ${item.edits} changes`)),
     block("Built or changed, newest first", memory.built),
+    block("Decisions that were made", memory.decided),
     memory.left_off ? `Where it was left: ${memory.left_off}` : "",
     block("Still open", memory.open),
     block("What they kept telling their agents", (memory.keeps_saying || []).map((item) => `${item.rule} (said ${item.times} times: "${short(item.example, 90)}")`)),

@@ -1,0 +1,95 @@
+{
+  "format": "mason.workflow",
+  "version": 1,
+  "by": "An example (made up)",
+  "purpose": "building software",
+  "from": "2026-09-11",
+  "to": "2026-10-10",
+  "days": 22,
+  "minutes": 6120,
+  "projects": 3,
+  "prompts": 412,
+  "perHour": 4,
+  "tokens": {
+    "all": 2100000000,
+    "written": 9000000,
+    "aDay": 95000000
+  },
+  "agents": [
+    {
+      "name": "Codex",
+      "prompts": 264,
+      "share": 64
+    },
+    {
+      "name": "Claude Code",
+      "prompts": 148,
+      "share": 36
+    }
+  ],
+  "handed": [
+    {
+      "name": "Grok",
+      "sessions": 6
+    }
+  ],
+  "parallel": {
+    "usual": 1,
+    "share": 2
+  },
+  "turn": {
+    "seconds": 760,
+    "long": 2900,
+    "count": 390
+  },
+  "piece": {
+    "count": 61,
+    "prompts": 6,
+    "minutes": 74,
+    "opener": 80,
+    "follower": 18,
+    "atLeast": true
+  },
+  "screen": {
+    "days": 20,
+    "hours": 90,
+    "other": 14,
+    "perHour": 18,
+    "waitSeconds": 45,
+    "left": 18,
+    "tools": [
+      {
+        "name": "Codex",
+        "role": "coding agent",
+        "share": 52
+      },
+      {
+        "name": "Cursor",
+        "role": "coding agent",
+        "share": 21
+      },
+      {
+        "name": "Figma",
+        "role": "design",
+        "share": 6
+      }
+    ]
+  },
+  "rules": [
+    {
+      "rule": "Write the plan as a numbered list and wait for a yes before changing any file.",
+      "projects": 3,
+      "times": 41
+    },
+    {
+      "rule": "Run the tests after every change and show the result.",
+      "projects": 3,
+      "times": 29
+    },
+    {
+      "rule": "Keep functions under forty lines; split them when they grow.",
+      "projects": 2,
+      "times": 9
+    }
+  ]
+}

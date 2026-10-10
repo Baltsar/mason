@@ -6,23 +6,40 @@ import { randomUUID } from "node:crypto";
 import { Collector } from "./collector.mjs";
 import { appendEvent, ensureStore, eventsVersion, loadMap, loadRuntime, paths, readEvents, readEventsSince, saveMap, saveRuntime, useMemoryStore } from "./store.mjs";
 import { buildRecap, writeVault, writeWiki } from "./wiki.mjs";
-import { speak, stopSpeaking, voiceStatus } from "./voice.mjs";
+import { elevenLabsCredits, speak, stopSpeaking, voiceStatus } from "./voice.mjs";
 import { handleMcp } from "./mcp-handler.mjs";
 import { loadLocalEnv } from "./config.mjs";
-import { aggregateActivity, dayStart } from "./activity.mjs";
-import { mastery, reviewDecision } from "./teach-engine.mjs";
+import { aggregateActivity, classifyActivity, dayStart } from "./activity.mjs";
+import { buildFlow } from "./flow.mjs";
+import { embedStatus, stopEmbedder } from "./embed.mjs";
+import { ICON_FILE, ICON_TYPES, iconFolder, iconsFor, siteIconsFor } from "./icons.mjs";
+import { dayKey, daysPayload, loadDays, refreshDays } from "./days.mjs";
+import { measureDay, readsAnswers, sentenceOf, usualWait } from "./coach.mjs";
+import { builtOf } from "./built.mjs";
+import { pageOf, piecesOf, replayOf, saveReplay, shownReplay, textOf } from "./replay.mjs";
+import { saveShare } from "./share.mjs";
+import { nudgesPayload, offerNudge, openNudge, settleNudges } from "./nudge.mjs";
+import { beforeSaid, findSaid, forgetSaid, refreshSaid, repeatedSaid, saidStatus, unreadSaid } from "./said.mjs";
+import { applySuggestion, dismissSuggestion, refreshSuggestions, removeRule, suggestionsPayload } from "./suggest.mjs";
 import { buildGaps, buildTeachBack, confirmation, debriefProgress } from "./debrief.mjs";
-import { projectIndex, summarizeProjects } from "./projects.mjs";
+import { logSources, projectIndex, summarizeProjects } from "./projects.mjs";
 import { callContext, ensureAgent, recallContext, signedUrl, tutorContext } from "./agent.mjs";
-import { mergeInferred, projectMemory } from "./memory.mjs";
+import { MEMORY_VERSION, mergeInferred, projectMemory, savedMemory } from "./memory.mjs";
 import { makeEpisode, playEpisode, podcastBusy, podcastState } from "./podcast.mjs";
-import { loadSettings, ownerName, saveSettings, settings } from "./settings.mjs";
-import { modelFound } from "./llm.mjs";
+import { hasElevenLabsKey, loadSettings, ownerName, saveSettings, settings } from "./settings.mjs";
+import { modelStatus, onUse } from "./llm.mjs";
+import { fromHere } from "./guard.mjs";
+import { collectable } from "./collection.mjs";
+import { recordUse, usagePayload } from "./usage.mjs";
+import { fileOf, handover, heldBy, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
+import { heldBack } from "./rules.mjs";
 
 useMemoryStore();
 await loadLocalEnv();
 await ensureStore();
 await loadSettings();
+// Every answer from the model is counted: what it was for and what it took.
+onUse(recordUse);
 let clients = new Set();
 // Changes the island should show at once, rather than at its next poll.
 const NUDGES = new Set(["question", "answer", "control", "session", "intervention", "call", "window", "prompt", "presence", "podcast", "memory"]);
@@ -47,11 +64,11 @@ const short = (text, max = 64) => {
   return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
 };
 
-async function body(request) {
+async function body(request, largest = 1_000_000) {
   let data = "";
   for await (const chunk of request) {
     data += chunk;
-    if (data.length > 1_000_000) throw new Error("Request too large");
+    if (data.length > largest) throw new Error("Request too large");
   }
   return data ? JSON.parse(data) : {};
 }
@@ -63,16 +80,211 @@ function json(response, status, value) {
 
 // Today's split is asked for every few seconds by the island, so it is only
 // recomputed when an event was actually written.
-let activityMemo = { version: -1, day: 0, at: 0, value: null, projects: null };
+let activityMemo = { version: -1, day: 0, at: 0, value: null, projects: null, flow: null };
+// Work, social or other, decided the same way for the flow as for the split:
+// inside a project it is work, and "other" is looked at again.
+const groupFor = (index) => (sample) => index.of(sample) ? "work" : sample.group && sample.group !== "other" ? sample.group : classifyActivity(sample)?.group || "other";
 async function today() {
   const day = dayStart();
   // A new prompt in a project log changes the picture without any new event,
   // so the memo also ages out after a few seconds.
   if (activityMemo.value && activityMemo.version === eventsVersion() && activityMemo.day === day && Date.now() - activityMemo.at < 15_000) return activityMemo;
   const [events, index] = await Promise.all([readEventsSince(day), projectIndex(day)]);
-  activityMemo = { version: eventsVersion(), day, at: Date.now(), value: aggregateActivity(events, Date.now(), (sample) => index.of(sample)), projects: summarizeProjects(events, index) };
+  activityMemo = { version: eventsVersion(), day, at: Date.now(), value: aggregateActivity(events, Date.now(), (sample) => index.of(sample)), projects: summarizeProjects(events, index), flow: buildFlow(events, { groupOf: groupFor(index) }) };
   return activityMemo;
 }
+
+// How many of a day's sites are asked for their own icon, when that is switched on.
+const SITES_ASKED = 24;
+
+// How a day moved between tools: today, or the day asked for. Each tool comes
+// with its icon when the app is on this Mac.
+async function flowPayload(asked, span = "day") {
+  const current = dayKey(Date.now());
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(asked || "") ? asked : current;
+  let flow;
+  let fromDay = day;
+  if (span === "week") {
+    // The last seven days as one: for the picture that is shared.
+    const from = dayStart() - 6 * 86_400_000;
+    flow = buildFlow(await readEventsSince(from));
+    fromDay = dayKey(from);
+  } else if (day === current) flow = (await today()).flow;
+  else {
+    const [year, month, date] = day.split("-").map(Number);
+    const from = new Date(year, month - 1, date, 4).getTime();
+    const to = new Date(year, month - 1, date + 1, 4).getTime();
+    const [events, index] = await Promise.all([readEventsSince(from), projectIndex(from)]);
+    flow = buildFlow(events.filter((event) => Date.parse(event.startedAt || event.at) < to), { groupOf: groupFor(index) });
+  }
+  // Every tool that was gone to is named in the window, so each is looked up.
+  const shown = flow.tools.filter((tool) => tool.visits);
+  const icons = await iconsFor(shown.map((tool) => tool.name));
+  // A site with no app of its name may show the icon the site itself gave.
+  // Only the sites with the most time are asked: the rest keep their letter.
+  const fromSites = await siteIconsFor(shown.slice(0, SITES_ASKED).filter((tool) => !icons[tool.name]), { arrived: () => broadcast("icons") });
+  Object.assign(icons, fromSites);
+  const known = await loadDays();
+  return { ...flow, span: span === "week" ? "week" : "day", day: span === "week" ? current : day, fromDay, today: current, owner: ownerName(), days: [...new Set([...Object.keys(known.moves), current])].sort(), tools: flow.tools.map((tool) => ({ ...tool, icon: icons[tool.name] || null })) };
+}
+
+// How the last thirty days were worked, for the window and for the file that
+// is shared. A month of logs takes a few seconds to read the first time, so
+// it is worked out once and kept for a minute.
+let workflowMemo = { at: 0, value: null };
+function workflow() {
+  if (workflowMemo.value && Date.now() - workflowMemo.at < 60_000) return workflowMemo.value;
+  const from = dayStart() - (WORKFLOW_DAYS - 1) * 86_400_000;
+  const value = (async () => {
+    const [index, events, suggestions] = await Promise.all([projectIndex(from, { maxAgeMs: 60_000 }), readEventsSince(from), suggestionsPayload()]);
+    const memories = Object.fromEntries(await Promise.all(index.list.map(async (project) => [project.name, await savedMemory(project.name)])));
+    return workflowPayload({ index, events, memories, suggestions, owner: ownerName(), from });
+  })();
+  workflowMemo = { at: Date.now(), value };
+  value.catch(() => { if (workflowMemo.value === value) workflowMemo = { at: 0, value: null }; });
+  return value;
+}
+
+// Today's answers from the agents: how long finished ones were left waiting,
+// and which are waiting now. Asked for every few seconds by the island, so it
+// is worked out again only when something was written or a moment has passed.
+let waitingMemo = { key: "", at: 0, value: null };
+async function waitingPayload() {
+  const key = `${dayStart()}|${eventsVersion()}`;
+  if (waitingMemo.value && waitingMemo.key === key && Date.now() - waitingMemo.at < 10_000) return waitingMemo.value;
+  const index = await projectIndex(dayStart());
+  const measure = measureDay(await readEventsSince(dayStart()), { projectOf: (sample) => index.of(sample), turns: index.turns(), now: Date.now() });
+  const value = { ...measure, sentence: sentenceOf(measure) };
+  waitingMemo = { key, at: Date.now(), value };
+  return value;
+}
+
+// A word on the island, there for a moment and gone: an answer that has just
+// come while its owner is somewhere else. Never a panel, never a sound.
+const JUST_NOW_MS = 2 * 60_000;
+const cued = new Set();
+function cueFor(measure, runtime) {
+  if (!settings().cues || runtime.session?.active) return null;
+  const state = presence(runtime);
+  // Only someone who is at the Mac, and not already where answers are read.
+  if (!(state === "private-surface" || state === "watching" && !readsAnswers(runtime.currentApp))) return null;
+  // An old answer is on the panel, not announced.
+  const ready = measure.ready.find((answer) => !cued.has(`${answer.project}|${answer.since}`) && Date.now() - Date.parse(answer.since) < JUST_NOW_MS);
+  if (!ready) return null;
+  cued.add(`${ready.project}|${ready.since}`);
+  return `Answer ready · ${short(ready.project, 20)}`;
+}
+
+// How long a finished answer is usually left, over the last week. It changes
+// slowly, so it is worked out once an hour.
+let usualMemo = { at: 0, value: null };
+async function usualWaitMs() {
+  if (Date.now() - usualMemo.at < 3_600_000) return usualMemo.value;
+  const from = dayStart() - 6 * 86_400_000;
+  const [events, index] = await Promise.all([readEventsSince(from), projectIndex(from, { maxAgeMs: 3_600_000 })]);
+  usualMemo = { at: Date.now(), value: usualWait(events, { projectOf: (event) => index.of(event), turns: index.turns() }) };
+  return usualMemo.value;
+}
+
+// A nudge: a word on the island at the moment it can be acted on, resting on
+// what its owner usually does. Two kinds so far. An answer that has waited
+// twice as long as answers are usually left, within these bounds. And a
+// prompt, just sent, for a piece of work that was done before in another
+// project. Each is followed up, and a kind that is ignored goes quiet (nudge.mjs).
+const WAITED_FROM_MS = 4 * 60_000;
+const WAITED_AT_MOST_MS = 15 * 60_000;
+// An answer left this long is not being waited for any more.
+const WAITED_TOO_LONG_MS = 45 * 60_000;
+const JUST_SAID_MS = 3 * 60_000;
+let nudgeAt = 0;
+async function nudgeFor(waiting, runtime, index) {
+  if (!settings().cues || runtime.session?.active || Date.now() - nudgeAt < 5000) return null;
+  const now = (nudgeAt = Date.now());
+  const state = presence(runtime);
+  const reading = state === "watching" && readsAnswers(runtime.currentApp);
+  const todays = index.prompts();
+  // What was said before is settled first: back where answers are read, or
+  // the other project named in the next prompt, is acting on it.
+  const changed = await settleNudges((nudge) => nudge.kind === "waited" ? reading
+    : nudge.kind === "before" ? todays.some((prompt) => prompt.project === nudge.project && prompt.at > Date.parse(nudge.at) && prompt.text.toLowerCase().includes(String(nudge.other).toLowerCase()))
+    : false, now);
+  if (changed) broadcast("nudge");
+  // Only someone who is at the Mac is nudged.
+  if (state !== "watching" && state !== "private-surface") return null;
+  const candidates = [];
+  if (!reading) {
+    const patience = Math.min(WAITED_AT_MOST_MS, Math.max(WAITED_FROM_MS, ((await usualWaitMs()) || 0) * 2));
+    const late = waiting.ready.find((answer) => { const left = now - Date.parse(answer.since); return left >= patience && left < WAITED_TOO_LONG_MS; });
+    if (late) candidates.push({ kind: "waited", key: `${late.project}|${late.since}`, project: late.project, text: `Waited ${Math.round((now - Date.parse(late.since)) / 60_000)} min · ${short(late.project, 18)}` });
+  }
+  if (settings().meaning && embedStatus().ready) {
+    const fresh = todays.filter((prompt) => now - prompt.at < JUST_SAID_MS);
+    // A prompt has to be read before it can be compared: it is read now, and
+    // the nudge comes at the next look, a few seconds on.
+    if ((await unreadSaid(fresh)).length) refreshSaid(todays, { steps: 1 }).catch(() => {});
+    else for (const prompt of fresh.slice(-2)) {
+      const earlier = await beforeSaid(prompt);
+      if (earlier) candidates.push({ kind: "before", key: `${prompt.project}|${earlier.project}|${dayKey(now)}`, project: prompt.project, other: earlier.project, when: earlier.at, query: short(prompt.text, 200), text: `Done before · ${short(earlier.project, 20)}` });
+    }
+  }
+  const nudge = await offerNudge(candidates, now);
+  if (nudge) broadcast("nudge");
+  return nudge?.text || null;
+}
+
+// What Mason can ask its owner about their own projects: read from what is
+// remembered of each, as it is on disk. No model is asked.
+let builtMemo = { at: 0, value: [] };
+async function builtProjects() {
+  if (Date.now() - builtMemo.at < 60_000) return builtMemo.value;
+  const known = await loadDays();
+  const names = [...new Set(Object.keys(known.days).sort().slice(-21).flatMap((day) => Object.keys(known.days[day])))];
+  const remembered = Object.fromEntries(await Promise.all(names.map(async (name) => [name, memories.get(name) || await savedMemory(name)])));
+  builtMemo = { at: Date.now(), value: builtOf({ days: known.days, memories: remembered, today: dayKey(Date.now()) }) };
+  return builtMemo.value;
+}
+
+// The days are brought up to date in the background, at most every few minutes.
+let daysAt = 0;
+function catchUpDays() {
+  if (Date.now() - daysAt < 5 * 60_000) return;
+  daysAt = Date.now();
+  refreshDays().then(() => broadcast("days")).catch(() => {});
+}
+// What was said to the agents is placed by the embedding model in the
+// background while that is switched on, a step at a time. The first reading
+// goes through every log there is; after that only what is new.
+let saidAt = 0;
+let saidWaiting = null;
+// After a start, and when more was read, what is proposed is looked over at
+// the next pass and not hours later. Nothing is asked when nothing changed.
+let lookSoon = true;
+function catchUpSaid() {
+  if (!settings().meaning || !settings().logs || !embedStatus().ready) return;
+  if (Date.now() - saidAt < 5 * 60_000) return;
+  saidAt = Date.now();
+  const moved = ({ waiting }) => { saidWaiting = waiting; repeatedMemo.at = 0; broadcast("said"); };
+  projectIndex(0, { maxAgeMs: 5 * 60_000 })
+    .then((index) => refreshSaid(index.prompts(), { moved }))
+    .then((progress) => {
+      if (!progress) return;
+      saidWaiting = progress.waiting;
+      // More is waiting: go on at once, and let others in between.
+      if (progress.waiting && progress.added) { saidAt = 0; setTimeout(catchUpSaid, 200).unref(); }
+      else if (progress.added) lookSoon = true;
+    })
+    .catch(() => {});
+}
+
+// What is said again and again is worked out from everything that was read,
+// which takes a moment, so it is kept until more has been read.
+let repeatedMemo = { at: 0, value: [] };
+async function repeatedDemands() {
+  if (Date.now() - repeatedMemo.at < 30 * 60_000) return repeatedMemo.value;
+  repeatedMemo = { at: Date.now(), value: await repeatedSaid() };
+  return repeatedMemo.value;
+}
+
 // What each of today's projects is about and where it was left. Built in the
 // background from the prompts already given to the agents; nothing is asked.
 const memories = new Map();
@@ -102,7 +314,41 @@ async function refreshMemories() {
     if (learned) { await saveMap(map); await writeWiki(map); broadcast("memory"); }
     // The notes for Obsidian follow the memory.
     await writeVault(map, [...memories.values()]).catch(() => {});
+    // What is said in project after project is looked over now and then, across
+    // every project of the last three weeks.
+    const known = await loadDays();
+    const names = [...new Set(Object.keys(known.days).sort().slice(-21).flatMap((day) => Object.keys(known.days[day])))];
+    const remembered = Object.fromEntries(await Promise.all(names.map(async (name) => [name, memories.get(name) || await savedMemory(name)])));
+    const repeated = settings().meaning ? await repeatedDemands() : [];
+    if (await refreshSuggestions(remembered, Date.now(), { repeated, soon: lookSoon })) broadcast("suggestions");
+    lookSoon = false;
+    await rememberOlder();
   } catch {} finally { refreshing = false; summarising = false; }
+}
+
+// The projects of the last three weeks that were not worked on today are
+// remembered too, one a round: the ones not touched for a while are the ones
+// their owner has forgotten most about. A memory written before something new
+// was kept in it is written again the same way.
+let olderDone = false;
+async function rememberOlder() {
+  if (olderDone || !settings().summaries) return;
+  const wide = await projectIndex(dayStart() - 21 * 86_400_000, { maxAgeMs: 10 * 60_000 });
+  const recent = wide.list.filter((project) => project.prompts.length && !memories.has(project.name)).sort((a, b) => b.prompts.at(-1).at - a.prompts.at(-1).at);
+  for (const project of recent) {
+    const saved = await savedMemory(project.name);
+    if (saved?.version === MEMORY_VERSION) continue;
+    summarising = true;
+    broadcast("memory");
+    await projectMemory(project, { wait: true });
+    summarising = false;
+    builtMemo.at = 0;
+    // Without an answer from a model there is nothing to go on with, until Mason is started again.
+    if ((await savedMemory(project.name))?.version !== MEMORY_VERSION) olderDone = true;
+    broadcast("memory");
+    return;
+  }
+  olderDone = true;
 }
 
 // Coming back to a project after hours or days is the moment its memory is
@@ -212,7 +458,7 @@ async function confirmTeachBack(map, source) {
 }
 
 async function statePayload() {
-  const [map, runtime, events, activity, projects, sinceMorning, index, podcast] = await Promise.all([loadMap(), loadRuntime(), readEvents(60), todayActivity(), todayProjects(), readEventsSince(dayStart()), projectIndex(dayStart()), podcastState()]);
+  const [map, runtime, events, activity, projects, sinceMorning, index, podcast, days, waiting, suggestions, built] = await Promise.all([loadMap(), loadRuntime(), readEvents(60), todayActivity(), todayProjects(), readEventsSince(dayStart()), projectIndex(dayStart()), podcastState(), loadDays(), waitingPayload(), suggestionsPayload(), builtProjects()]);
   // The project in front right now (often none: a feed, a video), and the last
   // project that has something remembered about it.
   const inFront = runtime.currentApp && !runtime.currentPrivate ? index.resolve({ app: runtime.currentApp, window: runtime.currentWindow || "", at: new Date().toISOString() }) : null;
@@ -228,11 +474,22 @@ async function statePayload() {
     projects,
     memories: Object.fromEntries(memories),
     podcast,
+    waiting,
+    // How the last few days of work were done, as it was written down then.
+    lookback: days.lookbacks.at(-1) || null,
+    suggestions,
+    // What the window is made of: the dark look, or liquid glass.
+    look: settings().glass ? "glass" : "",
+    // The nudge that was just said, and how the last week of them went.
+    nudges: await nudgesPayload(),
+    // The figures the top bar shows for the two views that load by themselves.
+    flow: { jumps: (await today()).flow.jumps },
+    days: Object.keys(days.days).length,
+    built: built.length,
     now: { project: inFront, recent },
     presence: presence(runtime),
     voice: voiceStatus(),
     debrief: debriefProgress(map.debrief),
-    teach: mastery(map, sinceMorning),
     stats: {
       steps: map.decisions.length,
       judgementCalls: map.decisions.filter((item) => item.kind !== "guardrail").length,
@@ -246,14 +503,14 @@ async function statePayload() {
 }
 
 async function islandPayload() {
-  const [map, runtime, activity, index] = await Promise.all([loadMap(), loadRuntime(), todayActivity(), projectIndex(dayStart())]);
+  const [map, runtime, activity, index, waiting] = await Promise.all([loadMap(), loadRuntime(), todayActivity(), projectIndex(dayStart()), waitingPayload()]);
   const question = map.questions.find((item) => item.status === "open");
   const project = runtime.currentApp ? index.resolve({ app: runtime.currentApp, window: runtime.currentWindow || "", at: new Date().toISOString() }) : null;
   return {
     status: presence(runtime),
     app: runtime.currentApp,
     project,
-    returning: returningTo(runtime, project),
+    returning: returningTo(runtime, project) || cueFor(waiting, runtime) || await nudgeFor(waiting, runtime, index),
     category: runtime.currentCategory,
     group: runtime.currentGroup,
     work: activity.workPercent,
@@ -281,12 +538,126 @@ async function startDebrief(map, runtime) {
   await speak(gaps[0].text, `debrief-${gaps[0].id}`);
 }
 
+let refusals = 0;
 const server = http.createServer(async (request, response) => {
   try {
+    // A page in a browser that is not Mason's own gets no answer and changes nothing.
+    if (!fromHere(request.headers)) {
+      // Said in the log a few times, so that a window of Mason's own that is turned away can be told from an attempt.
+      if ((refusals += 1) <= 5) console.warn(`Not answered: a request from ${String(request.headers.origin || request.headers["sec-fetch-site"] || request.headers.host || "nowhere").slice(0, 80)}`);
+      return json(response, 403, { error: "Only this Mac's own Mason is answered" });
+    }
     const url = new URL(request.url, "http://127.0.0.1");
     const post = request.method === "POST";
     if (url.pathname === "/api/island" && request.method === "GET") return json(response, 200, await islandPayload());
     if (url.pathname === "/api/state" && request.method === "GET") return json(response, 200, await statePayload());
+    if (url.pathname === "/api/built" && request.method === "GET") return json(response, 200, { today: dayKey(Date.now()), projects: await builtProjects() });
+    if (url.pathname === "/api/suggestions") {
+      if (post) {
+        const input = await body(request);
+        const act = { apply: applySuggestion, dismiss: dismissSuggestion, remove: removeRule }[input.action];
+        if (!act) return json(response, 400, { error: "Unknown action" });
+        // A wording Mason does not write is said, with the reason, and nothing is changed.
+        const why = input.action === "apply" && input.rule ? heldBack(String(input.rule)) : "";
+        if (why) return json(response, 400, { error: `Mason does not write that wording: ${why}. Say it more plainly, or give it to an agent yourself.` });
+        await act(String(input.id || ""), String(input.rule || ""));
+        broadcast("suggestions");
+      }
+      return json(response, 200, await suggestionsPayload());
+    }
+    if (url.pathname === "/api/nudge" && post) {
+      // Pressing a nudge is acting on it.
+      const pressed = await openNudge((await body(request)).id);
+      if (pressed) broadcast("nudge");
+      return json(response, pressed ? 200 : 404, { ok: Boolean(pressed) });
+    }
+    if (url.pathname === "/api/find" && post) {
+      if (!settings().meaning) return json(response, 200, { off: true });
+      const found = await findSaid((await body(request)).query);
+      if (!found) return json(response, 200, { unavailable: embedStatus().missing || "model" });
+      // With nothing asked for, what is said again and again is shown instead.
+      return json(response, 200, { ...found, waiting: saidWaiting, repeated: found.query ? [] : (await repeatedDemands()).slice(0, 8) });
+    }
+    if (url.pathname === "/api/flow" && request.method === "GET") return json(response, 200, await flowPayload(url.searchParams.get("day"), url.searchParams.get("span") || "day"));
+    if (url.pathname === "/api/workflow/open" && post) {
+      // Someone else's workflow, read with care, beside one's own for the same kind of work.
+      const theirs = readWorkflow((await body(request, 400_000)).text);
+      if (!theirs) return json(response, 400, { error: "Not a workflow from Mason" });
+      const own = await workflow();
+      // A rule that is offered comes with the prompt that hands it to an agent,
+      // and with the agents whose rules already hold it. Mason writes it nowhere.
+      const rules = await Promise.all(theirs.rules.map(async (rule) => ({ ...rule, hand: handover(rule.rule), told: rule.held ? [] : await heldBy(rule.rule) })));
+      return json(response, 200, { theirs: { ...theirs, rules }, mine: own.cards.find((card) => card.purpose === theirs.purpose) || own.cards[0] });
+    }
+    if (url.pathname === "/api/workflow/collect" && post) {
+      // One's own workflow in the form the collection keeps: read back with
+      // the same care as a stranger's, so that what is copied is what a
+      // reader there would be shown. Nothing is sent from here.
+      const input = await body(request);
+      const made = fileOf(await workflow(), String(input.purpose || "all"), Array.isArray(input.rules) ? input.rules.map(String) : []);
+      const ready = made && collectable(made);
+      if (!ready) return json(response, 400, { error: "No such workflow" });
+      return json(response, 200, { text: ready.text, name: ready.name, dropped: ready.dropped });
+    }
+    if (url.pathname === "/api/workflow") {
+      if (!post) return json(response, 200, await workflow());
+      // Kept as a file to hand to someone, with the picture of it beside it.
+      // Only the rules that were left in go with it.
+      const input = await body(request, 12_000_000);
+      const purpose = String(input.purpose || "all");
+      const made = fileOf(await workflow(), purpose, Array.isArray(input.rules) ? input.rules.map(String) : []);
+      if (!made) return json(response, 400, { error: "No such workflow" });
+      const file = await saveWorkflow(made, purpose);
+      const picture = await saveShare(input.image, `workflow ${purpose}`);
+      if (process.env.APPRENTICE_COLLECT !== "0") spawn("open", ["-R", picture || file], { stdio: "ignore", detached: true }).once("error", () => {}).unref();
+      return json(response, 200, { file: file.replace(process.env.HOME || "\u0000", "~"), picture: Boolean(picture) });
+    }
+    if (url.pathname === "/api/share" && post) {
+      // The picture drawn in the window is kept as a file and shown in the Finder.
+      const input = await body(request, 12_000_000);
+      const file = await saveShare(input.image, input.label);
+      if (!file) return json(response, 400, { error: "Not a picture" });
+      if (process.env.APPRENTICE_COLLECT !== "0") spawn("open", ["-R", file], { stdio: "ignore", detached: true }).once("error", () => {}).unref();
+      return json(response, 200, { file: file.replace(process.env.HOME || "\u0000", "~") });
+    }
+    if (url.pathname === "/api/replay" && post) {
+      // One piece of today's work, cut afterwards from what is kept anyway:
+      // the latest, or the one that is asked for, or the whole day.
+      const input = await body(request);
+      const [events, index] = await Promise.all([readEventsSince(dayStart()), projectIndex(dayStart())]);
+      const said = index.prompts();
+      const pieces = piecesOf(said);
+      const piece = input.piece === "today" ? null : pieces.find((item) => item.id === input.piece) || pieces[0] || null;
+      const ends = [...events.map((event) => Date.parse(event.startedAt || event.at) + (Number(event.durationSec) || 0) * 1000), ...said.map((prompt) => prompt.at)].filter(Number.isFinite);
+      const last = Math.min(Date.now(), ends.length ? Math.max(...ends) : Date.now());
+      // A piece runs a little past its last prompt, to where the answer was read.
+      const [from, to] = piece ? [piece.from - 60_000, Math.min(last, piece.to + 10 * 60_000)] : [dayStart(), last];
+      const prompts = piece ? said.filter((prompt) => prompt.project === piece.project) : said;
+      const replay = replayOf({ events, prompts, turns: index.turns(), from, to });
+      const names = input.names === true;
+      // First everything is shown to its owner, who picks the piece and takes lines out.
+      if (input.action !== "save" && input.action !== "text") return json(response, 200, { ...shownReplay(replay, { names }), piece: piece?.id || "today", pieces: pieces.slice(0, 5).map((item) => ({ id: item.id, project: item.project, prompts: item.prompts })) });
+      const shown = shownReplay(replay, { names, hidden: Array.isArray(input.hidden) ? input.hidden.map(String) : [] });
+      if (!shown.lines.length) return json(response, 400, { error: "Nothing is left to show" });
+      if (input.action === "text") return json(response, 200, { text: textOf(shown, ownerName()) });
+      const file = await saveReplay(pageOf(shown, ownerName()));
+      if (process.env.APPRENTICE_COLLECT !== "0") spawn("open", ["-R", file], { stdio: "ignore", detached: true }).once("error", () => {}).unref();
+      return json(response, 200, { file: file.replace(process.env.HOME || "\u0000", "~") });
+    }
+    if (url.pathname === "/api/days" && request.method === "GET") {
+      // What is known is given at once; anything newer follows as an update.
+      catchUpDays();
+      return json(response, 200, await daysPayload());
+    }
+    if (url.pathname.startsWith("/icons/") && request.method === "GET") {
+      const name = url.pathname.slice("/icons/".length);
+      if (!ICON_FILE.test(name)) return json(response, 404, { error: "Not found" });
+      const picture = await readFile(path.join(iconFolder(), name));
+      // A picture and nothing else, whatever a site may have sent.
+      response.writeHead(200, { "content-type": ICON_TYPES[name.split(".").at(-1)], "cache-control": "max-age=86400", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; sandbox" });
+      response.end(picture);
+      return;
+    }
     if (url.pathname === "/api/stream" && request.method === "GET") {
       response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
       response.write(`event: ready\ndata: {}\n\n`);
@@ -602,7 +973,19 @@ const server = http.createServer(async (request, response) => {
           if (process.env.APPRENTICE_COLLECT !== "0") spawn("open", [input.action === "notes" ? paths.wiki : paths.data], { stdio: "ignore", detached: true }).once("error", () => {}).unref();
           return json(response, 200, { ok: true });
         }
+        // What was read by its meaning is forgotten only when that is asked for.
+        if (input.action === "forget-said") {
+          await forgetSaid();
+          saidWaiting = null;
+          repeatedMemo = { at: 0, value: [] };
+          broadcast("said");
+          return json(response, 200, { ok: true });
+        }
         await saveSettings(input);
+        // Switching the agents' logs on or off shows at once, not at the next reading.
+        if ("logs" in input) { await projectIndex(dayStart(), { maxAgeMs: 0 }); activityMemo.at = 0; }
+        // Switched on, the reading starts now; switched off, the model is stopped.
+        if ("meaning" in input) { saidAt = 0; if (settings().meaning) catchUpSaid(); else stopEmbedder(); }
         broadcast("settings");
       }
       const runtime = await loadRuntime();
@@ -612,7 +995,13 @@ const server = http.createServer(async (request, response) => {
         status: {
           access: runtime.permission === "granted" ? "on" : runtime.permission === "needed" ? "needed" : "unknown",
           elevenLabs: Boolean(process.env.ELEVENLABS_API_KEY),
-          claude: modelFound(),
+          elevenLabsKey: hasElevenLabsKey(),
+          credits: await elevenLabsCredits(),
+          model: modelStatus(),
+          usage: await usagePayload(),
+          // The model that places what was said, and how much it has read.
+          said: { ...embedStatus(), ...(await saidStatus()), waiting: saidWaiting },
+          logs: await logSources(),
           data: paths.data.replace(process.env.HOME || "\u0000", "~"),
         },
       });
@@ -659,26 +1048,12 @@ const server = http.createServer(async (request, response) => {
       broadcast("recap");
       return json(response, 200, map.recap);
     }
-    if (url.pathname === "/api/teach" && post) {
-      const input = await body(request);
-      const prompt = String(input.prompt || "").trim().slice(0, 3000);
-      if (!prompt) return json(response, 400, { error: "Enter a decision to review" });
-      const map = await loadMap();
-      const { intervention, checked } = reviewDecision(prompt, map);
-      await appendEvent(intervention
-        ? { type: "teach-stop", ...intervention, source: "Teach · unseen case" }
-        : { type: "teach-pass", excerpt: prompt, afterStop: input.afterStop || null, source: "Teach · unseen case" });
-      await speak(intervention ? intervention.text : "That holds. Nothing the expert said stops this decision.", `teach-${Date.now()}`);
-      broadcast("teach");
-      return json(response, 200, intervention
-        ? { stopped: true, intervention, checked }
-        : { stopped: false, checked, message: `Checked against ${checked} guardrails in the expert’s words. Nothing stops this decision.` });
-    }
     if (url.pathname === "/api/speak" && post) {
       const input = await body(request);
       if (input.stop) { stopSpeaking(); broadcast("spoken"); return json(response, 200, { ok: true }); }
       const map = await loadMap();
-      const text = input.what === "recap" ? map.recap?.script : String(input.text || "");
+      // Only what Mason itself holds is spoken: nothing a caller sends is.
+      const text = input.what === "recap" ? map.recap?.script : "";
       const { engine, done } = await speak(text);
       done.then(() => broadcast("spoken"));
       return json(response, 200, { engine });
@@ -686,12 +1061,6 @@ const server = http.createServer(async (request, response) => {
     if (url.pathname === "/mcp" && post) {
       const result = await handleMcp(await body(request));
       return result ? json(response, 200, result) : json(response, 202, {});
-    }
-    if (url.pathname === "/source/handover" && request.method === "GET") {
-      const source = await readFile(path.join(paths.root, "..", "HANDOVER.md"));
-      response.writeHead(200, { "content-type": "text/markdown; charset=utf-8", "cache-control": "no-store" });
-      response.end(source);
-      return;
     }
 
     const requested = url.pathname === "/" ? "index.html" : url.pathname === "/overview" ? "overview.html" : url.pathname.replace(/^\//, "");
@@ -710,6 +1079,7 @@ async function shutdown() {
   if (stopping) return;
   stopping = true;
   stopSpeaking();
+  stopEmbedder();
   await collector.stop();
   desktop?.kill("SIGTERM");
   for (const response of clients) response.end();
@@ -737,8 +1107,13 @@ server.listen(port, "127.0.0.1", () => {
   // Cheap when nothing was said since: a project is only summarised again
   // after new prompts, and at most every ten minutes.
   setInterval(refreshMemories, 60_000).unref();
+  // The long view is caught up once Mason is running, not while it starts.
+  setTimeout(catchUpDays, 15_000).unref();
+  setInterval(catchUpDays, 10 * 60_000).unref();
+  setTimeout(catchUpSaid, 30_000).unref();
+  setInterval(catchUpSaid, 10 * 60_000).unref();
   console.log(`Mason is running locally: http://127.0.0.1:${port}`);
-  console.log("Stop with Ctrl+C or by quitting Mason. No data leaves this Mac unless an ElevenLabs key is configured.");
+  console.log("Stop with Ctrl+C or by quitting Mason. What leaves this Mac is listed, each with a switch, under Leaves this Mac in Settings.");
 });
 
 for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, shutdown);

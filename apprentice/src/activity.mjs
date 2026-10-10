@@ -12,8 +12,9 @@ const GROUP_COLORS = { work: "#d7ff42", social: "#ff6b5f", other: "#7b7b82" };
 // Mason's day turns over at 04:00, so a late night stays one day.
 const DAY_STARTS_AT_HOUR = 4;
 
-export function classifyActivity({ app = "", window = "" } = {}) {
-  const haystack = `${app} ${window}`;
+export function classifyActivity({ app = "", window = "", host = "" } = {}) {
+  // In a browser the site says more than the title of the page does.
+  const haystack = `${app} ${window} ${host || ""}`;
   if (SYSTEM.test(app.trim())) return null;
   if (PRIVATE.test(haystack)) return null;
   if (LEISURE.test(app)) return { group: "other", category: "Leisure", color: "#7b7b82" };
@@ -35,7 +36,7 @@ export function dayStart(now = Date.now()) {
 }
 
 // Largest remainder, so work + social + other always reads as exactly 100.
-function percentages(values) {
+export function percentages(values) {
   const total = values.reduce((sum, value) => sum + value, 0);
   if (!total) return values.map(() => 0);
   const exact = values.map((value) => (value / total) * 100);
