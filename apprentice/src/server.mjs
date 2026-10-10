@@ -15,7 +15,7 @@ import { embedStatus, stopEmbedder } from "./embed.mjs";
 import { ICON_FILE, ICON_TYPES, iconFolder, iconsFor, siteIconsFor } from "./icons.mjs";
 import { dayKey, daysPayload, loadDays, refreshDays } from "./days.mjs";
 import { measureDay, readsAnswers, sentenceOf, usualWait } from "./coach.mjs";
-import { builtOf } from "./built.mjs";
+import { answerCard, askedBefore, builtOf, nextDue } from "./built.mjs";
 import { pageOf, piecesOf, replayOf, saveReplay, shownReplay, textOf } from "./replay.mjs";
 import { saveShare } from "./share.mjs";
 import { nudgesPayload, offerNudge, openNudge, settleNudges } from "./nudge.mjs";
@@ -259,7 +259,7 @@ async function builtProjects() {
   const known = await loadDays();
   const names = [...new Set(Object.keys(known.days).sort().slice(-21).flatMap((day) => Object.keys(known.days[day])))];
   const remembered = Object.fromEntries(await Promise.all(names.map(async (name) => [name, memories.get(name) || await savedMemory(name)])));
-  builtMemo = { at: Date.now(), value: builtOf({ days: known.days, memories: remembered, today: dayKey(Date.now()) }) };
+  builtMemo = { at: Date.now(), value: builtOf({ days: known.days, memories: remembered, today: dayKey(Date.now()), asked: await askedBefore() }) };
   return builtMemo.value;
 }
 
@@ -582,7 +582,17 @@ const server = http.createServer(async (request, response) => {
     }
     if (url.pathname === "/api/island" && request.method === "GET") return json(response, 200, await islandPayload());
     if (url.pathname === "/api/state" && request.method === "GET") return json(response, 200, await statePayload());
-    if (url.pathname === "/api/built" && request.method === "GET") return json(response, 200, { today: dayKey(Date.now()), projects: await builtProjects() });
+    if (url.pathname === "/api/built") {
+      // "Knew it" or "did not": the card comes back later, or tomorrow.
+      if (post) {
+        const input = await body(request);
+        if (!(await answerCard(input.id, input.knew === true))) return json(response, 400, { error: "No such card" });
+        builtMemo.at = 0;
+        broadcast("built");
+      }
+      const next = nextDue(await askedBefore());
+      return json(response, 200, { today: dayKey(Date.now()), projects: await builtProjects(), next: Number.isFinite(next) ? new Date(next).toISOString() : null });
+    }
     if (url.pathname === "/api/suggestions") {
       if (post) {
         const input = await body(request);

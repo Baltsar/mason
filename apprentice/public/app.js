@@ -49,6 +49,7 @@ let findTimer = null;
 let findTurn = 0;
 let findOpen = null;
 let builtShown = false;
+let builtWhere = false;
 // What the settings screen shows: the settings and the state of what Mason depends on.
 let prefs = null;
 // How a day moved between tools: the day shown (none is today) and the tool picked in it.
@@ -372,18 +373,27 @@ function renderBuilt() {
   if (!projects.length) {
     $("#built-meta").textContent = "";
     paint($("#built-projects"), "none", "");
-    return paint(card, "empty", `<h1 class="question">Nothing to ask about yet.</h1><p class="lede">It fills by itself as you work with your agents.</p>`);
+    // Nothing is due: either all of it was known lately, or nothing is remembered yet.
+    const back = built.next ? Math.max(1, Math.round((Date.parse(built.next) - Date.now()) / 86_400_000)) : 0;
+    return paint(card, `empty-${back}`, back
+      ? `<h1 class="question">Nothing to recall today.</h1><p class="lede">The next question comes back ${back === 1 ? "tomorrow" : `in ${back} days`}. What you knew comes back after longer each time.</p>`
+      : `<h1 class="question">Nothing to ask about yet.</h1><p class="lede">It fills by itself as you work with your agents.</p>`);
   }
   builtAt.project = Math.min(builtAt.project, projects.length - 1);
   const item = projects[builtAt.project];
   builtAt.card = Math.min(builtAt.card, item.cards.length - 1);
   const asked = item.cards[builtAt.card];
   const days = Math.round((dateOf(built.today) - dateOf(item.lastDay)) / 86_400_000);
-  $("#built-meta").textContent = `${item.project} · ${days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`} · ${builtAt.card + 1} of ${item.cards.length}`;
-  // One question in large type. A press shows what is remembered; nothing is typed.
-  paint(card, JSON.stringify([item.project, builtAt.card, builtShown, asked, snapshot.voice.elevenLabs]), `<h1 class="question">${esc(asked.question)}</h1>
-    ${builtShown ? `<ul class="held">${asked.answer.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>` : ""}
-    <div class="row">${builtShown ? "" : `<button class="primary" type="button" data-built="show">Show</button>`}<button class="${builtShown ? "primary" : "secondary"}" type="button" data-built="next">Next</button>${snapshot.voice.elevenLabs ? `<button class="secondary" type="button" data-recall="${esc(item.project)}">Ask me aloud</button>` : ""}</div>`);
+  const left = projects.reduce((count, project) => count + project.cards.length, 0);
+  $("#built-meta").textContent = `${item.project} · ${days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`} · ${left} to recall`;
+  // The question first, in large type. Say the answer to yourself, then look:
+  // what was not known comes back tomorrow, what was known after longer.
+  paint(card, JSON.stringify([asked, builtShown, builtWhere, snapshot.voice.elevenLabs]), `<h1 class="question">${esc(asked.question)}</h1>
+    ${builtShown ? `<ul class="held">${asked.answer.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>
+      ${builtWhere && asked.where.length ? `<ul class="where-in-code">${asked.where.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>` : ""}` : `<p class="lede">Say it to yourself first. Then look.</p>`}
+    <div class="row">${builtShown
+      ? `<button class="primary" type="button" data-built="knew">Knew it</button><button class="secondary" type="button" data-built="not">Did not</button>${asked.where.length && !builtWhere ? `<button class="quiet" type="button" data-built="where">Where in the code</button>` : ""}`
+      : `<button class="primary" type="button" data-built="show">Show</button><button class="quiet" type="button" data-built="skip">Skip</button>`}${snapshot.voice.elevenLabs ? `<button class="secondary" type="button" data-recall="${esc(item.project)}">Ask me aloud</button>` : ""}</div>`);
   paint($("#built-projects"), JSON.stringify([projects.map((project) => project.project), builtAt.project]), projects.map((project, index) => `<button type="button" data-built-project="${index}" aria-pressed="${index === builtAt.project}">${esc(project.project)}</button>`).join(""));
 }
 
@@ -1465,17 +1475,23 @@ async function act(event) {
 
   const turned = target.closest("[data-built]");
   if (turned) {
-    if (turned.dataset.built === "show") builtShown = true;
-    else {
+    const what = turned.dataset.built;
+    if (what === "show") builtShown = true;
+    else if (what === "where") builtWhere = true;
+    else if (what === "skip") {
       // The next question of the project, and after its last one the next project.
       const more = builtAt.card + 1 < built.projects[builtAt.project].cards.length;
       builtAt = more ? { project: builtAt.project, card: builtAt.card + 1 } : { project: (builtAt.project + 1) % built.projects.length, card: 0 };
-      builtShown = false;
+    } else {
+      // Known or not: the card leaves, and comes back when it is due.
+      const asked = built.projects[builtAt.project].cards[builtAt.card];
+      built = await post("/api/built", { id: asked.id, knew: what === "knew" });
     }
+    if (what !== "show" && what !== "where") { builtShown = false; builtWhere = false; }
     return renderBuilt();
   }
   const about = target.closest("[data-built-project]");
-  if (about) { builtAt = { project: Number(about.dataset.builtProject), card: 0 }; builtShown = false; return renderBuilt(); }
+  if (about) { builtAt = { project: Number(about.dataset.builtProject), card: 0 }; builtShown = false; builtWhere = false; return renderBuilt(); }
   if (target.closest("#today-said")) { waitedOpen = !waitedOpen; return render(); }
   if (target.closest("[data-lookback-open]")) { lookbackOpen = !lookbackOpen; return render(); }
   if (target.closest("[data-propose-open]")) { proposeOpen = !proposeOpen; return render(); }

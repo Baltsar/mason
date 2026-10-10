@@ -581,4 +581,6 @@ a.quiet { display: inline-flex; align-items: center; text-decoration: none; }
 .minibar .mark { width: 20px; height: 16px; border-radius: 4px; background: var(--gold); box-shadow: 0 0 0 2px rgba(214, 166, 71, .35); }
 .minibar .dots { width: 34px; }
 .flowmap .under[hidden] { display: none; }
+.asked .row .quiet { height: 34px; }
+.where-in-code { display: grid; gap: 6px; max-width: 940px; margin: 22px 0 0; padding: 14px 0 0; border-top: 1px solid var(--line); list-style: none; color: var(--muted); font: 13px/1.5 var(--mono); }
 
