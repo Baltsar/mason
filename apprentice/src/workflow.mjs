@@ -5,7 +5,8 @@ import { dayStart } from "./activity.mjs";
 import { dayKey, daysOf } from "./days.mjs";
 import { buildFlow } from "./flow.mjs";
 import { askModel } from "./llm.mjs";
-import { fingerprint } from "./redact.mjs";
+import { fingerprint, redact } from "./redact.mjs";
+import { ACTS_OUTWARD } from "./suggest.mjs";
 import { atomicJson, paths, readJson } from "./store.mjs";
 
 // A workflow is how someone works with agents, measured and not told: which
@@ -291,3 +292,72 @@ export async function saveWorkflow(workflow, label = workflow.purpose) {
   await writeFile(target, `${JSON.stringify(workflow, null, 2)}\n`);
   return target;
 }
+
+/* Someone else's workflow, opened here */
+
+// A workflow that is opened was written by a stranger, and its rules are made
+// to be put where every agent on this Mac reads them. So nothing in the file
+// is taken as it stands. Figures are read as figures, names are cut short,
+// and a rule is offered only when it is one plain sentence about how to work:
+// no command, no address, no path, nothing about secrets, nothing that tells
+// an agent to disregard what it was told, and nothing that takes away the
+// question before something is published, sent, deleted or paid for. What is
+// held back is still shown, with the reason, and its owner reads every rule
+// before pressing.
+const RULE_AT_MOST = 180;
+const RULES_AT_MOST = 12;
+const HELD = [
+  [/https?:|www\.|\b[\w-]+\.(?:com|net|org|io|dev|sh|ai|app|se|co|ru|cn|xyz|zip)\b/i, "it names an address"],
+  [/[`$|<>{}\\]|&&|\.\.\/|(?:^|\s)[~/][\w.-]*\//, "it holds a command or a path"],
+  [/\b(?:curl|wget|sudo|bash|zsh|chmod|chown|eval|exec|npx|pip|brew|ssh|scp|nc|base64|rm)\b/i, "it names a command"],
+  [/\b(?:secret|token|password|passwd|credential|api[ _-]?key|private key|\.env|keychain|ssh key|cookie)s?\b/i, "it is about secrets"],
+  [/\b(?:ignore|disregard|forget|override|bypass)\b.{0,40}\b(?:instruction|rule|prompt|guardrail|permission|above|previous|earlier)|\bsystem prompt\b|\bwithout asking\b|\bnever ask\b|\bdo not ask\b|\bdon't ask\b/i, "it tells an agent to stop asking or to set its rules aside"],
+  [ACTS_OUTWARD, "it is about publishing, sending, deleting or paying"],
+];
+// Why a rule is not offered, or nothing when it is.
+export function heldBack(rule) {
+  const text = String(rule ?? "");
+  if (text.length > RULE_AT_MOST) return "it is too long to be one rule";
+  if (/[\n\r]/.test(text)) return "it is more than one line";
+  return HELD.find(([pattern]) => pattern.test(text))?.[1] || "";
+}
+
+// Only a number, or a number written out, is a figure: anything else in its place is nothing.
+const figure = (value, most = 1e12) => (typeof value === "number" || (typeof value === "string" && value.trim())) && Number.isFinite(Number(value)) && Number(value) >= 0 ? Math.min(most, Math.round(Number(value))) : null;
+const named = (value, most) => redact((typeof value === "string" ? value : "").replace(/[\u0000-\u001f\u007f<>]/g, " "), most);
+
+// A workflow file as it may be shown here, or null when it is not one.
+// `text` is what the file holds.
+export function readWorkflow(text) {
+  let raw;
+  try { raw = typeof text === "string" ? JSON.parse(text) : text; } catch { return null; }
+  if (!raw || typeof raw !== "object" || raw.format !== "mason.workflow" || raw.version !== 1) return null;
+  const list = (value, most) => (Array.isArray(value) ? value : []).slice(0, most).filter((item) => item && typeof item === "object");
+  const purpose = PURPOSES.find((item) => item.word === raw.purpose);
+  const day = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+  const screen = raw.screen && typeof raw.screen === "object" ? raw.screen : null;
+  return {
+    by: named(raw.by, 40) || "Someone",
+    purpose: purpose?.key || "all",
+    from: day(raw.from),
+    to: day(raw.to),
+    days: figure(raw.days, 366),
+    minutes: figure(raw.minutes),
+    projects: figure(raw.projects, 10_000),
+    prompts: figure(raw.prompts),
+    perHour: figure(raw.perHour, 10_000),
+    tokens: raw.tokens && typeof raw.tokens === "object" ? { all: figure(raw.tokens.all, 1e15), written: figure(raw.tokens.written, 1e15), aDay: figure(raw.tokens.aDay, 1e15) } : null,
+    agents: list(raw.agents, 6).map((agent) => ({ name: named(agent.name, 30), prompts: figure(agent.prompts), share: figure(agent.share, 100) })).filter((agent) => agent.name),
+    handed: list(raw.handed, 6).map((agent) => ({ name: named(agent.name, 30), sessions: figure(agent.sessions) })).filter((agent) => agent.name),
+    parallel: { usual: figure(raw.parallel?.usual, 1000), share: figure(raw.parallel?.share, 100) },
+    turn: raw.turn && typeof raw.turn === "object" ? { seconds: figure(raw.turn.seconds), long: figure(raw.turn.long) } : null,
+    piece: raw.piece && typeof raw.piece === "object" ? { prompts: figure(raw.piece.prompts, 10_000), minutes: figure(raw.piece.minutes), opener: figure(raw.piece.opener, 10_000), follower: figure(raw.piece.follower, 10_000) } : null,
+    // Only tools known here are named: a name in a file could be anything.
+    screen: screen ? { waitSeconds: figure(screen.waitSeconds), left: figure(screen.left, 100), tools: list(screen.tools, 8).map((tool) => ({ name: named(tool.name, 30), role: roleOf(named(tool.name, 30)), share: figure(tool.share, 100) })).filter((tool) => tool.role) } : null,
+    rules: list(raw.rules, RULES_AT_MOST).map((item) => {
+      const rule = (typeof item.rule === "string" ? item.rule : "").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim().slice(0, 400);
+      return { rule, times: figure(item.times, 100_000), projects: figure(item.projects, 10_000), held: heldBack(rule) };
+    }).filter((item) => item.rule),
+  };
+}
+

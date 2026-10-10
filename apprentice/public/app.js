@@ -810,13 +810,54 @@ async function loadWorkflow() {
   if (view === "workflow") renderWorkflow();
 }
 
+// Someone else's workflow, opened from a file: theirs in large figures, one's
+// own beside each, and their rules to take over one at a time.
+let workflowOpened = null;
+
+async function openWorkflow(file) {
+  if (!file) return;
+  try { workflowOpened = await post("/api/workflow/open", { text: (await file.text()).slice(0, 300_000) }); }
+  catch { return toast("That is not a workflow from Mason."); }
+  drill.workflow = null;
+  renderWorkflow();
+}
+
+function renderOpened() {
+  const { theirs, mine } = workflowOpened;
+  const you = (value) => value === null || value === undefined ? "" : `you: ${value}`;
+  $("#workflow-meta").textContent = [theirs.by, theirs.purpose === "all" ? "all of their work" : purposeWord(theirs.purpose), theirs.from && theirs.to ? dates(theirs.from, theirs.to) : ""].filter(Boolean).join(" · ");
+  $("#workflow-purposes").hidden = true;
+  const most = theirs.agents[0];
+  const bigs = $("#workflow-bigs");
+  bigs.dataset.still = "true";
+  renderBigs(bigs, [
+    most && { key: "agents", number: most.share ?? "–", unit: "%", word: most.name, meta: mine.agents[0] ? you(`${mine.agents[0].share}% ${mine.agents[0].name}`) : "", tone: "var(--lime)" },
+    theirs.perHour !== null && { key: "pace", number: theirs.perHour, word: "prompts an hour", meta: you(mine.perHour), tone: "var(--paper)" },
+    theirs.parallel.usual !== null && { key: "spread", number: theirs.parallel.usual, word: theirs.parallel.usual === 1 ? "project a day" : "projects a day", meta: you(mine.parallel.usual), tone: "var(--gold)" },
+    theirs.turn?.seconds && { key: "turn", number: lasted(theirs.turn.seconds).split(" ")[0], unit: lasted(theirs.turn.seconds).split(" ")[1] || "", word: "per prompt", meta: mine.turn ? you(lasted(mine.turn.seconds)) : "", tone: "var(--cyan)" },
+  ].filter(Boolean), null);
+  $("#workflow-drill").hidden = true;
+  delete $("#workflow-drill").dataset.sig;
+
+  const told = $("#workflow-rules");
+  told.hidden = !theirs.rules.length;
+  if (told.hidden) delete told.dataset.sig;
+  else paint(told, JSON.stringify(["theirs", theirs.by, theirs.rules]), `<p class="label">What ${esc(theirs.by)} tells their agents</p><ol>${theirs.rules.map((rule, index) => `<li><p>${esc(rule.rule)}</p>${
+    rule.held ? `<span>Not offered: ${esc(rule.held)}</span>` : rule.told ? "<span>Your agents are told</span>" : `<button class="secondary" type="button" data-adopt="${index}">Tell my agents</button>`}</li>`).join("")}</ol>
+    <p class="where">A press writes that one line where every agent on this Mac reads it, as a default: what a prompt asks for comes first. It can be taken out again in Settings.</p>`);
+}
+
 function renderWorkflow() {
   const share = $("#workflow-share");
+  $("#workflow-open").hidden = !workflow;
+  $("#workflow-back").hidden = !workflowOpened;
   if (!workflow) {
     $("#workflow-meta").textContent = "Reading thirty days of what you said to your agents";
     share.hidden = true;
     return;
   }
+  if (workflowOpened) { share.hidden = true; return renderOpened(); }
+  delete $("#workflow-bigs").dataset.still;
   const card = workflowCard();
   $("#nav-workflow").textContent = workflow.cards[0].perHour ?? "–";
   $("#workflow-meta").textContent = card.prompts ? `${dates(workflow.from, workflow.to)} · ${card.days} ${card.days === 1 ? "day" : "days"} with agents` : "Nothing was said to an agent in thirty days.";
@@ -1185,7 +1226,7 @@ function renderSettings() {
     ${row("speech", "Sound")}
     ${row("cues", "A word on the island", settings.cues ? on(nudged) : off("Silent"))}
     ${row("glass", "Liquid glass", settings.glass ? on("A look to try") : off("Dark"))}
-    ${applied.length ? `<p class="group">Told every agent</p>${applied.map((rule) => `<div class="set rule"><span>${esc(rule.rule)}</span><button class="secondary" type="button" data-rule-remove="${esc(rule.id)}">Take out</button></div>`).join("")}` : ""}
+    ${applied.length ? `<p class="group">Told every agent</p>${applied.map((rule) => `<div class="set rule"><span>${esc(rule.rule)}${rule.from ? `<small>from ${esc(rule.from)}</small>` : ""}</span><button class="secondary" type="button" data-rule-remove="${esc(rule.id)}">Take out</button></div>`).join("")}` : ""}
     <p class="group">Kept on this Mac</p>
     <div class="set files"><span>Open</span><span class="with"><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Memory</button><button class="secondary" type="button" data-reveal="notes">Notes for Obsidian</button></span></div>
     ${said.count ? `<div class="set files"><span>${thousands(said.count)} prompts, read by meaning</span><button class="secondary" type="button" data-forget-said>Forget</button></div>` : ""}
@@ -1343,6 +1384,16 @@ async function act(event) {
   const purpose = target.closest("[data-purpose]");
   if (purpose) { workflowPurpose = purpose.dataset.purpose; drill.workflow = null; workflowOut = null; return renderWorkflow(); }
   if (target.closest("#workflow-share")) { $("#wshare").showModal(); return drawWorkflow(); }
+  if (target.closest("#workflow-open")) return $("#workflow-file").click();
+  if (target.closest("#workflow-back")) { workflowOpened = null; return renderWorkflow(); }
+  const adopt = target.closest("[data-adopt]");
+  if (adopt && workflowOpened) {
+    const rule = workflowOpened.theirs.rules[Number(adopt.dataset.adopt)];
+    snapshot.suggestions = await post("/api/workflow/adopt", { rule: rule.rule, from: workflowOpened.theirs.by });
+    rule.told = true;
+    toast("Your agents are told. It can be taken out in Settings.");
+    return renderWorkflow();
+  }
   if (target.closest("#wshare-close")) return $("#wshare").close();
   const told = target.closest("[data-wrule]");
   if (told) { if (!workflowOut.delete(told.dataset.wrule)) workflowOut.add(told.dataset.wrule); return drawWorkflow(); }
@@ -1410,7 +1461,7 @@ async function act(event) {
 
   const big = target.closest(".big");
   if (big) {
-    if (view === "days") return;
+    if (view === "days" || (view === "workflow" && workflowOpened)) return;
     const key = big.dataset.key === "all" ? null : big.dataset.key;
     drill[view] = drill[view] === key ? null : key;
     return render();
@@ -1539,3 +1590,17 @@ window.addEventListener("hashchange", () => {
 });
 await load();
 connect();
+
+// A workflow file is opened by choosing it, or by dropping it on the Workflow view.
+document.addEventListener("change", (event) => {
+  if (event.target.id !== "workflow-file") return;
+  openWorkflow(event.target.files[0]);
+  event.target.value = "";
+});
+document.addEventListener("dragover", (event) => { if (view === "workflow") event.preventDefault(); });
+document.addEventListener("drop", (event) => {
+  if (view !== "workflow") return;
+  event.preventDefault();
+  openWorkflow(event.dataTransfer?.files?.[0]);
+});
+

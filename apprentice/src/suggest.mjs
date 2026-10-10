@@ -38,7 +38,7 @@ If nothing repeats across projects, reply {"groups": []}.`;
 // A rule that takes away the question before something is published, sent,
 // deleted or paid for is never proposed for every project. Said in one place
 // it was about that place, and the day after it can be "do not push".
-const ACTS_OUTWARD = /\b(publish|deploy|push|merge|release|ship|send|upload|github|delete|remove|pay|publicera|pusha|deploya|depkoya|skicka|ladda\s+upp|radera|betala|mergea)\w*/i;
+export const ACTS_OUTWARD = /\b(publish|deploy|push|merge|release|ship|send|upload|github|delete|remove|pay|publicera|pusha|deploya|depkoya|skicka|ladda\s+upp|radera|betala|mergea)\w*/i;
 
 const DEMANDS = `You are given things one person said to coding agents again and again, in several projects. Each numbered group holds a few of the ways one thing was said, in the person's own words, often in Swedish.
 
@@ -210,6 +210,21 @@ export async function applySuggestion(id, wording = "") {
   return true;
 }
 
+// A rule taken over from someone else's workflow: written in the same place,
+// kept with whose it was, and taken out again the same way as one's own.
+export async function adoptRule(text, from = "") {
+  const rule = clean(text, 220).replace(/^-\s*/, "");
+  if (!rule) return false;
+  const store = await load();
+  const id = fingerprint(`taken over\n${rule}`);
+  if (store.applied.some((item) => item.id === id || item.rule === rule)) return true;
+  const line = `- ${rule}`;
+  await writeRules((before) => before.split("\n").includes(line) ? before : withLine(before, line));
+  store.applied.push({ id, rule, line, at: new Date().toISOString(), from: clean(from, 40) });
+  await atomicJson(file(), store);
+  return true;
+}
+
 // No: it is not proposed again.
 export async function dismissSuggestion(id) {
   const store = await load();
@@ -235,5 +250,5 @@ export async function removeRule(id) {
 export async function suggestionsPayload() {
   const store = await load();
   const shown = rulesFile().replace(os.homedir(), "~");
-  return { open: store.open.map((proposal) => ({ ...proposal, file: shown })), applied: store.applied.map(({ id, rule, at }) => ({ id, rule, at })) };
+  return { open: store.open.map((proposal) => ({ ...proposal, file: shown })), applied: store.applied.map(({ id, rule, at, from }) => ({ id, rule, at, ...(from ? { from } : {}) })) };
 }
