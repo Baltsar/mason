@@ -1354,6 +1354,7 @@ function renderSettings() {
     <p class="group">Look and sound</p>
     ${row("speech", "Sound")}
     ${row("ready", "Answer ready", settings.ready ? on("A card when an agent is done") : off("Not said"))}
+    ${row("chime", "A lute with it", settings.chime ? on("Two notes") : off("Silent"))}
     ${row("cues", "A word on the island", settings.cues ? on(nudged) : off("Silent"))}
     ${row("island", "Island by the notch", settings.island ? on("Shows the day") : off("An icon among the others"))}
     <div class="barpicks" role="group" aria-label="Where Mason sits in the menu bar">${[[true, "Island", "Beside the notch, with the day in it"], [false, "Icon", "One mark among the others"]].map(([island, name, note]) => `<button type="button" class="barpick" data-island="${island}" aria-pressed="${settings.island === island}">

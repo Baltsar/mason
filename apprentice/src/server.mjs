@@ -214,7 +214,7 @@ async function noticeNow(waiting, runtime, index, { busy = false } = {}) {
     : false;
   if (showing) {
     const seen = reading === true || showing.answers.every((answer) => answer.project === reading);
-    if (seen || now - showing.at > TAKEN_BACK_MS || !settings().ready) showing = null;
+    if (seen || now - showing.at > TAKEN_BACK_MS) showing = null;
     return showing;
   }
   if (!settings().ready) return null;
@@ -230,7 +230,7 @@ async function noticeNow(waiting, runtime, index, { busy = false } = {}) {
     answer.app = app && app !== runtime.currentApp ? app : null;
   }
   showing = { ...notice, at: now };
-  chime();
+  if (settings().chime) chime();
   return showing;
 }
 
@@ -543,7 +543,7 @@ async function statePayload() {
     lookback: days.lookbacks.at(-1) || null,
     suggestions,
     // The card that says an answer is ready, while it is on the panel.
-    notice: showing,
+    notice: showing && { ...showing, sound: settings().chime },
     // What the window is made of: the dark look, or liquid glass.
     look: settings().glass ? "glass" : "",
     // The nudge that was just said, and how the last week of them went.
