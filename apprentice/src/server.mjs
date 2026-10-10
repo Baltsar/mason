@@ -20,7 +20,7 @@ import { pageOf, piecesOf, replayOf, saveReplay, shownReplay, textOf } from "./r
 import { saveShare } from "./share.mjs";
 import { nudgesPayload, offerNudge, openNudge, settleNudges } from "./nudge.mjs";
 import { beforeSaid, findSaid, forgetSaid, refreshSaid, repeatedSaid, saidStatus, unreadSaid } from "./said.mjs";
-import { applySuggestion, dismissSuggestion, refreshSuggestions, removeRule, suggestionsPayload } from "./suggest.mjs";
+import { dismissSuggestion, refreshSuggestions, suggestionsPayload, wordSuggestion } from "./suggest.mjs";
 import { buildGaps, buildTeachBack, confirmation, debriefProgress } from "./debrief.mjs";
 import { logSources, projectIndex, summarizeProjects } from "./projects.mjs";
 import { callContext, ensureAgent, recallContext, signedUrl, tutorContext } from "./agent.mjs";
@@ -32,7 +32,6 @@ import { fromHere } from "./guard.mjs";
 import { collectable } from "./collection.mjs";
 import { recordUse, usagePayload } from "./usage.mjs";
 import { fileOf, handover, heldBy, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
-import { heldBack } from "./rules.mjs";
 
 useMemoryStore();
 await loadLocalEnv();
@@ -555,12 +554,13 @@ const server = http.createServer(async (request, response) => {
     if (url.pathname === "/api/suggestions") {
       if (post) {
         const input = await body(request);
-        const act = { apply: applySuggestion, dismiss: dismissSuggestion, remove: removeRule }[input.action];
-        if (!act) return json(response, 400, { error: "Unknown action" });
-        // A wording Mason does not write is said, with the reason, and nothing is changed.
-        const why = input.action === "apply" && input.rule ? heldBack(String(input.rule)) : "";
-        if (why) return json(response, 400, { error: `Mason does not write that wording: ${why}. Say it more plainly, or give it to an agent yourself.` });
-        await act(String(input.id || ""), String(input.rule || ""));
+        // No, or other words for it. Mason writes a rule nowhere: it is handed
+        // to an agent from the window, as a prompt its owner sends.
+        if (input.action === "word") {
+          const why = await wordSuggestion(String(input.id || ""), String(input.rule || ""));
+          if (why) return json(response, 400, { error: `Mason does not hand on those words: ${why}. Say it more plainly, or give it to an agent yourself.` });
+        } else if (input.action === "dismiss") await dismissSuggestion(String(input.id || ""));
+        else return json(response, 400, { error: "Unknown action" });
         broadcast("suggestions");
       }
       return json(response, 200, await suggestionsPayload());

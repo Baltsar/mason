@@ -215,18 +215,21 @@ function renderLookback() {
 }
 
 // Something Mason has seen often enough to propose a change. One at a time,
-// with what it rests on, and never done without a press.
+// with what it rests on. Mason writes it nowhere: it is handed to an agent as
+// a prompt that is ready and not sent, and is gone from here once the rule
+// stands in the agents' rules.
 function renderPropose() {
   const node = $("#propose");
   const proposal = snapshot.suggestions?.open?.[0];
   node.hidden = !proposal;
   if (!proposal) { delete node.dataset.sig; return; }
+  const links = proposal.hand?.links || [];
   paint(node, JSON.stringify([proposal, proposeOpen]), `<p class="label">You keep saying this · ${proposal.times} times in ${proposal.projects} projects</p>
     <h2>${esc(proposal.rule)}</h2>
     ${proposeOpen ? `<ul class="quotes">${proposal.evidence.map((item) => `<li><b>${esc(item.project)}</b><span>“${esc(item.example)}”</span></li>`).join("")}</ul>
-      <textarea id="propose-rule" rows="2" aria-label="The rule, in the words it will be written in">${esc(proposal.rule)}</textarea>
-      <p class="where">One line in ${esc(proposal.file)}, where every agent reads it. A default, not a law: what a prompt asks for comes first. It can be taken out again in Settings.</p>` : ""}
-    <div class="row"><button class="primary" type="button" data-propose="apply" data-id="${esc(proposal.id)}">Tell every agent</button><button class="secondary" type="button" data-propose="dismiss" data-id="${esc(proposal.id)}">No</button><button class="quiet" type="button" data-propose-open>${proposeOpen ? "Less" : "What I said"}</button></div>`);
+      <textarea id="propose-rule" rows="2" data-id="${esc(proposal.id)}" aria-label="The rule, in the words it will be handed over in">${esc(proposal.rule)}</textarea>
+      <p class="where">Mason writes this nowhere. Choose an agent: it opens with a prompt ready and not sent. Read it, press Enter, and the agent shows you the change before it saves, one line in the file each of your agents reads its rules from. A default, not a law: what a prompt asks for comes first.</p>` : ""}
+    <div class="row"><span class="hand">${links.map((link, index) => `<a class="${index ? "secondary" : "primary"}" href="${esc(link.url)}" data-hand>${index ? "" : "Give it to "}${esc(link.agent)}</a>`).join("")}<button class="secondary" type="button" data-propose-copy>Copy prompt</button></span><button class="secondary" type="button" data-propose="dismiss" data-id="${esc(proposal.id)}">No</button><button class="quiet" type="button" data-propose-open>${proposeOpen ? "Less" : "What I said"}</button></div>`);
 }
 
 // A project is one line: its name, where it was left in a few words, its time.
@@ -1258,7 +1261,7 @@ function renderSettings() {
     ${row("speech", "Sound")}
     ${row("cues", "A word on the island", settings.cues ? on(nudged) : off("Silent"))}
     ${row("glass", "Liquid glass", settings.glass ? on("A look to try") : off("Dark"))}
-    ${applied.length ? `<p class="group">Told every agent</p>${applied.map((rule) => `<div class="set rule"><span>${esc(rule.rule)}</span><button class="secondary" type="button" data-rule-remove="${esc(rule.id)}">Take out</button></div>`).join("")}` : ""}
+    ${applied.length ? `<p class="group">In your agents' rules</p>${applied.map((rule) => `<div class="set rule"><span>${esc(rule.rule)}</span><b>${esc(rule.by.join(" · "))}</b></div>`).join("")}` : ""}
     <p class="group">Kept on this Mac</p>
     <div class="set files"><span>Open</span><span class="with"><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Memory</button><button class="secondary" type="button" data-reveal="notes">Notes for Obsidian</button></span></div>
     ${said.count ? `<div class="set files"><span>${thousands(said.count)} prompts, read by meaning</span><button class="secondary" type="button" data-forget-said>Forget</button></div>` : ""}
@@ -1389,13 +1392,14 @@ async function act(event) {
   if (target.closest("[data-propose-open]")) { proposeOpen = !proposeOpen; return render(); }
   const proposed = target.closest("[data-propose]");
   if (proposed) {
-    snapshot.suggestions = await post("/api/suggestions", { action: proposed.dataset.propose, id: proposed.dataset.id, rule: $("#propose-rule")?.value || "" });
+    snapshot.suggestions = await post("/api/suggestions", { action: proposed.dataset.propose, id: proposed.dataset.id });
     proposeOpen = false;
-    if (proposed.dataset.propose === "apply") toast("Added. Every agent reads it from now on.");
     return render();
   }
-  const taken = target.closest("[data-rule-remove]");
-  if (taken) { snapshot.suggestions = await post("/api/suggestions", { action: "remove", id: taken.dataset.ruleRemove }); toast("Taken out"); return renderSettings(); }
+  if (target.closest("[data-propose-copy]")) {
+    const prompt = snapshot.suggestions?.open?.[0]?.hand?.prompt;
+    return toast(prompt && await copyText(prompt) ? "Copied. Paste it to the agent you choose, and read it before you send it." : "Could not copy.");
+  }
 
   const step = target.closest("[data-flow-step]");
   if (step) {
@@ -1628,6 +1632,14 @@ window.addEventListener("hashchange", () => {
 });
 await load();
 connect();
+
+// Other words for a proposal are kept when the field is left, and the prompt follows them.
+document.addEventListener("change", async (event) => {
+  if (event.target.id !== "propose-rule") return;
+  try { snapshot.suggestions = await post("/api/suggestions", { action: "word", id: event.target.dataset.id, rule: event.target.value }); }
+  catch (error) { return toast(error.message); }
+  render();
+});
 
 // A workflow file is opened by choosing it, or by dropping it on the Workflow view.
 document.addEventListener("change", (event) => {

@@ -167,7 +167,7 @@ Off until you switch it on in Settings. A tool that is a site has no app to lend
 
 ## What it writes outside its own folder
 
-One file, and only when you press: a proposal you say yes to becomes one line under the heading `## Learned by Mason` in `~/.claude/CLAUDE.md`, the file every Claude Code agent on the Mac reads. The line is shown before it is written and its words can be changed. The file as it was before Mason first touched it is kept as `data/rules-before-mason.md`, and **Told every agent** in Settings takes a line out again. `APPRENTICE_RULES_FILE` points it at another file.
+Nothing. A proposal, like a rule from someone else's workflow, is handed to an agent you choose: Claude Code, Codex or Cursor opens with a prompt that is ready and not sent, and **Copy prompt** serves any other. You read it and press Enter, and the agent shows the change before it saves: one line under `## Learned by Mason` in each rules file that exists (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.grok/AGENTS.md`). The words can be changed first. Mason reads those files to see when a rule stands there; the proposal is then done, and the rule is listed under **In your agents' rules** in Settings with the agents that hold it. `APPRENTICE_RULES_FILE` points the reading at another file.
 
 ## What it reads
 
@@ -187,7 +187,7 @@ What leaves the Mac for ElevenLabs, and only when a key is set and the switch is
 
 The server listens on `127.0.0.1` and nowhere else. A page in a browser is on this Mac too, though, and a browser lets any page send a request to an address on the same machine. So a request is answered only when it was addressed to this Mac by number or as `localhost`, and, when a browser says which page sent it, only when that page is Mason's own. The island, the agents and a terminal name no page and are let through. A link someone sends cannot switch a setting, read the memory or have a rule written.
 
-It does trust this Mac. A program that runs here and is not a browser, or an agent that may call a local address, can ask the server what Mason's own window can: read the memory, switch a setting, say yes to an open proposal. So the words of a proposal are checked like a stranger's before they are written, whoever asks, and nothing a caller sends is spoken or run. A secret for each start, known only to Mason's own window, would close this and is not built yet.
+It does trust this Mac. A program that runs here and is not a browser, or an agent that may call a local address, can ask the server what Mason's own window can: read the memory, switch a setting, change the words of an open proposal. So those words are checked like a stranger's, whoever asks, nothing a caller sends is spoken or run, and Mason writes no rule at all: the last step is always a prompt a person sends. A secret for each start, known only to Mason's own window, would close this and is not built yet.
 
 ## The challenge, module by module
 
