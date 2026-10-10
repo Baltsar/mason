@@ -1,0 +1,55 @@
+name: Report a bug
+description: Something does not work as the docs say.
+title: "Bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Look in [When something is off](https://github.com/Baltsar/mason/blob/main/docs/troubleshooting.md) first: the usual ones are there.
+
+        Do not paste anything from your memory (`apprentice/data/`, `apprentice/wiki/`) that you would not show publicly. A security problem does not go here: see [Security](https://github.com/Baltsar/mason/blob/main/SECURITY.md).
+  - type: textarea
+    id: did
+    attributes:
+      label: What you did
+      description: The steps, so that someone else can do the same.
+    validations:
+      required: true
+  - type: textarea
+    id: saw
+    attributes:
+      label: What you saw
+      description: What happened. A picture helps for something on screen.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: mac
+    attributes:
+      label: macOS and Node
+      description: "For example: macOS 15.6, Node 22. `sw_vers -productVersion` and `node -v` say it."
+    validations:
+      required: true
+  - type: dropdown
+    id: model
+    attributes:
+      label: The model that writes summaries
+      options:
+        - Claude, through my own login
+        - Another, named in .env.local
+        - None, Summaries is off
+        - It does not matter here
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: What npm test says
+      description: Only if it fails. Run `npm test` in `apprentice/` and paste the failing part.
+      render: text

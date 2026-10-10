@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Read the docs
+    url: https://github.com/Baltsar/mason/blob/main/docs/get-started.md
+    about: Get started, what it reads and sends, every setting, and what to do when something is off.
+  - name: Report a security problem
+    url: https://github.com/Baltsar/mason/security/advisories/new
+    about: Privately, not in an issue.

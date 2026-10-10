@@ -25,9 +25,11 @@ The first time, Mason's window opens by itself. It shows what it has already rea
 
 Cloned into your home folder, as above, macOS has no reason to ask about your Documents folder.
 
+**Docs.** [Get started](docs/get-started.md), [what it reads, sends and keeps](docs/privacy.md), [every setting](docs/configuration.md) and [what to do when something is off](docs/troubleshooting.md) are in [`docs/`](docs/), one page a file.
+
 **New versions.** Mason asks GitHub once a day whether a newer release is out and says so in Settings and on the island. It sends nothing of yours and installs nothing: to take a new version, `git pull` and `npm run build:reader`. The look has a switch.
 
-There is a page about it at https://mason-demo-eight.vercel.app, and a [collection of workflows](workflows/) other people work by, to try beside your own.
+There is a page about it at https://www.mason.tools, with the [docs](https://www.mason.tools/docs/), and a [collection of workflows](workflows/) other people work by, to try beside your own.
 
 ## What it does
 
@@ -109,6 +111,7 @@ A model is needed for three things only: the summary of a project, the script of
 | [`apprentice/`](apprentice/) | The app (the folder keeps its first name): native macOS island, local server, ElevenLabs voice, MCP server. Start with its [README](apprentice/README.md). |
 | [`film/`](film/) | How the three submission films were made: the app window is driven and recorded headlessly, then cut and captioned by script. |
 | [`workflows/`](workflows/) | The collection: how people work with agents, one file each, and the page made from them. |
+| [`docs/`](docs/) | The docs, one Markdown file a page. The site is built from them, and `npm test` compares them with the code. |
 
 ## Tests
 

@@ -1,0 +1,32 @@
+{
+  "groups": [
+    {
+      "title": "Use it",
+      "pages": [
+        { "slug": "get-started", "file": "docs/get-started.md" },
+        { "slug": "what-you-see", "file": "docs/what-you-see.md" },
+        { "slug": "privacy", "file": "docs/privacy.md" },
+        { "slug": "models-and-voice", "file": "docs/models-and-voice.md" },
+        { "slug": "agents-and-mcp", "file": "docs/agents-and-mcp.md" },
+        { "slug": "workflows", "file": "docs/workflows.md" }
+      ]
+    },
+    {
+      "title": "Look it up",
+      "pages": [
+        { "slug": "configuration", "file": "docs/configuration.md" },
+        { "slug": "troubleshooting", "file": "docs/troubleshooting.md" }
+      ]
+    },
+    {
+      "title": "The project",
+      "pages": [
+        { "slug": "how-it-is-built", "file": "docs/how-it-is-built.md" },
+        { "slug": "contributing", "file": "CONTRIBUTING.md" },
+        { "slug": "security", "file": "SECURITY.md" },
+        { "slug": "code-of-conduct", "file": "CODE_OF_CONDUCT.md" },
+        { "slug": "claims", "file": "docs/CLAIMS.md" }
+      ]
+    }
+  ]
+}
