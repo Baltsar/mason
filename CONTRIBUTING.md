@@ -29,6 +29,18 @@ npm test
 - Commits are small and say one thing, in the form `feat:`, `fix:`, `docs:`, `test:`, `chore:`.
 - Anything new that reads something, or sends something off the Mac, gets a switch and a line in Settings.
 
+## Change the docs
+
+The docs are the Markdown files in [`docs/`](docs/), one for each page, and the site is built from them. There is no second copy to keep up. To fix a page, edit its file; **Edit this page** under each page on the site opens it.
+
+`npm test` compares the docs with the code. It fails when a switch in Settings, a variable, an MCP tool, a command or a view of the app window is not in the docs, when the docs still name one that is gone, and when a link between pages is dead. So a change that adds a switch adds its line in [Settings and configuration](docs/configuration.md) in the same pull request, and the test says so if it was forgotten.
+
+A new page is a Markdown file in `docs/` that opens with a `# ` heading, and one line in [`docs/docs.json`](docs/docs.json).
+
 ## What Mason will not do
 
 It keeps no screenshots and no keystrokes, reads no file contents, and writes nothing outside its own folder. A rule reaches an agent only as a prompt a person reads and sends. A change that crosses one of these is not a bug fix, however useful: open an issue first.
+
+## Conduct
+
+Be decent to the people here. See the [Code of conduct](CODE_OF_CONDUCT.md).

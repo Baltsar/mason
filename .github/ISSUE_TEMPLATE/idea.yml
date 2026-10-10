@@ -1,0 +1,28 @@
+name: Propose something
+description: A change or an addition. One paragraph is enough.
+title: "Idea: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Say it before you build it: it saves you work that will not be merged. What a change has to hold to is in [Contributing](https://github.com/Baltsar/mason/blob/main/CONTRIBUTING.md#what-a-change-has-to-hold-to).
+  - type: textarea
+    id: problem
+    attributes:
+      label: What gets in your way
+      description: The moment in your own work where Mason should have helped and did not.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you would have it do
+    validations:
+      required: true
+  - type: checkboxes
+    id: leaves
+    attributes:
+      label: Does it read or send something new?
+      options:
+        - label: It needs Mason to read something it does not read today, or to send something off the Mac.
