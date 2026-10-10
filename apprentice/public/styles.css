@@ -185,6 +185,8 @@ textarea:focus { outline: 2px solid var(--lime); outline-offset: 1px; }
 .beats p { color: #aeadab; font-size: 14px; line-height: 1.5; }
 .agents-pair { grid-template-columns: 1.2fr .8fr; margin-top: 34px; }
 .terminal pre { margin: 0; overflow: auto; color: #d9d9d4; font: 13px/1.75 var(--mono); }
+.terminal-note { margin: 22px 0 12px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.5; }
+.terminal #mcp-copy { margin: 10px 0 0 -10px; }
 .tools { display: grid; gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: var(--line); }
 .tools button { display: grid; grid-template-columns: 34px 1fr; align-items: baseline; padding: 15px 20px; border: 0; background: var(--panel); text-align: left; }
 .tools button:hover { background: var(--raised); }

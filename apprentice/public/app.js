@@ -1,4 +1,5 @@
 import { canDictate, dictate } from "/voice.js";
+import { key, keyed, withKey } from "/key.js";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -72,7 +73,7 @@ function toast(text) {
 }
 
 async function api(url, options = {}) {
-  const response = await fetch(url, { headers: { "content-type": "application/json" }, ...options });
+  const response = await fetch(url, { headers: withKey({ "content-type": "application/json" }), ...options });
   const value = await response.json();
   if (!response.ok) throw Object.assign(new Error(value.error || "Something went wrong"), { status: response.status, value });
   return value;
@@ -400,7 +401,7 @@ const tileFor = (tool) => tool?.tile || { text: String(tool?.name || "?").slice(
 // tile; an app's icon already has its own shape and air around it.
 const fromSite = (tool) => Boolean(tool?.icon?.includes("/site-"));
 function face(tool, size = 28) {
-  if (tool?.icon) return `<img class="logo ${fromSite(tool) ? "site" : ""}" style="--s:${size}px" src="${tool.icon}" alt="" />`;
+  if (tool?.icon) return `<img class="logo ${fromSite(tool) ? "site" : ""}" style="--s:${size}px" src="${esc(keyed(tool.icon))}" alt="" />`;
   const tile = tileFor(tool);
   return `<span class="logo" style="--s:${size}px;--bg:${tile.color};--fg:${inkOn(tile.color)}">${esc(tile.text)}</span>`;
 }
@@ -668,7 +669,7 @@ const POSTER = { width: 1080, height: 1350, left: 72, ink: "#0e0d0b", paper: "#f
 const FACE = `Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif`;
 
 const pictureOf = (address) => {
-  if (!pictures.has(address)) pictures.set(address, new Promise((resolve) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = () => resolve(null); image.src = address; }));
+  if (!pictures.has(address)) pictures.set(address, new Promise((resolve) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = () => resolve(null); image.src = keyed(address); }));
   return pictures.get(address);
 };
 
@@ -1197,6 +1198,18 @@ function onAirNow() {
   if ($("p", node).textContent !== line.text) $("p", node).textContent = line.text;
 }
 
+// The same memory by address: it needs the key of this start, which the
+// command does not, since that one reads the files and asks no server.
+const mcpByAddress = (secret) => `{
+  "mcpServers": {
+    "mason": {
+      "type": "http",
+      "url": "${location.origin}/mcp",
+      "headers": { "Authorization": "Bearer ${secret}" }
+    }
+  }
+}`;
+
 function renderAgents() {
   paint($("#mcp-config"), "config", esc(`{
   "mcpServers": {
@@ -1206,6 +1219,9 @@ function renderAgents() {
     }
   }
 }`));
+  // The address works too, for an agent that cannot start a command. The key
+  // is not shown: what stands in a window is read by whatever reads the screen.
+  paint($("#mcp-http"), "http", esc(mcpByAddress("new at every start")));
   paint($("#tools"), "tools", TOOLS.map(([name, label], index) => `<button type="button" data-tool="${name}"><small>${String(index + 1).padStart(2, "0")}</small><b>${esc(label)}</b></button>`).join(""));
 }
 
@@ -1573,6 +1589,10 @@ async function act(event) {
     return load();
   }
 
+  if (target.closest("#mcp-copy")) {
+    return toast(await copyText(mcpByAddress(key)) ? "Copied, with the key of this start" : "Could not copy");
+  }
+
   const asked = target.closest("#tools [data-tool]");
   if (asked) {
     const reply = await post("/mcp", { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: asked.dataset.tool, arguments: {} } });
@@ -1604,7 +1624,7 @@ document.addEventListener("keydown", (event) => {
 
 function connect() {
   stream?.close();
-  stream = new EventSource("/api/stream");
+  stream = new EventSource(keyed("/api/stream"));
   let timer;
   stream.addEventListener("update", (event) => {
     const { kind } = JSON.parse(event.data);
@@ -1630,8 +1650,13 @@ window.addEventListener("hashchange", () => {
   const [name, arg] = location.hash.slice(1).split("/");
   if (name && (name !== view || arg !== undefined)) show(name, arg);
 });
-await load();
-connect();
+// A tab that was opened without the key says so, and goes on saying it, instead of standing empty.
+try { await load(); } catch (error) {
+  if (error.status !== 401) throw error;
+  toast(error.message);
+  clearTimeout(toast.timer);
+}
+if (snapshot) connect();
 
 // Other words for a proposal are kept when the field is left, and the prompt follows them.
 document.addEventListener("change", async (event) => {

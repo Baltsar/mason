@@ -185,9 +185,13 @@ What leaves the Mac for ElevenLabs, and only when a key is set and the switch is
 
 ## Who the server answers
 
-The server listens on `127.0.0.1` and nowhere else. A page in a browser is on this Mac too, though, and a browser lets any page send a request to an address on the same machine. So a request is answered only when it was addressed to this Mac by number or as `localhost`, and, when a browser says which page sent it, only when that page is Mason's own. The island, the agents and a terminal name no page and are let through. A link someone sends cannot switch a setting, read the memory or have a rule written.
+The server listens on `127.0.0.1` and nowhere else. A page in a browser is on this Mac too, though, and a browser lets any page send a request to an address on the same machine. So a request is answered only when it was addressed to this Mac by number or as `localhost`, and, when a browser says which page sent it, only when that page is Mason's own. A link someone sends cannot switch a setting, read the memory or have a rule written.
 
-It does trust this Mac. A program that runs here and is not a browser, or an agent that may call a local address, can ask the server what Mason's own window can: read the memory, switch a setting, change the words of an open proposal. So those words are checked like a stranger's, whoever asks, nothing a caller sends is spoken or run, and Mason writes no rule at all: the last step is always a prompt a person sends. A secret for each start, known only to Mason's own window, would close this and is not built yet.
+That stops a page and nothing else: a program that is not a browser names no page. Another account on this Mac, an app kept in a sandbox, or an agent that may call a local address and may not touch a file would be let through. So there is a key as well, made anew at every start. Mason.app makes it, hands it to the server it starts and puts it in its own windows; the island sends it with every question. The pages and their files are served without it, since they say nothing about you. Everything else is not: what is read from the memory, every setting, every answer, the pictures of the sites, the event stream and `/mcp` are answered with `401` to who does not hold the key. It travels in the header `x-mason-key`, or as `Authorization: Bearer`, and for a picture or the event stream, which can send no header, in the address.
+
+Started from a terminal, the server makes the key itself and prints an address that carries it once. The page takes the key out of the address at once and keeps it for that tab only, so a reload works and a copied address gives nothing away. A tab opened without it says so.
+
+What the key does not stop: a program that runs as you and may read what you may. It can read the memory in `data/` without asking the server at all, and it can read the key from the server's environment or from a browser's history. The key is against those that can reach the port and nothing more. So the words of a proposal are still checked like a stranger's, whoever asks, nothing a caller sends is spoken or run, and Mason writes no rule at all: the last step is always a prompt a person sends.
 
 ## The challenge, module by module
 
@@ -218,7 +222,7 @@ The five questions of the Mason Test:
 }
 ```
 
-Tools: `what_happened_last`, `what_did_you_learn`, `what_are_you_unsure_about`, `how_was_the_day`, `how_was_it_built`, `search_work_map`, `check_decision`, `guardrails_for_agents`. `how_was_it_built` gives any agent the memory of a project: start a new session in a month-old folder and it knows how the thing is put together before you have explained anything. The last two are the agent-ready guardrails: another agent can check a planned action before it acts, or load the whole map as instructions. The same handler answers at `http://127.0.0.1:4317/mcp`.
+Tools: `what_happened_last`, `what_did_you_learn`, `what_are_you_unsure_about`, `how_was_the_day`, `how_was_it_built`, `search_work_map`, `check_decision`, `guardrails_for_agents`. `how_was_it_built` gives any agent the memory of a project: start a new session in a month-old folder and it knows how the thing is put together before you have explained anything. The last two are the agent-ready guardrails: another agent can check a planned action before it acts, or load the whole map as instructions. The same handler answers at `http://127.0.0.1:4317/mcp`, for an agent that cannot start a command. That way needs the key of this start, as `Authorization: Bearer`; **More > Agents** copies the settings with the key in them, and since the key is new at every start they are pasted again after a restart. The command above reads the files itself, asks no server and needs no key.
 
 ## Recording the demo
 
@@ -244,6 +248,8 @@ A rehearsal instance with its own memory, no voice and no island, for trying the
 ```bash
 PORT=4318 APPRENTICE_DATA=/tmp/apprentice-rehearsal APPRENTICE_MUTE=1 APPRENTICE_OVERLAY=0 APPRENTICE_COLLECT=0 node src/server.mjs
 ```
+
+It prints the address to open, with the key of that start in it. To ask it from a terminal, send the key along: `curl -H "x-mason-key: <key>" http://127.0.0.1:4318/api/state`.
 
 ## Boundaries of this slice
 

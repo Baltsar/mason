@@ -28,7 +28,7 @@ import { MEMORY_VERSION, mergeInferred, projectMemory, savedMemory } from "./mem
 import { makeEpisode, playEpisode, podcastBusy, podcastState } from "./podcast.mjs";
 import { hasElevenLabsKey, loadSettings, ownerName, saveSettings, settings } from "./settings.mjs";
 import { modelStatus, onUse } from "./llm.mjs";
-import { fromHere } from "./guard.mjs";
+import { fromHere, holdsKey, makeKey, needsKey, usableKey } from "./guard.mjs";
 import { collectable } from "./collection.mjs";
 import { recordUse, usagePayload } from "./usage.mjs";
 import { fileOf, handover, heldBy, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
@@ -55,6 +55,12 @@ if (process.env.APPRENTICE_COLLECT !== "0") collector.start();
 let desktop = null;
 let desktopStartedAt = 0;
 const desktopPid = Number(process.env.APPRENTICE_DESKTOP_PID) || null;
+// The key of this start. The desktop app makes it when it starts the server,
+// since it must put it in its windows before the server can say anything;
+// started from a terminal, the server makes its own and prints where to go.
+// Nothing started from here inherits it.
+const key = desktopPid && usableKey(process.env.APPRENTICE_KEY) ? process.env.APPRENTICE_KEY : makeKey();
+delete process.env.APPRENTICE_KEY;
 let stopping = false;
 
 const mime = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".json": "application/json; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp" };
@@ -548,6 +554,14 @@ const server = http.createServer(async (request, response) => {
     }
     const url = new URL(request.url, "http://127.0.0.1");
     const post = request.method === "POST";
+    // Another program on this Mac names no page and gets this far. Without the
+    // key of this start it may read the pages, which anyone may, and no more.
+    // A picture and the event stream cannot send a header, so for reading the
+    // key may stand in the address.
+    if (needsKey(request.method, url.pathname) && !holdsKey(key, request.headers, request.method === "GET" ? url.searchParams.get("key") : null)) {
+      if ((refusals += 1) <= 5) console.warn(`Not answered: ${request.method} ${url.pathname.slice(0, 80)} without the key of this start`);
+      return json(response, 401, { error: "This window does not have Mason's key. Open Mason from its menu, or from the address it printed when it started." });
+    }
     if (url.pathname === "/api/island" && request.method === "GET") return json(response, 200, await islandPayload());
     if (url.pathname === "/api/state" && request.method === "GET") return json(response, 200, await statePayload());
     if (url.pathname === "/api/built" && request.method === "GET") return json(response, 200, { today: dayKey(Date.now()), projects: await builtProjects() });
@@ -1067,7 +1081,8 @@ const server = http.createServer(async (request, response) => {
     const file = path.normalize(path.join(paths.public, requested));
     if (!file.startsWith(paths.public)) return json(response, 403, { error: "Not allowed" });
     const content = await readFile(file);
-    response.writeHead(200, { "content-type": mime[path.extname(file)] || "application/octet-stream", "cache-control": "no-cache" });
+    // A page opened with the key in its address tells no other site where it came from.
+    response.writeHead(200, { "content-type": mime[path.extname(file)] || "application/octet-stream", "cache-control": "no-cache", "referrer-policy": "no-referrer" });
     response.end(content);
   } catch (error) {
     if (!response.headersSent) json(response, error.code === "ENOENT" ? 404 : 500, { error: error.message });
@@ -1096,7 +1111,7 @@ const pidFile = path.join(paths.root, ".runtime", port === 4317 ? "server.pid" :
 server.listen(port, "127.0.0.1", () => {
   writeFile(pidFile, `${process.pid}\n`).catch(() => {});
   if (process.platform === "darwin" && process.env.APPRENTICE_OVERLAY !== "0") {
-    desktop = spawn(paths.status, [], { stdio: "ignore", env: { ...process.env, APPRENTICE_URL: `http://127.0.0.1:${port}` } });
+    desktop = spawn(paths.status, [], { stdio: "ignore", env: { ...process.env, APPRENTICE_URL: `http://127.0.0.1:${port}`, APPRENTICE_KEY: key } });
     desktopStartedAt = Date.now();
     desktop.once("error", () => { desktop = null; });
     // Quitting the desktop app is how Mason is stopped. A crash is not a quit.
@@ -1112,7 +1127,9 @@ server.listen(port, "127.0.0.1", () => {
   setInterval(catchUpDays, 10 * 60_000).unref();
   setTimeout(catchUpSaid, 30_000).unref();
   setInterval(catchUpSaid, 10 * 60_000).unref();
-  console.log(`Mason is running locally: http://127.0.0.1:${port}`);
+  // The desktop app has the key already, and what it starts writes to a log
+  // file, where the key does not belong.
+  console.log(desktopPid ? `Mason is running locally: http://127.0.0.1:${port}` : `Mason is running locally. Open it with the key of this start:\n  http://127.0.0.1:${port}/?key=${key}`);
   console.log("Stop with Ctrl+C or by quitting Mason. What leaves this Mac is listed, each with a switch, under Leaves this Mac in Settings.");
 });
 

@@ -202,6 +202,7 @@
     <script type="module">
       import { canDictate, dictate, drawLevels, hearing } from "/voice.js";
       import { startCall } from "/call.js";
+      import { keyed, withKey } from "/key.js";
 
       const $ = (selector) => document.querySelector(selector);
       const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
@@ -241,7 +242,7 @@
       const mode = () => document.documentElement.dataset.mode;
 
       async function post(url, body) {
-        const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+        const response = await fetch(url, { method: "POST", headers: withKey({ "content-type": "application/json" }), body: JSON.stringify(body) });
         return response.json();
       }
       const reportHeight = () => requestAnimationFrame(() => tell({ type: "height", value: document.body.scrollHeight }));
@@ -530,7 +531,7 @@
       }
 
       async function load() {
-        state = await (await fetch("/api/state")).json();
+        state = await (await fetch("/api/state", { headers: withKey() })).json();
         render();
       }
 
@@ -545,7 +546,7 @@
 
       function connect() {
         stream?.close();
-        stream = new EventSource("/api/stream");
+        stream = new EventSource(keyed("/api/stream"));
         let wait;
         stream.addEventListener("update", (event) => {
           const { kind } = JSON.parse(event.data);
