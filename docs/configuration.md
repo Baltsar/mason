@@ -58,9 +58,10 @@ For a rehearsal, a test or a recording. These are read from the environment of t
 | `APPRENTICE_LLM_BIN` | The path of the Claude Code CLI, when it is not on the path. |
 | `APPRENTICE_PODCAST_MODEL` | The model that writes the recap script. `sonnet` by default. |
 | `APPRENTICE_RULES_FILE` | Another file than `~/.claude/CLAUDE.md` to read your agents' rules from. |
-| `APPRENTICE_CLAUDE_DIR` | Another folder of Claude Code logs. Codex and Grok are then read only when their folders are named too. |
+| `APPRENTICE_CLAUDE_DIR` | Another folder of Claude Code logs. Codex, Grok and Cursor are then read only when their folders are named too. |
 | `APPRENTICE_CODEX_DIR` | Another folder of Codex sessions. |
 | `APPRENTICE_GROK_DIR` | Another folder of Grok sessions. |
+| `APPRENTICE_CURSOR_DIR` | Another folder of Cursor workspaces. |
 | `APPRENTICE_DEMO` | Shorter pauses between questions, for recording a demo. |
 | `ELEVENLABS_DIALOGUE_MODEL_ID` | The model that records the recap. `eleven_v3` by default. |
 | `ELEVENLABS_ANCHOR_VOICE_ID` | The first voice of the recap. |

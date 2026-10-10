@@ -25,9 +25,11 @@ Drag **Mason.app** to the Dock to keep it there. It starts its own local server 
 
 ## The first minute
 
-1. A strip of dark glass appears in the menu bar, left of the notch. That is the island. Press it.
-2. macOS asks for **Accessibility**, under System Settings → Privacy & Security. Switch Mason on. This is how it sees which app and window you are in. It takes no screenshots and logs no keystrokes.
-3. Keep working. The island shows the project you are in and how much of today was work.
+1. Mason's window opens by itself. It shows what Mason has already read: the days and hours of your work with agents, from the logs they keep. **See how you work** leads to your workflow card at once.
+2. The same screen asks for the one thing Mason needs: **Accessibility**, which is how it sees which app and window you are in. It says what that lets it read and what it never does. Press **Open System Settings** and switch Mason on in the list; macOS is asked only when you press, and the screen follows by itself. **Not now** skips it.
+3. Press **Start** and keep working. A strip of dark glass in the menu bar, left of the notch, is the island: it shows the project you are in and how much of today was work.
+
+Nothing else is asked at the start. A model for summaries and a voice are optional; see [Models and voice](models-and-voice.md).
 
 The history is there from the first day: Mason reads the logs your coding agents already keep on the Mac, so a project you built last month is already known. What it reads is listed in [What it reads, sends and keeps](privacy.md).
 

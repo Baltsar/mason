@@ -9,7 +9,7 @@ Mason reads the logs your coding agents keep, and gives what it learned back to 
 | Claude Code | `~/.claude/projects` | Your prompts, the names of changed files, what the agent reported, tokens. |
 | Codex | `~/.codex/sessions` | The same. |
 | Grok | `~/.grok/sessions` | The same. |
-| Cursor | Its workspace list | Which folder each workspace is, and when it was last used. Time, not memory. |
+| Cursor | The small store it keeps for each workspace | Which folder each workspace is, and what you asked in it and when. Not its answers, how long it worked, or its tokens. |
 
 A session you typed in is yours: its prompts count as said, and its answers as waiting for you. A session another agent started with a brief of its own counts as time worked on the project and as tokens taken, and nothing more.
 
