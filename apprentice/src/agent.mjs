@@ -7,6 +7,14 @@ import { atomicJson, paths, readJson } from "./store.mjs";
 // The agent is created once and reused; only the day's context changes.
 
 const API = "https://api.elevenlabs.io/v1/convai";
+
+// What stopped a call, in words its owner can act on. What ElevenLabs
+// answered is a line of code for someone else to read.
+export const plainly = (status, detail = "") => status === 401 || status === 403
+  ? (/permission|convai/i.test(detail) ? "This ElevenLabs key may not place calls. Give the key the permission for agents, or switch Voice off in Settings." : "ElevenLabs did not take the key. Check it in .env.local.")
+  : status === 429 ? "ElevenLabs is busy, or the credits have run out. Try again in a while."
+  : status >= 500 ? "ElevenLabs is not answering right now. Try again in a while."
+  : `ElevenLabs could not start the call (${status}).`;
 const AGENT_VERSION = 11;
 const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb";
 const agentFile = () => path.join(paths.data, "agent.json");
@@ -214,7 +222,7 @@ async function api(method, route, body) {
   const text = await response.text();
   let value;
   try { value = JSON.parse(text); } catch { value = { detail: text.slice(0, 300) }; }
-  if (!response.ok) throw new Error(`ElevenLabs agents ${response.status}: ${JSON.stringify(value.detail ?? value).slice(0, 400)}`);
+  if (!response.ok) throw new Error(plainly(response.status, JSON.stringify(value.detail ?? value)));
   return value;
 }
 

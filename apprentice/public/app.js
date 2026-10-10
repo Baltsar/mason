@@ -462,8 +462,9 @@ const tileFor = (tool) => tool?.tile || { text: String(tool?.name || "?").slice(
 // tile; an app's icon already has its own shape and air around it.
 const fromSite = (tool) => Boolean(tool?.icon?.includes("/site-"));
 function face(tool, size = 28) {
-  if (tool?.icon) return `<img class="logo ${fromSite(tool) ? "site" : ""}" style="--s:${size}px" src="${esc(keyed(tool.icon))}" alt="" />`;
   const tile = tileFor(tool);
+  // The letter and its colour ride along, for the moment the picture does not come.
+  if (tool?.icon) return `<img class="logo ${fromSite(tool) ? "site" : ""}" style="--s:${size}px" src="${esc(keyed(tool.icon))}" alt="" data-letter="${esc(tile.text)}" data-colour="${esc(tile.color)}" />`;
   return `<span class="logo" style="--s:${size}px;--bg:${tile.color};--fg:${inkOn(tile.color)}">${esc(tile.text)}</span>`;
 }
 
@@ -569,11 +570,15 @@ function flowMap(tools) {
     const tile = tileFor(tool);
     const side = r * 1.8;
     const cut = `cut-${Math.round(x)}-${Math.round(y)}`;
+    // A tool with no picture is a letter on its colour. The same tile waits,
+    // unseen, behind a picture, and shows if the picture does not come.
+    const letters = `<rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" fill="${tile.color}" stroke="rgba(255,255,255,.16)" /><text class="letters" x="${x}" y="${y}" fill="${inkOn(tile.color)}" font-size="${Math.round(side * .42)}">${esc(tile.text)}</text>`;
+    const under = `<g class="under" hidden>${letters}</g>`;
     const mark = fromSite(tool)
-      ? `<clipPath id="${cut}"><rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" /></clipPath><image href="${tool.icon}" x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${cut})" /><rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" fill="none" stroke="rgba(255,255,255,.16)" />`
+      ? `<clipPath id="${cut}"><rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" /></clipPath>${under}<image href="${esc(keyed(tool.icon))}" x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${cut})" /><rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" fill="none" stroke="rgba(255,255,255,.16)" />`
       : tool.icon
-        ? `<image href="${tool.icon}" x="${x - r * 1.1}" y="${y - r * 1.1}" width="${r * 2.2}" height="${r * 2.2}" />`
-        : `<rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" fill="${tile.color}" stroke="rgba(255,255,255,.16)" /><text class="letters" x="${x}" y="${y}" fill="${inkOn(tile.color)}" font-size="${Math.round(side * .42)}">${esc(tile.text)}</text>`;
+        ? `${under}<image href="${esc(keyed(tool.icon))}" x="${x - r * 1.1}" y="${y - r * 1.1}" width="${r * 2.2}" height="${r * 2.2}" />`
+        : letters;
     return `<g class="node" data-tool="${esc(tool.name)}" role="button" tabindex="0" aria-pressed="${tool.name === flowTool}" aria-label="${esc(tool.name)}, ${minutes(tool.seconds)}" ${faded ? "data-faded" : ""}><circle cx="${x}" cy="${y}" r="${r + 12}" />${mark}<text class="name" x="${x}" y="${nameAt}">${esc(short(tool.name, 20))}</text></g>`;
   });
   return `<svg viewBox="0 0 ${width} ${height}" role="img">${edges.join("")}${marks.join("")}${labels.join("")}</svg>`;
@@ -1767,3 +1772,18 @@ document.addEventListener("drop", (event) => {
   openWorkflow(event.dataTransfer?.files?.[0]);
 });
 
+// A picture that does not come is never left as a broken one: the tool falls
+// back to its letter on its colour, in a chip and in the map alike.
+document.addEventListener("error", (event) => {
+  const picture = event.target;
+  if (picture instanceof HTMLImageElement && picture.classList.contains("logo")) {
+    const tile = document.createElement("span");
+    tile.className = "logo";
+    tile.style.cssText = `--s:${picture.style.getPropertyValue("--s")};--bg:${picture.dataset.colour || "#2b2823"};--fg:${inkOn(picture.dataset.colour || "#2b2823")}`;
+    tile.textContent = picture.dataset.letter || "?";
+    picture.replaceWith(tile);
+  } else if (picture instanceof SVGImageElement) {
+    picture.previousElementSibling?.removeAttribute("hidden");
+    picture.remove();
+  }
+}, true);
