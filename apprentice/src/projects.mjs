@@ -17,6 +17,10 @@ import { settings } from "./settings.mjs";
 const CLAUDE_DIR = process.env.APPRENTICE_CLAUDE_DIR || path.join(os.homedir(), ".claude", "projects");
 const CURSOR_DIR = path.join(os.homedir(), "Library", "Application Support", "Cursor", "User", "workspaceStorage");
 const ACTIVE_WITHIN_MS = 8 * 60_000;
+// The home folder, and what lies above it, holds every project there is. A
+// session started there is no project around them, only a session.
+const HOME = os.homedir();
+const aboveProjects = (folder) => folder === HOME || HOME.startsWith(folder.endsWith(path.sep) ? folder : `${folder}${path.sep}`);
 const GENERIC = new Set(`hackathon hackaton project projects demo site sajt website new app apps web test tests main src the cursor documents users
 frontend backend server client mcp bot final copy old public assets components scripts docs output outputs node_modules dist build data
 images design native wiki video videos notes tmp temp misc code repo engine binary`.split(/\s+/));
@@ -235,6 +239,7 @@ export async function projectIndex(since, { maxAgeMs = 20_000 } = {}) {
     known.prompts.push(...other.prompts);
     known.turns.push(...other.turns);
     for (const minute of other.minutes) known.minutes.add(minute);
+    known.handed = other.handed;
   }
   // Cursor touches many workspaces when it starts; the two newest are the ones in use.
   for (const workspace of cursor.slice(0, 2)) {
@@ -246,11 +251,12 @@ export async function projectIndex(since, { maxAgeMs = 20_000 } = {}) {
   // inside HACKNATION), and the subfolder's name is one more way to recognise it.
   const outermost = [...projects.values()].sort((a, b) => a.folder.length - b.folder.length);
   for (const child of [...outermost].reverse()) {
-    const parent = outermost.find((other) => other !== child && child.folder.startsWith(`${other.folder}${path.sep}`));
+    const parent = outermost.find((other) => other !== child && !aboveProjects(other.folder) && child.folder.startsWith(`${other.folder}${path.sep}`));
     if (!parent) continue;
     parent.prompts.push(...child.prompts);
     parent.turns.push(...child.turns);
     for (const minute of child.minutes) parent.minutes.add(minute);
+    for (const [agent, sessions] of Object.entries(child.handed || {})) (parent.handed ||= {})[agent] = (parent.handed[agent] || 0) + sessions;
     parent.tokens = [...new Set([...parent.tokens, ...child.tokens])];
     projects.delete(child.folder);
   }

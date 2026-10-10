@@ -107,3 +107,20 @@ test("a very large log is read a piece at a time, and only what was added is rea
   await appendFile(file, JSON.stringify(said(59, "Half a line, still being written")).slice(0, 60));
   assert.equal((await otherProjects(0)).get("/Users/x/code/large").prompts.length, 2);
 });
+
+test("a session started in the home folder does not take every project into it", async () => {
+  const home = os.homedir();
+  const inHome = (name, cwd, minute, text) => writeFile(path.join(root, "codex", "2026", "10", "08", name), lines([
+    { timestamp: at(minute), type: "session_meta", payload: { cwd, originator: "Codex Desktop", source: "vscode" } },
+    said(minute, text),
+    { timestamp: at(minute + 1), type: "event_msg", payload: { type: "task_complete" } },
+  ]));
+  await inHome("rollout-home.jsonl", home, 40, "Where on this Mac did I put the invoices");
+  await inHome("rollout-project.jsonl", path.join(home, "code", "ledger"), 42, "Add a column for the invoice number");
+  await inHome("rollout-inside.jsonl", path.join(home, "code", "ledger", "web"), 44, "And show that column on the first page");
+  const index = await projectIndex(0, { maxAgeMs: 0 });
+  const ledger = index.list.find((project) => project.folder === path.join(home, "code", "ledger"));
+  // A subfolder still belongs to the project around it.
+  assert.deepEqual(ledger.prompts.map((prompt) => prompt.text), ["Add a column for the invoice number", "And show that column on the first page"]);
+  assert.deepEqual(index.list.find((project) => project.folder === home).prompts.map((prompt) => prompt.text), ["Where on this Mac did I put the invoices"]);
+});

@@ -13,7 +13,8 @@ import { atomicJson, paths, readEvents, readJson } from "./store.mjs";
 
 // 2: the days are also read from Codex and Grok.
 // 3: a minute in which two projects were worked on is counted once.
-const VERSION = 3;
+// 4: a session started in the home folder no longer takes every project into it.
+const VERSION = 4;
 const file = () => path.join(paths.data, "days.json");
 // An agent that ran by itself for a few minutes is not a day's work.
 const WORTH_MINUTES = 10;
