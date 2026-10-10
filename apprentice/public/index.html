@@ -39,6 +39,7 @@
         <div class="drill" id="today-drill" hidden></div>
         <button class="said" type="button" id="today-said" hidden></button>
         <div class="drill" id="today-waited" hidden></div>
+        <section class="trial" id="trial" aria-live="polite" hidden></section>
         <section class="lookback" id="lookback" aria-live="polite" hidden></section>
         <section class="propose" id="propose" aria-live="polite" hidden></section>
         <section class="projects" id="projects-card" aria-live="polite" hidden></section>
@@ -112,6 +113,9 @@
         <div class="pair agents-pair">
           <div class="card terminal">
             <pre><code id="mcp-config"></code></pre>
+            <p class="terminal-note">Or by address, for an agent that cannot start a command. The key is new each time Mason starts, so this one is pasted again after a restart.</p>
+            <pre><code id="mcp-http"></code></pre>
+            <button class="link more" id="mcp-copy" type="button">Copy with the key</button>
           </div>
           <div class="tools" id="tools"></div>
         </div>

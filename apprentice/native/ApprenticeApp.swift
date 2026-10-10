@@ -18,6 +18,43 @@ let standalone = ProcessInfo.processInfo.environment["APPRENTICE_URL"] == nil
 let port = ProcessInfo.processInfo.environment["PORT"] ?? "4317"
 let baseURL = ProcessInfo.processInfo.environment["APPRENTICE_URL"] ?? "http://127.0.0.1:\(port)"
 
+// The key of this start. Anything on this Mac can reach a local port, so the
+// server answers only who holds it. The app that starts the server makes the
+// key and hands it over; started by the server, it is handed the server's.
+let keyHeader = "x-mason-key"
+let serverKey: String = {
+    if !standalone { return ProcessInfo.processInfo.environment["APPRENTICE_KEY"] ?? "" }
+    var generator = SystemRandomNumberGenerator()
+    return (0..<32).map { _ in String(format: "%02x", UInt8.random(in: .min ... .max, using: &generator)) }.joined()
+}()
+
+// Whether an address is Mason's own, part by part. The start of an address
+// says nothing: "http://127.0.0.1:4317.example.tld/" and
+// "http://127.0.0.1:4317@example.tld/" both begin like Mason's and lead elsewhere.
+let own = URLComponents(string: baseURL)
+func isOwn(scheme: String?, host: String?, port: Int?) -> Bool {
+    guard let own, let ownScheme = own.scheme?.lowercased(), let ownHost = own.host?.lowercased(), let scheme = scheme?.lowercased(), let host = host?.lowercased() else { return false }
+    let usual = ownScheme == "https" ? 443 : 80
+    return scheme == ownScheme && host == ownHost && (port ?? usual) == (own.port ?? usual)
+}
+// The origin a page at this address reports of itself, with the port left out when it is the usual one.
+func originOf(_ address: String) -> String {
+    guard let parts = URLComponents(string: address), let scheme = parts.scheme?.lowercased(), let host = parts.host?.lowercased() else { return "" }
+    let usual = scheme == "https" ? 443 : 80
+    return "\(scheme)://\(host)" + (parts.port == nil || parts.port == usual ? "" : ":\(parts.port!)")
+}
+func isOwn(_ url: URL) -> Bool {
+    guard let asked = URLComponents(url: url, resolvingAgainstBaseURL: true), asked.user == nil, asked.password == nil else { return false }
+    return isOwn(scheme: asked.scheme, host: asked.host, port: asked.port)
+}
+
+// A request to Mason's own server, with the key of this start.
+func keyedRequest(_ url: URL) -> URLRequest {
+    var request = URLRequest(url: url)
+    request.setValue(serverKey, forHTTPHeaderField: keyHeader)
+    return request
+}
+
 // Mason: the strong green stays as the one loud colour. Around it the greys
 // are warmed towards stone, and the second colour is the sandstone of the mark.
 enum Palette {
@@ -475,6 +512,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
         // The server must not start a second island, and it nudges this one by its process id.
         environment["APPRENTICE_OVERLAY"] = "0"
         environment["APPRENTICE_DESKTOP_PID"] = String(ProcessInfo.processInfo.processIdentifier)
+        environment["APPRENTICE_KEY"] = serverKey
         environment["PATH"] = [URL(fileURLWithPath: node).deletingLastPathComponent().path, "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"].joined(separator: ":")
         process.environment = environment
         let log = root + "/.runtime/server.log"
@@ -496,7 +534,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
 
     private func whenServerAnswers(attempt: Int = 0, _ done: @escaping () -> Void) {
         guard attempt < 60, let url = URL(string: baseURL + "/api/island") else { return }
-        var request = URLRequest(url: url)
+        var request = keyedRequest(url)
         request.timeoutInterval = 1.5
         URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
             DispatchQueue.main.async {
@@ -676,7 +714,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
     private func refresh() {
         measureMenus()
         guard let url = URL(string: baseURL + "/api/island") else { return }
-        var request = URLRequest(url: url)
+        var request = keyedRequest(url)
         request.timeoutInterval = 2
         URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
             let root = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
@@ -750,6 +788,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
         configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.userContentController.add(self, name: "apprentice")
         configuration.userContentController.addUserScript(WKUserScript(source: "document.documentElement.dataset.shell = 'desktop';", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        // The key goes to Mason's own page and to no other, should one ever load here.
+        // Both values are written as JSON, so nothing in them can end the string.
+        if let values = try? JSONSerialization.data(withJSONObject: [originOf(baseURL), serverKey]), let list = String(data: values, encoding: .utf8) {
+            configuration.userContentController.addUserScript(WKUserScript(source: "(([origin, key]) => { if (location.origin === origin) document.documentElement.dataset.key = key; })(\(list));", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        }
         let web = PanelWebView(frame: .zero, configuration: configuration)
         web.uiDelegate = self
         web.navigationDelegate = self
@@ -921,7 +964,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
             // The answer is being typed: now, and only now, the panel takes the keyboard.
             drop?.makeKey()
         case "browser":
-            if let url = URL(string: baseURL + "/") { NSWorkspace.shared.open(url) }
+            // A browser is not one of Mason's windows: it is handed the key in the address, which the page takes out again.
+            if let url = URL(string: baseURL + "/?key=" + serverKey) { NSWorkspace.shared.open(url) }
         default:
             break
         }
@@ -929,7 +973,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url else { decisionHandler(.cancel); return }
-        if url.absoluteString.hasPrefix(baseURL) || url.scheme == "about" {
+        if isOwn(url) || url.scheme == "about" {
             decisionHandler(.allow)
         } else {
             NSWorkspace.shared.open(url)
@@ -950,14 +994,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { loadRetries = 0 }
 
     func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping (WKPermissionDecision) -> Void) {
-        decisionHandler(.grant)
+        // The microphone is for Mason's own page, whatever else may come to be shown here.
+        decisionHandler(isOwn(scheme: origin.protocol, host: origin.host, port: origin.port == 0 ? nil : origin.port) ? .grant : .deny)
     }
 
     // MARK: Menus
 
     private func post(_ path: String, _ body: [String: Any]) {
         guard let url = URL(string: baseURL + path), let data = try? JSONSerialization.data(withJSONObject: body) else { return }
-        var request = URLRequest(url: url)
+        var request = keyedRequest(url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
         request.httpBody = data

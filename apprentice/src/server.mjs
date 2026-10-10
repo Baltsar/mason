@@ -28,8 +28,10 @@ import { MEMORY_VERSION, mergeInferred, projectMemory, savedMemory } from "./mem
 import { makeEpisode, playEpisode, podcastBusy, podcastState } from "./podcast.mjs";
 import { hasElevenLabsKey, loadSettings, ownerName, saveSettings, settings } from "./settings.mjs";
 import { modelStatus, onUse } from "./llm.mjs";
-import { fromHere } from "./guard.mjs";
+import { fromHere, holdsKey, makeKey, needsKey, usableKey } from "./guard.mjs";
 import { collectable } from "./collection.mjs";
+import { lookForUpdate, newer, ownVersion, updatePayload } from "./updates.mjs";
+import { endTrial, trialPayload } from "./trial.mjs";
 import { recordUse, usagePayload } from "./usage.mjs";
 import { fileOf, handover, heldBy, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
 
@@ -55,6 +57,12 @@ if (process.env.APPRENTICE_COLLECT !== "0") collector.start();
 let desktop = null;
 let desktopStartedAt = 0;
 const desktopPid = Number(process.env.APPRENTICE_DESKTOP_PID) || null;
+// The key of this start. The desktop app makes it when it starts the server,
+// since it must put it in its windows before the server can say anything;
+// started from a terminal, the server makes its own and prints where to go.
+// Nothing started from here inherits it.
+const key = desktopPid && usableKey(process.env.APPRENTICE_KEY) ? process.env.APPRENTICE_KEY : makeKey();
+delete process.env.APPRENTICE_KEY;
 let stopping = false;
 
 const mime = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".json": "application/json; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp" };
@@ -204,13 +212,18 @@ async function nudgeFor(waiting, runtime, index) {
   const todays = index.prompts();
   // What was said before is settled first: back where answers are read, or
   // the other project named in the next prompt, is acting on it.
+  const [version, update] = await Promise.all([ownVersion(), updatePayload()]);
+  // A new version is acted on by being this version or a later one.
   const changed = await settleNudges((nudge) => nudge.kind === "waited" ? reading
+    : nudge.kind === "version" ? !newer(nudge.key, version)
     : nudge.kind === "before" ? todays.some((prompt) => prompt.project === nudge.project && prompt.at > Date.parse(nudge.at) && prompt.text.toLowerCase().includes(String(nudge.other).toLowerCase()))
     : false, now);
   if (changed) broadcast("nudge");
   // Only someone who is at the Mac is nudged.
   if (state !== "watching" && state !== "private-surface") return null;
   const candidates = [];
+  // Said once for each version, at a moment its owner is at the Mac.
+  if (update.latest) candidates.push({ kind: "version", key: update.latest.version, text: `Mason ${update.latest.version} is out` });
   if (!reading) {
     const patience = Math.min(WAITED_AT_MOST_MS, Math.max(WAITED_FROM_MS, ((await usualWaitMs()) || 0) * 2));
     const late = waiting.ready.find((answer) => { const left = now - Date.parse(answer.since); return left >= patience && left < WAITED_TOO_LONG_MS; });
@@ -481,6 +494,7 @@ async function statePayload() {
     look: settings().glass ? "glass" : "",
     // The nudge that was just said, and how the last week of them went.
     nudges: await nudgesPayload(),
+    trial: await trialPayload({ moves: days.moves, days: days.days, rules: suggestions.applied.length }),
     // The figures the top bar shows for the two views that load by themselves.
     flow: { jumps: (await today()).flow.jumps },
     days: Object.keys(days.days).length,
@@ -548,6 +562,14 @@ const server = http.createServer(async (request, response) => {
     }
     const url = new URL(request.url, "http://127.0.0.1");
     const post = request.method === "POST";
+    // Another program on this Mac names no page and gets this far. Without the
+    // key of this start it may read the pages, which anyone may, and no more.
+    // A picture and the event stream cannot send a header, so for reading the
+    // key may stand in the address.
+    if (needsKey(request.method, url.pathname) && !holdsKey(key, request.headers, request.method === "GET" ? url.searchParams.get("key") : null)) {
+      if ((refusals += 1) <= 5) console.warn(`Not answered: ${request.method} ${url.pathname.slice(0, 80)} without the key of this start`);
+      return json(response, 401, { error: "This window does not have Mason's key. Open Mason from its menu, or from the address it printed when it started." });
+    }
     if (url.pathname === "/api/island" && request.method === "GET") return json(response, 200, await islandPayload());
     if (url.pathname === "/api/state" && request.method === "GET") return json(response, 200, await statePayload());
     if (url.pathname === "/api/built" && request.method === "GET") return json(response, 200, { today: dayKey(Date.now()), projects: await builtProjects() });
@@ -588,6 +610,11 @@ const server = http.createServer(async (request, response) => {
       // and with the agents whose rules already hold it. Mason writes it nowhere.
       const rules = await Promise.all(theirs.rules.map(async (rule) => ({ ...rule, hand: handover(rule.rule), told: rule.held ? [] : await heldBy(rule.rule) })));
       return json(response, 200, { theirs: { ...theirs, rules }, mine: own.cards.find((card) => card.purpose === theirs.purpose) || own.cards[0] });
+    }
+    if (url.pathname === "/api/trial" && post) {
+      // "Use evaluation copy": the card about the trial is put away for good.
+      await endTrial();
+      return json(response, 200, { ok: true });
     }
     if (url.pathname === "/api/workflow/collect" && post) {
       // One's own workflow in the form the collection keeps: read back with
@@ -986,6 +1013,8 @@ const server = http.createServer(async (request, response) => {
         if ("logs" in input) { await projectIndex(dayStart(), { maxAgeMs: 0 }); activityMemo.at = 0; }
         // Switched on, the reading starts now; switched off, the model is stopped.
         if ("meaning" in input) { saidAt = 0; if (settings().meaning) catchUpSaid(); else stopEmbedder(); }
+        // Switched on, the look for a new version is made now.
+        if (input.updates === true) await lookForUpdate({ soon: true });
         broadcast("settings");
       }
       const runtime = await loadRuntime();
@@ -999,6 +1028,7 @@ const server = http.createServer(async (request, response) => {
           credits: await elevenLabsCredits(),
           model: modelStatus(),
           usage: await usagePayload(),
+          update: await updatePayload(),
           // The model that places what was said, and how much it has read.
           said: { ...embedStatus(), ...(await saidStatus()), waiting: saidWaiting },
           logs: await logSources(),
@@ -1067,7 +1097,8 @@ const server = http.createServer(async (request, response) => {
     const file = path.normalize(path.join(paths.public, requested));
     if (!file.startsWith(paths.public)) return json(response, 403, { error: "Not allowed" });
     const content = await readFile(file);
-    response.writeHead(200, { "content-type": mime[path.extname(file)] || "application/octet-stream", "cache-control": "no-cache" });
+    // A page opened with the key in its address tells no other site where it came from.
+    response.writeHead(200, { "content-type": mime[path.extname(file)] || "application/octet-stream", "cache-control": "no-cache", "referrer-policy": "no-referrer" });
     response.end(content);
   } catch (error) {
     if (!response.headersSent) json(response, error.code === "ENOENT" ? 404 : 500, { error: error.message });
@@ -1096,7 +1127,7 @@ const pidFile = path.join(paths.root, ".runtime", port === 4317 ? "server.pid" :
 server.listen(port, "127.0.0.1", () => {
   writeFile(pidFile, `${process.pid}\n`).catch(() => {});
   if (process.platform === "darwin" && process.env.APPRENTICE_OVERLAY !== "0") {
-    desktop = spawn(paths.status, [], { stdio: "ignore", env: { ...process.env, APPRENTICE_URL: `http://127.0.0.1:${port}` } });
+    desktop = spawn(paths.status, [], { stdio: "ignore", env: { ...process.env, APPRENTICE_URL: `http://127.0.0.1:${port}`, APPRENTICE_KEY: key } });
     desktopStartedAt = Date.now();
     desktop.once("error", () => { desktop = null; });
     // Quitting the desktop app is how Mason is stopped. A crash is not a quit.
@@ -1110,9 +1141,14 @@ server.listen(port, "127.0.0.1", () => {
   // The long view is caught up once Mason is running, not while it starts.
   setTimeout(catchUpDays, 15_000).unref();
   setInterval(catchUpDays, 10 * 60_000).unref();
+  // A new version is looked for a little after the start, and then a few times a day; a look is made at most once a day.
+  setTimeout(() => lookForUpdate().catch(() => {}), 30_000).unref();
+  setInterval(() => lookForUpdate().catch(() => {}), 6 * 3_600_000).unref();
   setTimeout(catchUpSaid, 30_000).unref();
   setInterval(catchUpSaid, 10 * 60_000).unref();
-  console.log(`Mason is running locally: http://127.0.0.1:${port}`);
+  // The desktop app has the key already, and what it starts writes to a log
+  // file, where the key does not belong.
+  console.log(desktopPid ? `Mason is running locally: http://127.0.0.1:${port}` : `Mason is running locally. Open it with the key of this start:\n  http://127.0.0.1:${port}/?key=${key}`);
   console.log("Stop with Ctrl+C or by quitting Mason. What leaves this Mac is listed, each with a switch, under Leaves this Mac in Settings.");
 });
 

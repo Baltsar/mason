@@ -6,13 +6,26 @@ Learning by doing, without the forgetting.
 
 I vibe-coded it. A month later I can't explain it. The code stays, but the knowledge of how and why stays in the prompts, somewhere in one of 120 agent sessions.
 
-Mason is a local macOS assistant that was there. It remembers how a project was built, asks me about it until it sticks, and hands my taste to every agent I use.
-
-Built solo by Gustaf Garnow for Challenge 01, The AI Apprentice, at the Hack-Nation 7th Global AI Hackathon.
-
-Live page with the pitch film: https://mason-demo-eight.vercel.app
+Mason is a local macOS app for people who build with coding agents. It was there while you worked: it remembers how a project was built, shows how you work with your agents, and hands your habits to every agent you use. It reads the logs Claude Code, Codex and Grok already keep on your Mac. Nothing is recorded, what leaves the Mac has a switch, and it writes nothing outside its own folder.
 
 ![The island in the menu bar, today in large figures, a question at a pause, and Mason asking what you remember](docs/screens.png)
+
+## Get it
+
+```bash
+git clone https://github.com/Baltsar/mason.git
+cd mason/apprentice
+npm run build:reader               # builds Mason.app with swiftc
+open Mason.app
+```
+
+macOS 13 or later, Node 18 or later, Xcode command line tools. No packages to install: the server has no dependencies. An ElevenLabs key in `.env.local` turns on the voice (`cp .env.local.example .env.local`); without one Mason speaks with the Mac's own.
+
+Press the island in the menu bar. The first time it asks for Accessibility, which is how it sees which app and window you are in. Name, sound and the rest are under the gear in the app window.
+
+**New versions.** Mason asks GitHub once a day whether a newer release is out and says so in Settings and on the island. It sends nothing of yours and installs nothing: to take a new version, `git pull` and `npm run build:reader`. The look has a switch.
+
+There is a page about it at https://mason-demo-eight.vercel.app, and a [collection of workflows](workflows/) other people work by, to try beside your own.
 
 ## What it does
 
@@ -39,6 +52,8 @@ Live page with the pitch film: https://mason-demo-eight.vercel.app
 ElevenLabs in the build: Agents (three), Scribe v2 Realtime, Text to Speech (Flash v2.5) and Text to Dialogue (v3) for a weekly two-voice recap.
 
 ## Against the brief
+
+Mason began as a solo entry by Gustaf Garnow for Challenge 01, The AI Apprentice, at the Hack-Nation 7th Global AI Hackathon.
 
 This section describes what was submitted, the tag `hack-nation-7`. Two of its pages have since been taken out of the app window; see [After the hackathon](#after-the-hackathon).
 
@@ -92,31 +107,23 @@ A model is needed for three things only: the summary of a project, the script of
 | [`apprentice/`](apprentice/) | The app (the folder keeps its first name): native macOS island, local server, ElevenLabs voice, MCP server. Start with its [README](apprentice/README.md). |
 | [`film/`](film/) | How the three submission films were made: the app window is driven and recorded headlessly, then cut and captioned by script. |
 | [`workflows/`](workflows/) | The collection: how people work with agents, one file each, and the page made from them. |
-| [`site/`](site/) | The public page. |
 
-## Run it
+## Tests
 
 ```bash
 cd apprentice
-cp .env.local.example .env.local   # optional: an ElevenLabs key turns on the voice
-npm run build:reader               # builds Mason.app with swiftc
-open Mason.app
-```
-
-macOS 13 or later, Node 18 or later, Xcode command line tools. No packages to install: the server has no dependencies.
-
-Press the island in the menu bar. The first time it asks for Accessibility, which is how it sees which app and window you are in. Name, sound and the rest are under the gear in the app window.
-
-```bash
 npm test                           # no network, no data of yours needed
+npm run workflows -- check         # every file in the collection may be there
 ```
+
+Both run on every pull request. See [CONTRIBUTING](CONTRIBUTING.md) for how to add a workflow or change the code, and [SECURITY](SECURITY.md) for what Mason guards against and how to report a hole.
 
 ## Limits
 
 - The memory is stored on the Mac, but the voice is not: speech, calls and dictation go through ElevenLabs, and summaries through your Claude login or the model you chose. Both have a switch in Settings. With ElevenLabs and summaries switched off, nothing leaves the Mac: Mason then speaks with the Mac's own voice, there are no calls, and the memory is your own words.
 - macOS only. The memory is built from Claude Code logs; chats in ChatGPT or on claude.ai are not on disk and are not read.
 - Flow knows a site by the address of the front tab, of which only the host is kept ("figma.com"). Chat and mail are left out unless you switch on naming them; then their name and the time are kept, never a title. A site shows a lettered tile unless you switch on Logos from the web; then Mason asks each site once for its own icon, which is one more thing that leaves the Mac.
-- The local server listens on this Mac only, and answers only Mason's own window, the island and the agents that were given its address. A page in a browser that is not Mason's own is refused, so a link someone sends cannot switch a setting or read the memory. It does trust this Mac: another program that runs here, or an agent that may call a local address, can ask it what a window can. A secret for each start, known only to Mason's own window, is not built yet.
+- The local server listens on this Mac only, and answers only Mason's own window, the island and the agents that were given its address. A page in a browser that is not Mason's own is refused, so a link someone sends cannot switch a setting or read the memory. Another program on this Mac that only reaches the port is refused as well: everything but the pages themselves needs a key that is made anew at every start and handed to Mason's own windows, the island, and the agents you give it to. A program that runs as you and may read your files is not stopped by it; it could read the memory on disk without asking.
 - A rule from someone else's workflow is checked before it is offered, but the check is a net, not a judge: read the prompt before you send it to an agent.
 - Tokens are the agents' own count, and most of a month's are the same conversation read again from a cache. It is a count, not a cost, and Cursor's are not read.
 - "How it is put together" and "what was decided" come from your prompts, what the agents reported and the names of the files they changed. File contents are never read, and a line can be wrong where an agent was, or where a model read a wish as a decision.
@@ -125,7 +132,7 @@ npm test                           # no network, no data of yours needed
 
 ## After the hackathon
 
-What was submitted to Hack-Nation 7 on 4 October 2026 is the tag `hack-nation-7`. Taken out of the app window after the deadline: the Map page and Teach, the test of a new person, with its written check. They were built for the brief and not for daily use. The Work Map itself is still filled by a capture session and the debrief call, still stops a prompt that breaks a rule, and is still what an agent reads over MCP. Added after the deadline: Built, the look back, the proposals, Flow with the site of a tab and the picture to share, Days, the logs of Codex and Grok beside Claude Code's, Find by meaning with a model on the Mac, the switches for ElevenLabs, the agent logs and naming chat and mail, and the choice of model for summaries. Then Workflow with its picture and file, opening someone else's workflow and handing a rule, theirs or your own, to an agent instead of writing it, the [collection](workflows/), the tokens in Days, the count of what Mason's own model calls take, a Settings screen grouped by what leaves the Mac, and the guard on the local server. Map, Teach (there called New person), Recap and Agents, built for the challenge, are under More.
+What was submitted to Hack-Nation 7 on 4 October 2026 is the tag `hack-nation-7`. Taken out of the app window after the deadline: the Map page and Teach, the test of a new person, with its written check. They were built for the brief and not for daily use. The Work Map itself is still filled by a capture session and the debrief call, still stops a prompt that breaks a rule, and is still what an agent reads over MCP. Added after the deadline: Built, the look back, the proposals, Flow with the site of a tab and the picture to share, Days, the logs of Codex and Grok beside Claude Code's, Find by meaning with a model on the Mac, the switches for ElevenLabs, the agent logs and naming chat and mail, and the choice of model for summaries. Then Workflow with its picture and file, opening someone else's workflow and handing a rule, theirs or your own, to an agent instead of writing it, the [collection](workflows/), the tokens in Days, the count of what Mason's own model calls take, a Settings screen grouped by what leaves the Mac, the guard on the local server with a key for each start, and the look for a new version. Map, Teach (there called New person), Recap and Agents, built for the challenge, are under More.
 
 ## What is not in this repository
 

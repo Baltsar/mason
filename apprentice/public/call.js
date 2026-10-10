@@ -3,10 +3,12 @@
 // The page is only the telephone. The server decides what the agent is told
 // about the day, and the agent writes into the Work Map through two tools.
 
+import { withKey } from "./key.js";
+
 const RATE = 16000;
 
 const post = async (body) => {
-  const response = await fetch("/api/call", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const response = await fetch("/api/call", { method: "POST", headers: withKey({ "content-type": "application/json" }), body: JSON.stringify(body) });
   const value = await response.json();
   if (!response.ok) throw new Error(value.error || "The call could not be placed");
   return value;

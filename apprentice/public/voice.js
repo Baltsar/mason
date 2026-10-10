@@ -3,6 +3,8 @@
 // The microphone and the socket exist only between a press and the end of the
 // sentence, so nothing is streamed (or paid for) while Mason is waiting.
 
+import { withKey } from "./key.js";
+
 const TARGET_RATE = 16000;
 const MAX_SECONDS = 45;
 const SILENCE_SECONDS = 1.4;
@@ -41,7 +43,7 @@ export const canDictate = () => Boolean(navigator.mediaDevices?.getUserMedia && 
 // after a pause, or when stop() is called. `stream` lets a test feed audio in.
 export async function dictate({ onPartial = () => {}, onLevels = () => {}, stream = null, language = "" } = {}) {
   if (!canDictate()) throw new Error("The microphone is not available here. Type the answer instead.");
-  const tokenReply = await fetch("/api/scribe-token", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+  const tokenReply = await fetch("/api/scribe-token", { method: "POST", headers: withKey({ "content-type": "application/json" }), body: "{}" });
   const { token, error } = await tokenReply.json();
   if (!tokenReply.ok) throw new Error(error || "ElevenLabs is not connected");
 

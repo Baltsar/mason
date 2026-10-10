@@ -1,4 +1,5 @@
 import { canDictate, dictate } from "/voice.js";
+import { key, keyed, withKey } from "/key.js";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -72,7 +73,7 @@ function toast(text) {
 }
 
 async function api(url, options = {}) {
-  const response = await fetch(url, { headers: { "content-type": "application/json" }, ...options });
+  const response = await fetch(url, { headers: withKey({ "content-type": "application/json" }), ...options });
   const value = await response.json();
   if (!response.ok) throw Object.assign(new Error(value.error || "Something went wrong"), { status: response.status, value });
   return value;
@@ -174,6 +175,7 @@ function renderToday() {
   if (where.hidden) delete where.dataset.sig;
   else paint(where, JSON.stringify(waiting.waited), `<header><h2>Answers waited ${minutes(waiting.waited.seconds)}</h2><p>${waiting.waited.answers} finished while you were somewhere else</p></header>${barsOf(waiting.waited.where, (item) => item.tool, (item) => item.seconds, "var(--gold)", (item) => minutes(item.seconds))}`);
 
+  renderTrial();
   renderLookback();
   renderPropose();
   renderProjects();
@@ -193,6 +195,24 @@ function renderDrill() {
       <div>${group.apps.length ? `<ul class="bars">${group.apps.map((item) => `<li style="--w:${Math.round((item.seconds / longest) * 100)}%;--tone:${item.color}"><span>${esc(item.app)}</span><i></i><b>${minutes(item.seconds)}</b></li>`).join("")}</ul>` : `<p class="empty">Nothing.</p>`}</div>
       <div>${group.windows.length ? `<ul class="windows">${group.windows.slice(0, 5).map((item) => `<li><span>${esc(item.window || item.app)}</span><b>${minutes(item.seconds)}</b></li>`).join("")}</ul>` : ""}</div>
     </div>`);
+}
+
+// After forty days of work Mason says, the way an old archiver did, that the
+// trial has ended and a license must be bought, and then that there is none.
+// It asks once for a coffee for the man who built it, or for work for him.
+function renderTrial() {
+  const node = $("#trial");
+  const trial = snapshot.trial;
+  node.hidden = !trial?.due;
+  if (node.hidden) { delete node.dataset.sig; return; }
+  const second = trial.rules ? [trial.rules, trial.rules === 1 ? "rule handed to your agents" : "rules handed to your agents"] : [trial.projects, trial.projects === 1 ? "project remembered" : "projects remembered"];
+  paint(node, JSON.stringify(trial), `<p class="label">Day ${trial.day} of ${trial.of}</p>
+    <h2>Your trial has ended.</h2>
+    <p class="ask">Buy a license or remove Mason from this Mac.</p>
+    <p class="none">There is no license. I’ll be at work tomorrow.</p>
+    <p class="figures"><span><b>${thousands(trial.prompts)}</b>prompts remembered</span><span><b>${second[0]}</b>${second[1]}</span></p>
+    <p class="ask">The man who built me runs on coffee.</p>
+    <div class="row">${trial.coffee ? `<a class="primary" href="${esc(trial.coffee)}" target="_blank" rel="noopener">Buy him a coffee</a>` : ""}<a class="${trial.coffee ? "secondary" : "primary"}" href="${esc(trial.hire)}" target="_blank" rel="noopener">Hire him</a><button class="link" type="button" data-trial-end>Use evaluation copy</button></div>`);
 }
 
 // After a few days of work Mason says how it was done: up to three plain
@@ -400,7 +420,7 @@ const tileFor = (tool) => tool?.tile || { text: String(tool?.name || "?").slice(
 // tile; an app's icon already has its own shape and air around it.
 const fromSite = (tool) => Boolean(tool?.icon?.includes("/site-"));
 function face(tool, size = 28) {
-  if (tool?.icon) return `<img class="logo ${fromSite(tool) ? "site" : ""}" style="--s:${size}px" src="${tool.icon}" alt="" />`;
+  if (tool?.icon) return `<img class="logo ${fromSite(tool) ? "site" : ""}" style="--s:${size}px" src="${esc(keyed(tool.icon))}" alt="" />`;
   const tile = tileFor(tool);
   return `<span class="logo" style="--s:${size}px;--bg:${tile.color};--fg:${inkOn(tile.color)}">${esc(tile.text)}</span>`;
 }
@@ -668,7 +688,7 @@ const POSTER = { width: 1080, height: 1350, left: 72, ink: "#0e0d0b", paper: "#f
 const FACE = `Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif`;
 
 const pictureOf = (address) => {
-  if (!pictures.has(address)) pictures.set(address, new Promise((resolve) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = () => resolve(null); image.src = address; }));
+  if (!pictures.has(address)) pictures.set(address, new Promise((resolve) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = () => resolve(null); image.src = keyed(address); }));
   return pictures.get(address);
 };
 
@@ -1197,6 +1217,18 @@ function onAirNow() {
   if ($("p", node).textContent !== line.text) $("p", node).textContent = line.text;
 }
 
+// The same memory by address: it needs the key of this start, which the
+// command does not, since that one reads the files and asks no server.
+const mcpByAddress = (secret) => `{
+  "mcpServers": {
+    "mason": {
+      "type": "http",
+      "url": "${location.origin}/mcp",
+      "headers": { "Authorization": "Bearer ${secret}" }
+    }
+  }
+}`;
+
 function renderAgents() {
   paint($("#mcp-config"), "config", esc(`{
   "mcpServers": {
@@ -1206,6 +1238,9 @@ function renderAgents() {
     }
   }
 }`));
+  // The address works too, for an agent that cannot start a command. The key
+  // is not shown: what stands in a window is read by whatever reads the screen.
+  paint($("#mcp-http"), "http", esc(mcpByAddress("new at every start")));
   paint($("#tools"), "tools", TOOLS.map(([name, label], index) => `<button type="button" data-tool="${name}"><small>${String(index + 1).padStart(2, "0")}</small><b>${esc(label)}</b></button>`).join(""));
 }
 
@@ -1240,7 +1275,7 @@ function renderSettings() {
     : model.name === "Claude" ? "Summaries, proposals and the recap wait for a login. Open a terminal, run claude, then /login."
     : `Summaries, proposals and the recap wait: ${model.where} did not take the key in APPRENTICE_LLM_KEY.`;
   // What the model took, where the switch for it is: today in the row, the week under it.
-  const { usage } = status;
+  const { usage, update } = status;
   const spent = usage.today.tokens ? ` · ${tokens(usage.today.tokens)} tokens today` : "";
   const most = usage.week.by[0];
   const week = usage.week.calls ? `7 days: ${tokens(usage.week.tokens)} tokens in ${usage.week.calls} ${usage.week.calls === 1 ? "call" : "calls"}${most && usage.week.by.length > 1 ? `, ${Math.round((most.tokens / usage.week.tokens) * 100)}% of it ${most.purpose}` : ""}. A summary is written an hour after you leave a project, not while you work in it.` : "";
@@ -1252,6 +1287,8 @@ function renderSettings() {
     ${mend ? `<p class="fine mend">${esc(mend)}</p>` : settings.summaries && week ? `<p class="fine under">${esc(week)}</p>` : ""}
     ${status.elevenLabsKey ? row("elevenlabs", "Voice", voice) : `<div class="set"><span>Voice</span>${voice}</div>`}
     ${row("logos", "Logos from the web", settings.logos ? on("Asks each site once") : off("Lettered tiles"))}
+    ${row("updates", "New versions", !settings.updates ? off("Not looked for") : update.latest ? on(`${update.latest.version} is out`) : on(`Up to date · ${update.version}`))}
+    ${settings.updates && update.latest ? `<p class="fine under">This is Mason ${esc(update.version)}. <a href="${esc(update.latest.url)}" target="_blank" rel="noopener">See what is new in ${esc(update.latest.version)}, and how to get it</a>. Mason installs nothing by itself.</p>` : ""}
     <p class="group">Stays on this Mac</p>
     <div class="set"><span>Screen</span>${status.access === "on" ? on("App, window, site") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
     ${row("logs", "Agent logs", settings.logs ? on([`Claude Code ${logs.claude}`, logs.codex ? `Codex ${logs.codex}` : "", logs.grok ? `Grok ${logs.grok}` : ""].filter(Boolean).join(" · ")) : off("Not read"))}
@@ -1265,7 +1302,8 @@ function renderSettings() {
     <p class="group">Kept on this Mac</p>
     <div class="set files"><span>Open</span><span class="with"><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Memory</button><button class="secondary" type="button" data-reveal="notes">Notes for Obsidian</button></span></div>
     ${said.count ? `<div class="set files"><span>${thousands(said.count)} prompts, read by meaning</span><button class="secondary" type="button" data-forget-said>Forget</button></div>` : ""}
-    <p class="fine">No screenshots, no keystrokes, and of a page in a browser only the site. With everything under Leaves this Mac switched off, nothing does.</p>`);
+    <p class="fine">No screenshots, no keystrokes, and of a page in a browser only the site. With everything under Leaves this Mac switched off, nothing does.</p>
+    <p class="fine">Evaluation copy. Has been since day one.</p>`);
 }
 
 async function loadPrefs() {
@@ -1394,6 +1432,11 @@ async function act(event) {
   if (proposed) {
     snapshot.suggestions = await post("/api/suggestions", { action: proposed.dataset.propose, id: proposed.dataset.id });
     proposeOpen = false;
+    return render();
+  }
+  if (target.closest("[data-trial-end]")) {
+    await post("/api/trial");
+    snapshot.trial.due = false;
     return render();
   }
   if (target.closest("[data-propose-copy]")) {
@@ -1573,6 +1616,10 @@ async function act(event) {
     return load();
   }
 
+  if (target.closest("#mcp-copy")) {
+    return toast(await copyText(mcpByAddress(key)) ? "Copied, with the key of this start" : "Could not copy");
+  }
+
   const asked = target.closest("#tools [data-tool]");
   if (asked) {
     const reply = await post("/mcp", { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: asked.dataset.tool, arguments: {} } });
@@ -1604,7 +1651,7 @@ document.addEventListener("keydown", (event) => {
 
 function connect() {
   stream?.close();
-  stream = new EventSource("/api/stream");
+  stream = new EventSource(keyed("/api/stream"));
   let timer;
   stream.addEventListener("update", (event) => {
     const { kind } = JSON.parse(event.data);
@@ -1630,8 +1677,13 @@ window.addEventListener("hashchange", () => {
   const [name, arg] = location.hash.slice(1).split("/");
   if (name && (name !== view || arg !== undefined)) show(name, arg);
 });
-await load();
-connect();
+// A tab that was opened without the key says so, and goes on saying it, instead of standing empty.
+try { await load(); } catch (error) {
+  if (error.status !== 401) throw error;
+  toast(error.message);
+  clearTimeout(toast.timer);
+}
+if (snapshot) connect();
 
 // Other words for a proposal are kept when the field is left, and the prompt follows them.
 document.addEventListener("change", async (event) => {
