@@ -28,6 +28,8 @@ import { MEMORY_VERSION, mergeInferred, projectMemory, savedMemory } from "./mem
 import { makeEpisode, playEpisode, podcastBusy, podcastState } from "./podcast.mjs";
 import { hasElevenLabsKey, loadSettings, ownerName, saveSettings, settings } from "./settings.mjs";
 import { modelStatus, onUse } from "./llm.mjs";
+import { fromHere } from "./guard.mjs";
+import { collectable } from "./collection.mjs";
 import { recordUse, usagePayload } from "./usage.mjs";
 import { fileOf, heldBack, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
 
@@ -535,8 +537,15 @@ async function startDebrief(map, runtime) {
   await speak(gaps[0].text, `debrief-${gaps[0].id}`);
 }
 
+let refusals = 0;
 const server = http.createServer(async (request, response) => {
   try {
+    // A page in a browser that is not Mason's own gets no answer and changes nothing.
+    if (!fromHere(request.headers)) {
+      // Said in the log a few times, so that a window of Mason's own that is turned away can be told from an attempt.
+      if ((refusals += 1) <= 5) console.warn(`Not answered: a request from ${String(request.headers.origin || request.headers["sec-fetch-site"] || request.headers.host || "nowhere").slice(0, 80)}`);
+      return json(response, 403, { error: "Only this Mac's own Mason is answered" });
+    }
     const url = new URL(request.url, "http://127.0.0.1");
     const post = request.method === "POST";
     if (url.pathname === "/api/island" && request.method === "GET") return json(response, 200, await islandPayload());
@@ -582,6 +591,16 @@ const server = http.createServer(async (request, response) => {
       await adoptRule(rule, String(input.from || ""));
       broadcast("suggestions");
       return json(response, 200, await suggestionsPayload());
+    }
+    if (url.pathname === "/api/workflow/collect" && post) {
+      // One's own workflow in the form the collection keeps: read back with
+      // the same care as a stranger's, so that what is copied is what a
+      // reader there would be shown. Nothing is sent from here.
+      const input = await body(request);
+      const made = fileOf(await workflow(), String(input.purpose || "all"), Array.isArray(input.rules) ? input.rules.map(String) : []);
+      const ready = made && collectable(made);
+      if (!ready) return json(response, 400, { error: "No such workflow" });
+      return json(response, 200, { text: ready.text, name: ready.name, dropped: ready.dropped });
     }
     if (url.pathname === "/api/workflow") {
       if (!post) return json(response, 200, await workflow());
