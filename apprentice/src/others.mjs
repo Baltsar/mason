@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import { open, readdir, readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -5,10 +6,10 @@ import { dayStart } from "./activity.mjs";
 import { redact } from "./redact.mjs";
 import { settings } from "./settings.mjs";
 
-// The agents beside Claude Code that keep their own logs on this Mac: Codex
-// and Grok. What was said to them belongs to the same projects, and a picture
-// of how someone works with agents that knows only one of them is a picture
-// of that one.
+// The agents beside Claude Code that keep their own logs on this Mac: Codex,
+// Grok and Cursor. What was said to them belongs to the same projects, and a
+// picture of how someone works with agents that knows only one of them is a
+// picture of that one.
 //
 // One thing has to be told apart. A session someone typed in is theirs: its
 // prompts are their words and its answers wait for them. A session another
@@ -21,6 +22,7 @@ import { settings } from "./settings.mjs";
 const elsewhere = Boolean(process.env.APPRENTICE_CLAUDE_DIR);
 const CODEX_DIR = process.env.APPRENTICE_CODEX_DIR || (elsewhere ? "" : path.join(os.homedir(), ".codex", "sessions"));
 const GROK_DIR = process.env.APPRENTICE_GROK_DIR || (elsewhere ? "" : path.join(os.homedir(), ".grok", "sessions"));
+const CURSOR_DIR = process.env.APPRENTICE_CURSOR_DIR || (elsewhere ? "" : path.join(os.homedir(), "Library", "Application Support", "Cursor", "User", "workspaceStorage"));
 // A session in a temporary folder is a tool running, not a project of its owner.
 const TEMPORARY = /^(\/private)?\/(tmp|var\/folders)\//;
 // Even a word starts a turn; only a real sentence is kept as said.
@@ -229,14 +231,73 @@ async function grokLogs(since) {
   return logs;
 }
 
-// What Codex and Grok were used for, by project folder, since a moment.
+// Cursor keeps what was asked in each workspace in a small database of its
+// own. Mason reads one value from it, the list of what was asked and when,
+// with the sqlite3 that is on every Mac, opened for reading only. That list
+// holds the latest fifty or so, so the days are kept from when Mason first
+// read them. The answers, and what they took, are in a store of several
+// gigabytes beside it, which is left alone: of Cursor there are words and
+// moments, not how long it worked and not its tokens.
+const SQLITE = "/usr/bin/sqlite3";
+const ASKED = "select value from ItemTable where key='aiService.generations'";
+
+// One workspace of Cursor, from the list of what was asked in it.
+export function cursorLog(text) {
+  const log = freshLog();
+  let rows = [];
+  try { rows = JSON.parse(text); } catch {}
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const at = Number(row?.unixMs);
+    const said = typed(row?.textDescription);
+    if (!Number.isFinite(at) || at <= 0 || !said) continue;
+    log.minutes.add(minuteOf(at));
+    // When the answer was finished is not said there, so no answer is ever counted as waiting.
+    log.turns.push({ prompt: at, done: at, ended: false });
+    if (said.length >= A_SENTENCE) log.prompts.push({ at, text: redact(said, 600), agent: "Cursor" });
+  }
+  log.prompts.sort((a, b) => a.at - b.at);
+  log.turns.sort((a, b) => a.prompt - b.prompt);
+  return log;
+}
+
+const asked = (database) => new Promise((resolve) => {
+  execFile(SQLITE, ["-readonly", database, ASKED], { timeout: 4000, maxBuffer: 8 * 1024 * 1024 }, (error, out) => resolve(error ? "" : out));
+});
+
+// A workspace is read again only when Cursor wrote to it.
+const cursorRead = new Map();
+async function cursorLogs(since) {
+  const logs = [];
+  for (const name of await listed(CURSOR_DIR)) {
+    const database = path.join(CURSOR_DIR, name, "state.vscdb");
+    let info;
+    try { info = await stat(database); } catch { continue; }
+    if (info.mtimeMs < since) continue;
+    let known = cursorRead.get(database);
+    if (!known || known.written !== info.mtimeMs || known.size !== info.size) {
+      let folder = "";
+      try {
+        const where = String(JSON.parse(await small(path.join(CURSOR_DIR, name, "workspace.json"))).folder || "");
+        // A folder on this Mac is a project. An agent of Cursor's that runs somewhere else has none here.
+        if (where.startsWith("file://")) folder = decodeURIComponent(where.slice("file://".length));
+      } catch {}
+      // A window with no folder open belongs to no project.
+      known = { written: info.mtimeMs, size: info.size, log: folder ? { ...cursorLog(await asked(database)), cwd: folder } : null };
+      cursorRead.set(database, known);
+    }
+    if (known.log) logs.push({ ...known.log, source: "Cursor" });
+  }
+  return logs;
+}
+
+// What Codex, Grok and Cursor were used for, by project folder, since a moment.
 let reading = Promise.resolve();
 export function otherProjects(since) {
   // One reading at a time: two would follow the same logs from the same place.
   const next = reading.then(async () => {
     const found = new Map();
     if (!settings().logs) return found;
-    for (const log of [...await codexLogs(since), ...await grokLogs(since)]) {
+    for (const log of [...await codexLogs(since), ...await grokLogs(since), ...await cursorLogs(since)]) {
       if (!log.cwd || TEMPORARY.test(log.cwd)) continue;
       const project = found.get(log.cwd) || { name: path.basename(log.cwd), folder: log.cwd, prompts: [], minutes: new Set(), turns: [], spent: new Map(), source: log.source };
       addSpent(project.spent, log.spent, since);

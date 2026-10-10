@@ -179,8 +179,9 @@ async function cursorWorkspaces(since) {
       const info = await stat(path.join(CURSOR_DIR, folder, "state.vscdb"));
       if (info.mtimeMs < since) continue;
       const workspace = JSON.parse(await readFile(path.join(CURSOR_DIR, folder, "workspace.json"), "utf8"));
-      if (!workspace.folder) continue;
-      found.push({ folder: decodeURIComponent(workspace.folder.replace(/^file:\/\//, "")), usedAt: info.mtimeMs });
+      // A folder on this Mac is a project. An agent of Cursor's that runs somewhere else has none here.
+      if (!String(workspace.folder || "").startsWith("file://")) continue;
+      found.push({ folder: decodeURIComponent(workspace.folder.slice("file://".length)), usedAt: info.mtimeMs });
     } catch {}
   }
   return found.sort((a, b) => b.usedAt - a.usedAt);
