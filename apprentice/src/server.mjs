@@ -32,6 +32,7 @@ import { fromHere, holdsKey, makeKey, needsKey, usableKey } from "./guard.mjs";
 import { collectable } from "./collection.mjs";
 import { lookForUpdate, newer, ownVersion, updatePayload } from "./updates.mjs";
 import { endTrial, trialPayload } from "./trial.mjs";
+import { endWelcome, welcomePayload } from "./welcome.mjs";
 import { recordUse, usagePayload } from "./usage.mjs";
 import { fileOf, handover, heldBy, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
 
@@ -53,6 +54,12 @@ const broadcast = (kind = "update") => {
   else if (desktopPid) { try { process.kill(desktopPid, "SIGUSR1"); } catch {} }
 };
 const collector = new Collector(broadcast);
+// At the very first start macOS is not asked for anything until its owner
+// presses the button in the welcome, which says what Mason needs and why. A
+// system dialog at the first second, with no reason given, is where a new
+// owner stops.
+const firstStart = (await welcomePayload({ permission: (await loadRuntime()).permission })).show;
+if (firstStart) collector.first = false;
 if (process.env.APPRENTICE_COLLECT !== "0") collector.start();
 let desktop = null;
 let desktopStartedAt = 0;
@@ -495,6 +502,7 @@ async function statePayload() {
     // The nudge that was just said, and how the last week of them went.
     nudges: await nudgesPayload(),
     trial: await trialPayload({ moves: days.moves, days: days.days, rules: suggestions.applied.length }),
+    welcome: await welcomePayload({ permission: runtime.permission, days: days.days, through: days.through }),
     // The figures the top bar shows for the two views that load by themselves.
     flow: { jumps: (await today()).flow.jumps },
     days: Object.keys(days.days).length,
@@ -610,6 +618,12 @@ const server = http.createServer(async (request, response) => {
       // and with the agents whose rules already hold it. Mason writes it nowhere.
       const rules = await Promise.all(theirs.rules.map(async (rule) => ({ ...rule, hand: handover(rule.rule), told: rule.held ? [] : await heldBy(rule.rule) })));
       return json(response, 200, { theirs: { ...theirs, rules }, mine: own.cards.find((card) => card.purpose === theirs.purpose) || own.cards[0] });
+    }
+    if (url.pathname === "/api/welcome" && post) {
+      // "Start" or "Not now": the first start is over, and the window is as on any day.
+      await endWelcome();
+      broadcast("welcome");
+      return json(response, 200, { ok: true });
     }
     if (url.pathname === "/api/trial" && post) {
       // "Use evaluation copy": the card about the trial is put away for good.
@@ -1141,6 +1155,12 @@ server.listen(port, "127.0.0.1", () => {
   // The long view is caught up once Mason is running, not while it starts.
   setTimeout(catchUpDays, 15_000).unref();
   setInterval(catchUpDays, 10 * 60_000).unref();
+  // At the very first start the window opens by itself, with the welcome in it.
+  if (firstStart) {
+    setTimeout(() => {
+      try { if (desktop) desktop.kill("SIGUSR2"); else if (desktopPid) process.kill(desktopPid, "SIGUSR2"); } catch {}
+    }, 5000).unref();
+  }
   // A new version is looked for a little after the start, and then a few times a day; a look is made at most once a day.
   setTimeout(() => lookForUpdate().catch(() => {}), 30_000).unref();
   setInterval(() => lookForUpdate().catch(() => {}), 6 * 3_600_000).unref();

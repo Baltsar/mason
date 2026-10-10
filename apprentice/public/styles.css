@@ -546,3 +546,19 @@ a.quiet { display: inline-flex; align-items: center; text-decoration: none; }
 .trial .row .link:hover { color: var(--paper); }
 .settings .fine a { color: var(--paper); }
 
+/* Welcome: the first start, with the one thing Mason asks for */
+[data-page="today"][data-welcome] > :not(.welcome) { display: none; }
+.welcome { max-width: 980px; padding: 8px 0 40px; }
+.welcome .statement { margin: 10px 0 34px; }
+.welcome .steps { display: grid; margin: 0 0 30px; padding: 0; border-top: 1px solid var(--line); list-style: none; }
+.welcome .steps li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 8px 20px; padding: 26px 0; border-bottom: 1px solid var(--line); }
+.welcome .steps i { display: grid; place-items: center; width: 30px; height: 30px; border: 2px solid var(--muted); border-radius: 50%; align-self: start; margin-top: 4px; }
+.welcome .steps li[data-done="true"] i { border-color: var(--lime); background: var(--lime); }
+.welcome .steps li[data-done="true"] i::before { content: ""; width: 12px; height: 7px; border-left: 3px solid #101100; border-bottom: 3px solid #101100; transform: translateY(-2px) rotate(-45deg); }
+.welcome .steps h2 { font-size: clamp(22px, 2.8vw, 34px); line-height: 1.08; letter-spacing: -.04em; font-weight: 680; text-wrap: balance; }
+.welcome .steps p { max-width: 660px; margin: 8px 0 0; color: var(--muted); font-size: 16px; line-height: 1.4; }
+.welcome .steps .hint { color: var(--gold); }
+.welcome .row { gap: 18px; }
+.welcome .after { color: var(--muted); font-size: 14px; }
+@media (max-width: 720px) { .welcome .steps li { grid-template-columns: 34px minmax(0, 1fr); } .welcome .steps li > button { grid-column: 2; justify-self: start; } }
+

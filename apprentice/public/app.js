@@ -151,7 +151,42 @@ const dates = (from, to) => {
   return from === to ? `${first.getDate()} ${month(first)}` : first.getMonth() === last.getMonth() ? `${first.getDate()}–${last.getDate()} ${month(last)}` : `${first.getDate()} ${month(first)} – ${last.getDate()} ${month(last)}`;
 };
 
+// The first start: what Mason already read, and the one thing it asks for,
+// with what that lets it see and what it never does. Nothing else is asked.
+let welcomeAsked = false;
+function renderWelcome() {
+  const node = $("#welcome");
+  const welcome = snapshot.welcome;
+  const page = node.closest("[data-page]");
+  node.hidden = !welcome?.show;
+  if (node.hidden) { delete node.dataset.sig; delete page.dataset.welcome; return false; }
+  page.dataset.welcome = "true";
+  const on = welcome.access === "on";
+  const read = !welcome.read ? ["Reading what your agents kept on this Mac.", "A moment. Nothing is recorded for it."]
+    : welcome.days ? [`${welcome.days} ${welcome.days === 1 ? "day" : "days"} of your work with agents, already read.`, `${welcome.hours} hours, from the logs Claude Code, Codex, Grok and Cursor keep themselves. Nothing was recorded for it.`]
+    : ["No agent has left a log on this Mac yet.", "When you work with Claude Code, Codex, Grok or Cursor, it shows up here by itself."];
+  paint(node, JSON.stringify([welcome, welcomeAsked]), `<p class="label">Welcome</p>
+    <h1 class="statement">Mason was there.</h1>
+    <ol class="steps">
+      <li data-done="${welcome.read}">
+        <i></i>
+        <div><h2>${read[0]}</h2><p>${read[1]}</p></div>
+        ${welcome.read && welcome.days ? `<button class="secondary" type="button" data-view="workflow">See how you work</button>` : ""}
+      </li>
+      <li data-done="${on}">
+        <i></i>
+        <div><h2>${on ? "Mason sees which window is in front." : "Let Mason see which window is in front."}</h2>
+          <p>The app, the title of its window, the site of a tab, and the prompt you are writing. Never a picture of the screen, never what you type anywhere else.</p>
+          ${welcomeAsked && !on ? `<p class="hint">Switch Mason on in the list that opened. This screen follows by itself.</p>` : ""}</div>
+        ${on ? "" : `<button class="primary" type="button" data-welcome-access>${welcomeAsked ? "Open it again" : "Open System Settings"}</button>`}
+      </li>
+    </ol>
+    <div class="row"><button class="${on ? "primary" : "secondary"}" type="button" data-welcome-done>${on ? "Start" : "Not now"}</button><span class="after">That is all Mason asks for. The rest has a switch in Settings.</span></div>`);
+  return true;
+}
+
 function renderToday() {
+  if (renderWelcome()) return;
   const { activity, waiting } = snapshot;
   const measured = activity.totalSeconds > 0;
   // Before anything is measured the page says what happens next.
@@ -1439,6 +1474,16 @@ async function act(event) {
   if (proposed) {
     snapshot.suggestions = await post("/api/suggestions", { action: proposed.dataset.propose, id: proposed.dataset.id });
     proposeOpen = false;
+    return render();
+  }
+  if (target.closest("[data-welcome-access]")) {
+    welcomeAsked = true;
+    await post("/api/access", { action: "fix" });
+    return render();
+  }
+  if (target.closest("[data-welcome-done]")) {
+    await post("/api/welcome");
+    snapshot.welcome.show = false;
     return render();
   }
   if (target.closest("[data-trial-end]")) {

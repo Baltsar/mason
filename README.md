@@ -13,15 +13,17 @@ Mason is a local macOS app for people who build with coding agents. It was there
 ## Get it
 
 ```bash
-git clone https://github.com/Baltsar/mason.git
-cd mason/apprentice
+git clone https://github.com/Baltsar/mason.git ~/mason
+cd ~/mason/apprentice
 npm run build:reader               # builds Mason.app with swiftc
 open Mason.app
 ```
 
 macOS 13 or later, Node 18 or later, Xcode command line tools. No packages to install: the server has no dependencies. An ElevenLabs key in `.env.local` turns on the voice (`cp .env.local.example .env.local`); without one Mason speaks with the Mac's own.
 
-Press the island in the menu bar. The first time it asks for Accessibility, which is how it sees which app and window you are in. Name, sound and the rest are under the gear in the app window.
+The first time, Mason's window opens by itself. It shows what it has already read from your agents' logs, and asks for one thing: Accessibility, which is how it sees which app and window you are in. It says what that lets it read and what it never does, and macOS is asked only when you press the button. Nothing else is asked for; a model and a voice are optional and have switches under the gear. After that, Mason lives in the island in the menu bar.
+
+Cloned into your home folder, as above, macOS has no reason to ask about your Documents folder.
 
 **New versions.** Mason asks GitHub once a day whether a newer release is out and says so in Settings and on the island. It sends nothing of yours and installs nothing: to take a new version, `git pull` and `npm run build:reader`. The look has a switch.
 
