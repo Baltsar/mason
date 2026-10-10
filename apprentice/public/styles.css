@@ -562,3 +562,25 @@ a.quiet { display: inline-flex; align-items: center; text-decoration: none; }
 .welcome .after { color: var(--muted); font-size: 14px; }
 @media (max-width: 720px) { .welcome .steps li { grid-template-columns: 34px minmax(0, 1fr); } .welcome .steps li > button { grid-column: 2; justify-self: start; } }
 
+/* Where Mason sits in the menu bar: two small bars to choose between */
+.settings .barpicks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 0 16px; border-bottom: 1px solid var(--line); }
+.barpick { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: transparent; text-align: left; }
+.barpick:hover { border-color: var(--muted); }
+.barpick[aria-pressed="true"] { border-color: var(--lime); }
+.barpick b { margin-top: 8px; font-size: 15px; font-weight: 640; }
+.barpick small { color: var(--muted); font-size: 13px; }
+.minibar { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border-radius: 9px; background: #55555e; overflow: hidden; }
+.minibar i { display: block; flex: none; height: 7px; border-radius: 4px; background: #a3a3ad; font-style: normal; }
+.minibar .menus { width: 42px; }
+.minibar .gap { flex: 1; height: 0; background: none; }
+.minibar .notch { width: 72px; height: 36px; border-radius: 0 0 9px 9px; background: #050505; align-self: flex-start; }
+.minibar .isle { display: grid; place-items: center; width: auto; height: 24px; margin-left: auto; padding: 0 10px; border-radius: 8px; background: #050505; color: var(--lime); font: 700 12px var(--mono); }
+.minibar[data-kind="icon"] .menus { margin-right: auto; }
+.minibar[data-kind="icon"] .notch { margin: 0 auto; }
+.minibar .eye { width: 20px; height: 24px; border-radius: 8px; background: #050505; }
+.minibar .mark { width: 20px; height: 16px; border-radius: 4px; background: var(--gold); box-shadow: 0 0 0 2px rgba(214, 166, 71, .35); }
+.minibar .dots { width: 34px; }
+.flowmap .under[hidden] { display: none; }
+.asked .row .quiet { height: 34px; }
+.where-in-code { display: grid; gap: 6px; max-width: 940px; margin: 22px 0 0; padding: 14px 0 0; border-top: 1px solid var(--line); list-style: none; color: var(--muted); font: 13px/1.5 var(--mono); }
+

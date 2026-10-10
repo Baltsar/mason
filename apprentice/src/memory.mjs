@@ -13,7 +13,8 @@ import { askModel } from "./llm.mjs";
 const DAYS = 21;
 const MAX_PROMPTS = 70;
 // Raised when the shape of a memory changes, so saved ones are written again.
-const VERSION = 5;
+// 6: what it does as said to a friend, and its parts with a likeness each.
+const VERSION = 6;
 export const MEMORY_VERSION = VERSION;
 const words = (text, count) => String(text ?? "").replace(/\s+/g, " ").trim().split(" ").slice(0, count).join(" ").replace(/[.,;:]+$/, "");
 // A silence this long between two prompts is a new visit to the project.
@@ -45,6 +46,8 @@ Reply with JSON only, no code fence, in exactly this shape:
 {
   "headline": "where they left off, at most 6 words, no full stop",
   "one_line": "what this project is, at most 12 words",
+  "plainly": "what it does, as its owner would say it to a friend who does not write code: one sentence, at most 22 words, no file name, no name of a framework",
+  "parts": [{"name": "a plain name for one main part, 1 to 3 words", "like": "a likeness from everyday life, starting with 'like', at most 12 words", "does": "what the part does, in plain words, at most 14 words, no file name", "where": "the file or folder it lives in, from the list"}],
   "how": ["at most 4 statements of how it is put together: a main part and what it does, each naming a real file or folder from the list, at most 16 words each"],
   "built": ["at most 3 short statements of what was built or changed, newest first"],
   "decided": ["at most 3 decisions that were made about how to build it, each with the reason when one was given, at most 22 words each"],
@@ -57,6 +60,8 @@ Reply with JSON only, no code fence, in exactly this shape:
 Rules for keeps_saying: only a demand or correction they gave the agent on at least two separate occasions. Phrase it as a rule of at most 6 words in their own voice. "example" must be copied word for word from one prompt, at most 12 words. If nothing repeats, return an empty list. At most 3 items.
 
 Rules for decided: a decision is a choice between ways of doing it that the prompts or the reports show was made ("use X instead of Y", "drop Z", "keep it on one page"). Say what was chosen and, when a reason was given, why. A wish or a complaint is not a decision. If no choice shows, return an empty list.
+
+Rules for parts: the two or three parts someone must know to explain how this works, at most 3. A part is a thing with a job (the part that hears the voice, the part that keeps the scores), not a file. The likeness must fit what the part really does according to the reports: a referee, a waiter, a notebook, a switchboard. If no likeness fits honestly, leave "like" empty. "where" is for looking it up later and may be empty. If the reports do not show what the parts do, return an empty list.
 
 Rules for how: describe the parts someone would need to know to explain how this was built. Take what a part does from the agents' reports; a file name alone is not enough to say what a file does. Name the file or folder. Name a framework or service only when a report, a prompt or a file name shows it. If no files are listed, return an empty list.
 
@@ -91,6 +96,9 @@ async function digest(name, prompts, work, reports) {
   return {
     headline: words(reply.headline || reply.left_off, 7),
     one_line: short(reply.one_line, 120) || null,
+    plainly: short(reply.plainly, 200) || null,
+    parts: (Array.isArray(reply.parts) ? reply.parts : []).filter((part) => part && typeof part.name === "string" && typeof part.does === "string" && part.name.trim() && part.does.trim()).slice(0, 3)
+      .map((part) => ({ name: short(part.name, 40), like: typeof part.like === "string" ? short(part.like, 110) : "", does: short(part.does, 130), where: typeof part.where === "string" ? short(part.where, 120) : "" })),
     // A part only counts when it names something the agents really changed.
     how: list(reply.how, 6).filter((line) => work.some((item) => item.file.split("/").some((piece) => piece.length > 3 && line.includes(piece)))).slice(0, 4),
     built: list(reply.built, 3),

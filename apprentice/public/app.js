@@ -49,6 +49,7 @@ let findTimer = null;
 let findTurn = 0;
 let findOpen = null;
 let builtShown = false;
+let builtWhere = false;
 // What the settings screen shows: the settings and the state of what Mason depends on.
 let prefs = null;
 // How a day moved between tools: the day shown (none is today) and the tool picked in it.
@@ -372,18 +373,27 @@ function renderBuilt() {
   if (!projects.length) {
     $("#built-meta").textContent = "";
     paint($("#built-projects"), "none", "");
-    return paint(card, "empty", `<h1 class="question">Nothing to ask about yet.</h1><p class="lede">It fills by itself as you work with your agents.</p>`);
+    // Nothing is due: either all of it was known lately, or nothing is remembered yet.
+    const back = built.next ? Math.max(1, Math.round((Date.parse(built.next) - Date.now()) / 86_400_000)) : 0;
+    return paint(card, `empty-${back}`, back
+      ? `<h1 class="question">Nothing to recall today.</h1><p class="lede">The next question comes back ${back === 1 ? "tomorrow" : `in ${back} days`}. What you knew comes back after longer each time.</p>`
+      : `<h1 class="question">Nothing to ask about yet.</h1><p class="lede">It fills by itself as you work with your agents.</p>`);
   }
   builtAt.project = Math.min(builtAt.project, projects.length - 1);
   const item = projects[builtAt.project];
   builtAt.card = Math.min(builtAt.card, item.cards.length - 1);
   const asked = item.cards[builtAt.card];
   const days = Math.round((dateOf(built.today) - dateOf(item.lastDay)) / 86_400_000);
-  $("#built-meta").textContent = `${item.project} · ${days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`} · ${builtAt.card + 1} of ${item.cards.length}`;
-  // One question in large type. A press shows what is remembered; nothing is typed.
-  paint(card, JSON.stringify([item.project, builtAt.card, builtShown, asked, snapshot.voice.elevenLabs]), `<h1 class="question">${esc(asked.question)}</h1>
-    ${builtShown ? `<ul class="held">${asked.answer.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>` : ""}
-    <div class="row">${builtShown ? "" : `<button class="primary" type="button" data-built="show">Show</button>`}<button class="${builtShown ? "primary" : "secondary"}" type="button" data-built="next">Next</button>${snapshot.voice.elevenLabs ? `<button class="secondary" type="button" data-recall="${esc(item.project)}">Ask me aloud</button>` : ""}</div>`);
+  const left = projects.reduce((count, project) => count + project.cards.length, 0);
+  $("#built-meta").textContent = `${item.project} · ${days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`} · ${left} to recall`;
+  // The question first, in large type. Say the answer to yourself, then look:
+  // what was not known comes back tomorrow, what was known after longer.
+  paint(card, JSON.stringify([asked, builtShown, builtWhere, snapshot.voice.elevenLabs]), `<h1 class="question">${esc(asked.question)}</h1>
+    ${builtShown ? `<ul class="held">${asked.answer.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>
+      ${builtWhere && asked.where.length ? `<ul class="where-in-code">${asked.where.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>` : ""}` : `<p class="lede">Say it to yourself first. Then look.</p>`}
+    <div class="row">${builtShown
+      ? `<button class="primary" type="button" data-built="knew">Knew it</button><button class="secondary" type="button" data-built="not">Did not</button>${asked.where.length && !builtWhere ? `<button class="quiet" type="button" data-built="where">Where in the code</button>` : ""}`
+      : `<button class="primary" type="button" data-built="show">Show</button><button class="quiet" type="button" data-built="skip">Skip</button>`}${snapshot.voice.elevenLabs ? `<button class="secondary" type="button" data-recall="${esc(item.project)}">Ask me aloud</button>` : ""}</div>`);
   paint($("#built-projects"), JSON.stringify([projects.map((project) => project.project), builtAt.project]), projects.map((project, index) => `<button type="button" data-built-project="${index}" aria-pressed="${index === builtAt.project}">${esc(project.project)}</button>`).join(""));
 }
 
@@ -462,8 +472,9 @@ const tileFor = (tool) => tool?.tile || { text: String(tool?.name || "?").slice(
 // tile; an app's icon already has its own shape and air around it.
 const fromSite = (tool) => Boolean(tool?.icon?.includes("/site-"));
 function face(tool, size = 28) {
-  if (tool?.icon) return `<img class="logo ${fromSite(tool) ? "site" : ""}" style="--s:${size}px" src="${esc(keyed(tool.icon))}" alt="" />`;
   const tile = tileFor(tool);
+  // The letter and its colour ride along, for the moment the picture does not come.
+  if (tool?.icon) return `<img class="logo ${fromSite(tool) ? "site" : ""}" style="--s:${size}px" src="${esc(keyed(tool.icon))}" alt="" data-letter="${esc(tile.text)}" data-colour="${esc(tile.color)}" />`;
   return `<span class="logo" style="--s:${size}px;--bg:${tile.color};--fg:${inkOn(tile.color)}">${esc(tile.text)}</span>`;
 }
 
@@ -569,11 +580,15 @@ function flowMap(tools) {
     const tile = tileFor(tool);
     const side = r * 1.8;
     const cut = `cut-${Math.round(x)}-${Math.round(y)}`;
+    // A tool with no picture is a letter on its colour. The same tile waits,
+    // unseen, behind a picture, and shows if the picture does not come.
+    const letters = `<rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" fill="${tile.color}" stroke="rgba(255,255,255,.16)" /><text class="letters" x="${x}" y="${y}" fill="${inkOn(tile.color)}" font-size="${Math.round(side * .42)}">${esc(tile.text)}</text>`;
+    const under = `<g class="under" hidden>${letters}</g>`;
     const mark = fromSite(tool)
-      ? `<clipPath id="${cut}"><rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" /></clipPath><image href="${tool.icon}" x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${cut})" /><rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" fill="none" stroke="rgba(255,255,255,.16)" />`
+      ? `<clipPath id="${cut}"><rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" /></clipPath>${under}<image href="${esc(keyed(tool.icon))}" x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${cut})" /><rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" fill="none" stroke="rgba(255,255,255,.16)" />`
       : tool.icon
-        ? `<image href="${tool.icon}" x="${x - r * 1.1}" y="${y - r * 1.1}" width="${r * 2.2}" height="${r * 2.2}" />`
-        : `<rect x="${x - side / 2}" y="${y - side / 2}" width="${side}" height="${side}" rx="${side * .23}" fill="${tile.color}" stroke="rgba(255,255,255,.16)" /><text class="letters" x="${x}" y="${y}" fill="${inkOn(tile.color)}" font-size="${Math.round(side * .42)}">${esc(tile.text)}</text>`;
+        ? `${under}<image href="${esc(keyed(tool.icon))}" x="${x - r * 1.1}" y="${y - r * 1.1}" width="${r * 2.2}" height="${r * 2.2}" />`
+        : letters;
     return `<g class="node" data-tool="${esc(tool.name)}" role="button" tabindex="0" aria-pressed="${tool.name === flowTool}" aria-label="${esc(tool.name)}, ${minutes(tool.seconds)}" ${faded ? "data-faded" : ""}><circle cx="${x}" cy="${y}" r="${r + 12}" />${mark}<text class="name" x="${x}" y="${nameAt}">${esc(short(tool.name, 20))}</text></g>`;
   });
   return `<svg viewBox="0 0 ${width} ${height}" role="img">${edges.join("")}${marks.join("")}${labels.join("")}</svg>`;
@@ -1338,7 +1353,13 @@ function renderSettings() {
     ${row("chats", "Chat and mail by name", settings.chats ? on("Name and time") : off("Counted, not named"))}
     <p class="group">Look and sound</p>
     ${row("speech", "Sound")}
+    ${row("ready", "Answer ready", settings.ready ? on("A card when an agent is done") : off("Not said"))}
+    ${row("chime", "A lute with it", settings.chime ? on("Two notes") : off("Silent"))}
     ${row("cues", "A word on the island", settings.cues ? on(nudged) : off("Silent"))}
+    ${row("island", "Island by the notch", settings.island ? on("Shows the day") : off("An icon among the others"))}
+    <div class="barpicks" role="group" aria-label="Where Mason sits in the menu bar">${[[true, "Island", "Beside the notch, with the day in it"], [false, "Icon", "One mark among the others"]].map(([island, name, note]) => `<button type="button" class="barpick" data-island="${island}" aria-pressed="${settings.island === island}">
+      <span class="minibar" data-kind="${island ? "island" : "icon"}"><i class="menus"></i>${island ? `<i class="isle">${snapshot?.activity?.workPercent ?? 65}%</i>` : ""}<i class="notch"></i>${island ? `<i class="eye"></i>` : ""}<i class="gap"></i>${island ? "" : `<i class="mark"></i>`}<i class="dots"></i></span>
+      <b>${name}</b><small>${note}</small></button>`).join("")}</div>
     ${row("glass", "Liquid glass", settings.glass ? on("A look to try") : off("Dark"))}
     ${applied.length ? `<p class="group">In your agents' rules</p>${applied.map((rule) => `<div class="set rule"><span>${esc(rule.rule)}</span><b>${esc(rule.by.join(" · "))}</b></div>`).join("")}` : ""}
     <p class="group">Kept on this Mac</p>
@@ -1456,17 +1477,23 @@ async function act(event) {
 
   const turned = target.closest("[data-built]");
   if (turned) {
-    if (turned.dataset.built === "show") builtShown = true;
-    else {
+    const what = turned.dataset.built;
+    if (what === "show") builtShown = true;
+    else if (what === "where") builtWhere = true;
+    else if (what === "skip") {
       // The next question of the project, and after its last one the next project.
       const more = builtAt.card + 1 < built.projects[builtAt.project].cards.length;
       builtAt = more ? { project: builtAt.project, card: builtAt.card + 1 } : { project: (builtAt.project + 1) % built.projects.length, card: 0 };
-      builtShown = false;
+    } else {
+      // Known or not: the card leaves, and comes back when it is due.
+      const asked = built.projects[builtAt.project].cards[builtAt.card];
+      built = await post("/api/built", { id: asked.id, knew: what === "knew" });
     }
+    if (what !== "show" && what !== "where") { builtShown = false; builtWhere = false; }
     return renderBuilt();
   }
   const about = target.closest("[data-built-project]");
-  if (about) { builtAt = { project: Number(about.dataset.builtProject), card: 0 }; builtShown = false; return renderBuilt(); }
+  if (about) { builtAt = { project: Number(about.dataset.builtProject), card: 0 }; builtShown = false; builtWhere = false; return renderBuilt(); }
   if (target.closest("#today-said")) { waitedOpen = !waitedOpen; return render(); }
   if (target.closest("[data-lookback-open]")) { lookbackOpen = !lookbackOpen; return render(); }
   if (target.closest("[data-propose-open]")) { proposeOpen = !proposeOpen; return render(); }
@@ -1614,6 +1641,11 @@ async function act(event) {
   const later = target.closest("[data-later]");
   if (later) { await post("/api/answer", { id: later.dataset.later, action: "later" }); return load(); }
 
+  const barPicked = target.closest("[data-island]");
+  if (barPicked) {
+    prefs = await post("/api/settings", { island: barPicked.dataset.island === "true" });
+    return renderSettings();
+  }
   const setting = target.closest("[data-setting]");
   if (setting) {
     prefs = await post("/api/settings", { [setting.dataset.setting]: setting.getAttribute("aria-checked") !== "true" });
@@ -1758,3 +1790,18 @@ document.addEventListener("drop", (event) => {
   openWorkflow(event.dataTransfer?.files?.[0]);
 });
 
+// A picture that does not come is never left as a broken one: the tool falls
+// back to its letter on its colour, in a chip and in the map alike.
+document.addEventListener("error", (event) => {
+  const picture = event.target;
+  if (picture instanceof HTMLImageElement && picture.classList.contains("logo")) {
+    const tile = document.createElement("span");
+    tile.className = "logo";
+    tile.style.cssText = `--s:${picture.style.getPropertyValue("--s")};--bg:${picture.dataset.colour || "#2b2823"};--fg:${inkOn(picture.dataset.colour || "#2b2823")}`;
+    tile.textContent = picture.dataset.letter || "?";
+    picture.replaceWith(tile);
+  } else if (picture instanceof SVGImageElement) {
+    picture.previousElementSibling?.removeAttribute("hidden");
+    picture.remove();
+  }
+}, true);

@@ -408,6 +408,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
     private var islandView: IslandView!
     private var eyeView: EyeView!
     private let eyeWidth: CGFloat = 30
+    // Mason in the menu bar: the island beside the notch, or, for a bar that is
+    // full already, one icon among the others on the right.
+    private var barMode = "island"
+    private var statusItem: NSStatusItem?
     private var drop: DropPanel?
     private var dropWeb: WKWebView?
     private var main: NSWindow?
@@ -639,10 +643,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
         }
     }
 
+    // The island leaves the bar and an icon takes its place, or the other way round.
+    private func applyBar() {
+        if barMode == "icon" {
+            island.orderOut(nil)
+            if statusItem == nil {
+                let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+                if let button = item.button {
+                    let side: CGFloat = 18
+                    if let mark = markImage {
+                        let small = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in mark.draw(in: rect); return true }
+                        button.image = small
+                        button.imagePosition = .imageLeading
+                    } else {
+                        button.title = "Mason"
+                    }
+                    button.target = self
+                    button.action = #selector(toggleDrop)
+                    button.toolTip = "Mason · press for today"
+                }
+                statusItem = item
+            }
+        } else {
+            if let item = statusItem { NSStatusBar.system.removeStatusItem(item); statusItem = nil }
+            island.orderFrontRegardless()
+        }
+        if dropShown { drop?.setFrame(dropFrame(), display: true) }
+    }
+
     private func dropFrame() -> NSRect {
         let g = geometry()
         let width: CGFloat = 460
         let height = min(dropHeight, g.screen.frame.height - g.top - 60)
+        // Under the icon when Mason is one, kept inside the screen.
+        if barMode == "icon", let under = statusItem?.button?.window?.frame {
+            let x = min(max(under.midX - width / 2, g.screen.frame.minX + 8), g.screen.frame.maxX - width - 8)
+            return NSRect(x: x.rounded(), y: under.minY - 6 - height, width: width, height: height)
+        }
         return NSRect(x: (g.screen.frame.midX - width / 2).rounded(), y: g.screen.frame.maxY - g.top - 10 - height, width: width, height: height)
     }
 
@@ -747,6 +784,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
         next.returning = root["returning"] as? String ?? ""
         next.seen = root["seen"] as? Int ?? 0
         next.busy = root["busy"] as? Bool ?? false
+        let bar = root["bar"] as? String ?? "island"
+        if bar != barMode { barMode = bar; applyBar() }
+        // As an icon it says one thing: a dot when there is something to come back to.
+        if let button = statusItem?.button {
+            button.title = next.returning.isEmpty && next.questionId.isEmpty ? "" : " •"
+            button.toolTip = next.returning.isEmpty ? "Mason · press for today" : "Mason · \(next.returning)"
+        }
         let previous = islandView.state
         islandView.state = next
         eyeView.show(islandView.look, tone: islandView.tone, thinking: next.busy)
