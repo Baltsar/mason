@@ -32,6 +32,7 @@ import { fromHere } from "./guard.mjs";
 import { collectable } from "./collection.mjs";
 import { recordUse, usagePayload } from "./usage.mjs";
 import { fileOf, handover, heldBy, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
+import { heldBack } from "./rules.mjs";
 
 useMemoryStore();
 await loadLocalEnv();
@@ -556,6 +557,9 @@ const server = http.createServer(async (request, response) => {
         const input = await body(request);
         const act = { apply: applySuggestion, dismiss: dismissSuggestion, remove: removeRule }[input.action];
         if (!act) return json(response, 400, { error: "Unknown action" });
+        // A wording Mason does not write is said, with the reason, and nothing is changed.
+        const why = input.action === "apply" && input.rule ? heldBack(String(input.rule)) : "";
+        if (why) return json(response, 400, { error: `Mason does not write that wording: ${why}. Say it more plainly, or give it to an agent yourself.` });
         await act(String(input.id || ""), String(input.rule || ""));
         broadcast("suggestions");
       }
@@ -1048,7 +1052,8 @@ const server = http.createServer(async (request, response) => {
       const input = await body(request);
       if (input.stop) { stopSpeaking(); broadcast("spoken"); return json(response, 200, { ok: true }); }
       const map = await loadMap();
-      const text = input.what === "recap" ? map.recap?.script : String(input.text || "");
+      // Only what Mason itself holds is spoken: nothing a caller sends is.
+      const text = input.what === "recap" ? map.recap?.script : "";
       const { engine, done } = await speak(text);
       done.then(() => broadcast("spoken"));
       return json(response, 200, { engine });
@@ -1056,12 +1061,6 @@ const server = http.createServer(async (request, response) => {
     if (url.pathname === "/mcp" && post) {
       const result = await handleMcp(await body(request));
       return result ? json(response, 200, result) : json(response, 202, {});
-    }
-    if (url.pathname === "/source/handover" && request.method === "GET") {
-      const source = await readFile(path.join(paths.root, "..", "HANDOVER.md"));
-      response.writeHead(200, { "content-type": "text/markdown; charset=utf-8", "cache-control": "no-store" });
-      response.end(source);
-      return;
     }
 
     const requested = url.pathname === "/" ? "index.html" : url.pathname === "/overview" ? "overview.html" : url.pathname.replace(/^\//, "");
@@ -1114,7 +1113,7 @@ server.listen(port, "127.0.0.1", () => {
   setTimeout(catchUpSaid, 30_000).unref();
   setInterval(catchUpSaid, 10 * 60_000).unref();
   console.log(`Mason is running locally: http://127.0.0.1:${port}`);
-  console.log("Stop with Ctrl+C or by quitting Mason. No data leaves this Mac unless an ElevenLabs key is configured.");
+  console.log("Stop with Ctrl+C or by quitting Mason. What leaves this Mac is listed, each with a switch, under Leaves this Mac in Settings.");
 });
 
 for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, shutdown);

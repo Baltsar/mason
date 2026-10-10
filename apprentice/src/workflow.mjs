@@ -8,7 +8,10 @@ import { dayKey, daysOf } from "./days.mjs";
 import { buildFlow } from "./flow.mjs";
 import { askModel } from "./llm.mjs";
 import { fingerprint, redact } from "./redact.mjs";
-import { ACTS_OUTWARD, rulesFile } from "./suggest.mjs";
+import { heldBack, nameFrom, tidy } from "./rules.mjs";
+import { rulesFile } from "./suggest.mjs";
+
+export { heldBack };
 import { atomicJson, paths, readJson } from "./store.mjs";
 
 // A workflow is how someone works with agents, measured and not told: which
@@ -306,31 +309,12 @@ export async function saveWorkflow(workflow, label = workflow.purpose) {
 // question before something is published, sent, deleted or paid for. What is
 // held back is still shown, with the reason, and its owner reads every rule
 // before pressing.
-const RULE_AT_MOST = 180;
 const RULES_AT_MOST = 12;
-const HELD = [
-  // A character that cannot be seen, or that turns the writing around, can hide what a rule says.
-  [/[\u00ad\u034f\u061c\u115f\u1160\u17b4\u17b5\u180b-\u180e\u200b-\u200f\u2028-\u202f\u205f-\u206f\u3164\ufe00-\ufe0f\ufeff\ufff9-\ufffb]|[\u{e0000}-\u{e0fff}]/u, "it holds characters that cannot be seen"],
-  // A rule is one sentence in a list. A heading, a second item or a link is something else.
-  [/^\s*(?:[#>*+=-]|\d+[.)])|\]\s*\(|!\[|\[[^\]]*\]\s*:|\*\*|__|~~/, "it is laid out as more than one sentence"],
-  [/https?:|www\.|\b[\w-]+\.(?:com|net|org|io|dev|sh|ai|app|se|co|ru|cn|xyz|zip)\b/i, "it names an address"],
-  [/[`$|<>{}\\]|&&|\.\.\/|(?:^|\s)[~/][\w.-]*\//, "it holds a command or a path"],
-  [/\b(?:curl|wget|sudo|bash|zsh|chmod|chown|eval|exec|npx|pip|brew|ssh|scp|nc|base64|rm)\b/i, "it names a command"],
-  [/\b(?:secret|token|password|passwd|credential|api[ _-]?key|private key|\.env|keychain|ssh key|cookie)s?\b/i, "it is about secrets"],
-  [/\b(?:ignore|disregard|forget|override|bypass)\b.{0,40}\b(?:instruction|rule|prompt|guardrail|permission|above|previous|earlier)|\bsystem prompt\b|\bwithout asking\b|\bnever ask\b|\bdo not ask\b|\bdon't ask\b/i, "it tells an agent to stop asking or to set its rules aside"],
-  [ACTS_OUTWARD, "it is about publishing, sending, deleting or paying"],
-];
-// Why a rule is not offered, or nothing when it is.
-export function heldBack(rule) {
-  const text = String(rule ?? "");
-  if (text.length > RULE_AT_MOST) return "it is too long to be one rule";
-  if (/[\n\r]/.test(text)) return "it is more than one line";
-  return HELD.find(([pattern]) => pattern.test(text))?.[1] || "";
-}
 
 // Only a number, or a number written out, is a figure: anything else in its place is nothing.
 const figure = (value, most = 1e12) => (typeof value === "number" || (typeof value === "string" && value.trim())) && Number.isFinite(Number(value)) && Number(value) >= 0 ? Math.min(most, Math.round(Number(value))) : null;
-const named = (value, most) => redact((typeof value === "string" ? value : "").replace(/[\u0000-\u001f\u007f<>]/g, " "), most);
+// A name of a tool, to be looked up among the tools known here and shown only when it is one.
+const named = (value, most) => redact(tidy(value).replace(/[<>]/g, " "), most);
 
 // A workflow file as it may be shown here, or null when it is not one.
 // `text` is what the file holds.
@@ -343,7 +327,7 @@ export function readWorkflow(text) {
   const day = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
   const screen = raw.screen && typeof raw.screen === "object" ? raw.screen : null;
   return {
-    by: named(raw.by, 40) || "Someone",
+    by: nameFrom(raw.by) || "Someone",
     purpose: purpose?.key || "all",
     from: day(raw.from),
     to: day(raw.to),
@@ -353,16 +337,18 @@ export function readWorkflow(text) {
     prompts: figure(raw.prompts),
     perHour: figure(raw.perHour, 10_000),
     tokens: raw.tokens && typeof raw.tokens === "object" ? { all: figure(raw.tokens.all, 1e15), written: figure(raw.tokens.written, 1e15), aDay: figure(raw.tokens.aDay, 1e15) } : null,
-    agents: list(raw.agents, 6).map((agent) => ({ name: named(agent.name, 30), prompts: figure(agent.prompts), share: figure(agent.share, 100) })).filter((agent) => agent.name),
-    handed: list(raw.handed, 6).map((agent) => ({ name: named(agent.name, 30), sessions: figure(agent.sessions) })).filter((agent) => agent.name),
+    // An agent is named only when it is one known here, as a tool is.
+    agents: list(raw.agents, 6).map((agent) => ({ name: named(agent.name, 30), prompts: figure(agent.prompts), share: figure(agent.share, 100) })).filter((agent) => roleOf(agent.name)),
+    handed: list(raw.handed, 6).map((agent) => ({ name: named(agent.name, 30), sessions: figure(agent.sessions) })).filter((agent) => roleOf(agent.name)),
     parallel: { usual: figure(raw.parallel?.usual, 1000), share: figure(raw.parallel?.share, 100) },
     turn: raw.turn && typeof raw.turn === "object" ? { seconds: figure(raw.turn.seconds), long: figure(raw.turn.long), count: figure(raw.turn.count) } : null,
     piece: raw.piece && typeof raw.piece === "object" ? { count: figure(raw.piece.count), prompts: figure(raw.piece.prompts, 10_000), minutes: figure(raw.piece.minutes), opener: figure(raw.piece.opener, 10_000), follower: figure(raw.piece.follower, 10_000), atLeast: raw.piece.atLeast === true } : null,
     // Only tools known here are named: a name in a file could be anything.
     screen: screen ? { days: figure(screen.days, 366), hours: figure(screen.hours), other: figure(screen.other, 100), perHour: figure(screen.perHour, 10_000), waitSeconds: figure(screen.waitSeconds), left: figure(screen.left, 100), tools: list(screen.tools, 8).map((tool) => ({ name: named(tool.name, 30), role: roleOf(named(tool.name, 30)), share: figure(tool.share, 100) })).filter((tool) => tool.role) } : null,
     rules: list(raw.rules, RULES_AT_MOST).map((item) => {
-      const rule = (typeof item.rule === "string" ? item.rule : "").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim().slice(0, 400);
-      return { rule, times: figure(item.times, 100_000), projects: figure(item.projects, 10_000), held: heldBack(rule) };
+      // Shown, checked and handed on in one form: what is read is what is checked.
+      const said = typeof item.rule === "string" ? item.rule.slice(0, 600) : "";
+      return { rule: tidy(said).slice(0, 400), times: figure(item.times, 100_000), projects: figure(item.projects, 10_000), held: heldBack(said) };
     }).filter((item) => item.rule),
   };
 }
@@ -442,13 +428,15 @@ export function handover(rule, agents = agentsHere()) {
 }
 
 // The agents whose rules already hold this rule, read from their own files.
+// Only a whole line that is this rule counts, and only a rule that is offered
+// is looked for: the answer says nothing else about what the files hold.
 export async function heldBy(rule) {
-  const sought = String(rule ?? "").replace(/\s+/g, " ").trim().toLowerCase();
-  if (!sought) return [];
+  const sought = tidy(rule).toLowerCase();
+  if (!sought || heldBack(rule)) return [];
   const found = [];
   for (const [agent, file] of rulesFiles()) {
     const text = await readFile(file, "utf8").catch(() => "");
-    if (text.replace(/\s+/g, " ").toLowerCase().includes(sought)) found.push(agent);
+    if (text.split("\n").some((line) => tidy(line.replace(/^\s*[-*]\s+/, "")).toLowerCase() === sought)) found.push(agent);
   }
   return found;
 }

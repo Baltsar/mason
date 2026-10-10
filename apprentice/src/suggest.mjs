@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { askModel } from "./llm.mjs";
 import { fingerprint } from "./redact.mjs";
+import { ACTS_OUTWARD, heldBack, tidy } from "./rules.mjs";
 import { atomicJson, paths, readJson } from "./store.mjs";
 
 // What is said to the agents again and again, in one project after another, is
@@ -34,11 +35,6 @@ Write it as a default, not a law. If the quotes carry a condition ("when it is c
 
 Reply with JSON only, no code fence: {"groups": [{"rule": "...", "members": [1, 4, 7]}]}
 If nothing repeats across projects, reply {"groups": []}.`;
-
-// A rule that takes away the question before something is published, sent,
-// deleted or paid for is never proposed for every project. Said in one place
-// it was about that place, and the day after it can be "do not push".
-export const ACTS_OUTWARD = /\b(publish|deploy|push|merge|release|ship|send|upload|github|delete|remove|pay|publicera|pusha|deploya|depkoya|skicka|ladda\s+upp|radera|betala|mergea)\w*/i;
 
 const DEMANDS = `You are given things one person said to coding agents again and again, in several projects. Each numbered group holds a few of the ways one thing was said, in the person's own words, often in Swedish.
 
@@ -83,6 +79,8 @@ export async function groupRules(rules) {
     const times = evidence.reduce((sum, item) => sum + item.times, 0);
     if (rule.length < 8 || projects < ENOUGH_PROJECTS || times < ENOUGH_TIMES) continue;
     if (ACTS_OUTWARD.test(rule) || evidence.some((item) => ACTS_OUTWARD.test(item.rule) || ACTS_OUTWARD.test(item.example))) continue;
+    // The wording is a model's, and a model can be told what to write by what it reads.
+    if (heldBack(rule)) continue;
     proposals.push({ id: fingerprint(evidence.map((item) => item.example).sort().join("\n")).slice(0, 16), rule, projects, times, evidence });
   }
   return proposals.sort((a, b) => b.projects - a.projects || b.times - a.times);
@@ -106,7 +104,7 @@ export async function wordDemands(repeated) {
   for (const item of reply.groups) {
     const demand = demands[Math.round(Number(item?.group)) - 1];
     const rule = clean(item?.rule, 220);
-    if (!demand || item?.kind !== "habit" || proposals.has(demand.id) || rule.length < 8 || ACTS_OUTWARD.test(rule)) continue;
+    if (!demand || item?.kind !== "habit" || proposals.has(demand.id) || rule.length < 8 || heldBack(rule)) continue;
     // What it rests on is the words that were said, never the reply.
     const evidence = demand.ways.map((way) => ({ project: way.project, rule: clean(way.text, 120), example: clean(way.text, 160), times: way.times }));
     proposals.set(demand.id, { id: demand.id, rule, projects: demand.projects.length, times: demand.times, evidence });
@@ -154,10 +152,13 @@ function settle(store, proposal) {
   store.open = store.open.filter((item) => item.id !== proposal.id);
 }
 
+// Where Mason's heading stands in the file, as a line of its own and not as words inside another.
+const headingIn = (text) => { const found = /^## Learned by Mason[ \t]*$/m.exec(text); return found ? found.index : -1; };
+
 // The text of the rules file with a line added under Mason's own heading,
 // everything else left exactly as it was.
 function withLine(text, line) {
-  const at = text.indexOf(HEADING);
+  const at = headingIn(text);
   if (at < 0) return `${text.replace(/\s*$/, "")}${text.trim() ? "\n\n" : ""}${HEADING}\n\n${NOTE}\n\n${line}\n`;
   const next = text.indexOf("\n## ", at + HEADING.length);
   const end = next < 0 ? text.length : next;
@@ -167,7 +168,7 @@ function withLine(text, line) {
 // The same text with one of Mason's lines taken out, and its heading too when
 // that was the last one.
 function withoutLine(text, line) {
-  const at = text.indexOf(HEADING);
+  const at = headingIn(text);
   if (at < 0) return text;
   const next = text.indexOf("\n## ", at + HEADING.length);
   const end = next < 0 ? text.length : next + 1;
@@ -177,7 +178,9 @@ function withoutLine(text, line) {
   rows.splice(index, 1);
   const before = text.slice(0, at);
   const after = text.slice(end);
-  if (!rows.some((row) => row.startsWith("- "))) return `${before.replace(/\s*$/, "")}${after ? `\n\n${after}` : "\n"}`.replace(/^\n+/, "");
+  // The heading and its note go only when nothing else stands under them:
+  // what their owner, or an agent, wrote there later is not Mason's to take.
+  if (!rows.some((row) => row.trim() && row.trim() !== HEADING && row.trim() !== NOTE)) return `${before.replace(/\s*$/, "")}${after ? `\n\n${after}` : "\n"}`.replace(/^\n+/, "");
   return `${before}${rows.join("\n")}${after}`;
 }
 
@@ -201,10 +204,15 @@ export async function applySuggestion(id, wording = "") {
   const store = await load();
   const proposal = store.open.find((item) => item.id === id);
   if (!proposal) return false;
-  const rule = clean(wording, 220).replace(/^-\s*/, "") || proposal.rule;
+  const rule = tidy(wording).replace(/^-\s*/, "").slice(0, 220) || proposal.rule;
+  // Whoever asks is not known to be the owner at their own window, so the
+  // words are checked like anyone's before they go where every agent reads.
+  if (heldBack(rule)) return false;
   const line = `- ${rule}`;
-  await writeRules((text) => text.split("\n").includes(line) ? text : withLine(text, line));
-  store.applied.push({ id: proposal.id, rule, line, at: new Date().toISOString() });
+  let written = false;
+  await writeRules((text) => { if (text.split("\n").includes(line)) return text; written = true; return withLine(text, line); });
+  // A line that already stood there is its owner's, and is not Mason's to take out later.
+  if (written) store.applied.push({ id: proposal.id, rule, line, at: new Date().toISOString() });
   settle(store, proposal);
   await atomicJson(file(), store);
   return true;
