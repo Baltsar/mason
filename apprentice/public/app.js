@@ -821,12 +821,24 @@ async function loadWorkflow() {
 // own beside each, and their rules to take over one at a time.
 let workflowOpened = null;
 
+// What the opened file holds, kept to look again at whose rules already hold which rule.
+let workflowOpenedText = "";
+
 async function openWorkflow(file) {
   if (!file) return;
-  try { workflowOpened = await post("/api/workflow/open", { text: (await file.text()).slice(0, 300_000) }); }
+  const text = (await file.text()).slice(0, 300_000);
+  try { workflowOpened = await post("/api/workflow/open", { text }); }
   catch { return toast("That is not a workflow from Mason."); }
+  workflowOpenedText = text;
   drill.workflow = null;
   renderWorkflow();
+}
+
+// Back from an agent, the rules files may have changed: they are read again.
+async function lookAgainAtOpened() {
+  if (!workflowOpened || view !== "workflow") return;
+  workflowOpened = await post("/api/workflow/open", { text: workflowOpenedText }).catch(() => workflowOpened);
+  if (workflowOpened && view === "workflow") renderWorkflow();
 }
 
 function renderOpened() {
@@ -850,8 +862,9 @@ function renderOpened() {
   told.hidden = !theirs.rules.length;
   if (told.hidden) delete told.dataset.sig;
   else paint(told, JSON.stringify(["theirs", theirs.by, theirs.rules]), `<p class="label">What ${esc(theirs.by)} tells their agents</p><ol>${theirs.rules.map((rule, index) => `<li><p>${esc(rule.rule)}</p>${
-    rule.held ? `<span>Not offered: ${esc(rule.held)}</span>` : rule.told ? "<span>Your agents are told</span>" : `<button class="secondary" type="button" data-adopt="${index}">Tell my agents</button>`}</li>`).join("")}</ol>
-    <p class="where">A press writes that one line where every agent on this Mac reads it, as a default: what a prompt asks for comes first. It can be taken out again in Settings.</p>`);
+    rule.held || !rule.hand ? `<span>Not offered: ${esc(rule.held)}</span>`
+      : `<span class="hand">${rule.told.length ? `<em>${esc(rule.told.join(" and "))} ${rule.told.length === 1 ? "has" : "have"} it</em>` : ""}${rule.hand.links.filter((link) => !rule.told.includes(link.agent)).map((link) => `<a class="secondary" href="${esc(link.url)}" data-hand>${esc(link.agent)}</a>`).join("")}<button class="secondary" type="button" data-hand-copy="${index}">Copy prompt</button></span>`}</li>`).join("")}</ol>
+    <p class="where">Mason writes none of this for you. A press opens that agent with a prompt ready and not sent: read it, press Enter, and the agent shows you the change before it saves. The prompt asks for one line in the file each of your agents reads its rules from.</p>`);
 }
 
 function renderWorkflow() {
@@ -1245,7 +1258,7 @@ function renderSettings() {
     ${row("speech", "Sound")}
     ${row("cues", "A word on the island", settings.cues ? on(nudged) : off("Silent"))}
     ${row("glass", "Liquid glass", settings.glass ? on("A look to try") : off("Dark"))}
-    ${applied.length ? `<p class="group">Told every agent</p>${applied.map((rule) => `<div class="set rule"><span>${esc(rule.rule)}${rule.from ? `<small>from ${esc(rule.from)}</small>` : ""}</span><button class="secondary" type="button" data-rule-remove="${esc(rule.id)}">Take out</button></div>`).join("")}` : ""}
+    ${applied.length ? `<p class="group">Told every agent</p>${applied.map((rule) => `<div class="set rule"><span>${esc(rule.rule)}</span><button class="secondary" type="button" data-rule-remove="${esc(rule.id)}">Take out</button></div>`).join("")}` : ""}
     <p class="group">Kept on this Mac</p>
     <div class="set files"><span>Open</span><span class="with"><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Memory</button><button class="secondary" type="button" data-reveal="notes">Notes for Obsidian</button></span></div>
     ${said.count ? `<div class="set files"><span>${thousands(said.count)} prompts, read by meaning</span><button class="secondary" type="button" data-forget-said>Forget</button></div>` : ""}
@@ -1412,14 +1425,12 @@ async function act(event) {
   }
   if (target.closest("#workflow-open")) return $("#workflow-file").click();
   if (target.closest("#workflow-back")) { workflowOpened = null; return renderWorkflow(); }
-  const adopt = target.closest("[data-adopt]");
-  if (adopt && workflowOpened) {
-    const rule = workflowOpened.theirs.rules[Number(adopt.dataset.adopt)];
-    snapshot.suggestions = await post("/api/workflow/adopt", { rule: rule.rule, from: workflowOpened.theirs.by });
-    rule.told = true;
-    toast("Your agents are told. It can be taken out in Settings.");
-    return renderWorkflow();
+  const handed = target.closest("[data-hand-copy]");
+  if (handed && workflowOpened) {
+    const rule = workflowOpened.theirs.rules[Number(handed.dataset.handCopy)];
+    return toast(await copyText(rule.hand.prompt) ? "Copied. Paste it to the agent you choose, and read it before you send it." : "Could not copy.");
   }
+  if (target.closest("[data-hand]")) return toast("Opened with the prompt ready. Nothing is sent until you press Enter there.");
   if (target.closest("#wshare-close")) return $("#wshare").close();
   const told = target.closest("[data-wrule]");
   if (told) { if (!workflowOut.delete(told.dataset.wrule)) workflowOut.add(told.dataset.wrule); return drawWorkflow(); }
@@ -1604,8 +1615,9 @@ function connect() {
 // A window that is closed or behind everything holds no connection.
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) { stream?.close(); stream = null; }
-  else { load().catch(() => {}); connect(); }
+  else { load().catch(() => {}); connect(); lookAgainAtOpened(); }
 });
+window.addEventListener("focus", () => { lookAgainAtOpened(); });
 
 const [initialView, initialArg] = location.hash.slice(1).split("/");
 show(initialView, initialArg);

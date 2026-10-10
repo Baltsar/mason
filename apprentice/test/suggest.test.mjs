@@ -17,7 +17,7 @@ const model = http.createServer((request, response) => {
 });
 await new Promise((resolve) => model.listen(0, "127.0.0.1", resolve));
 Object.assign(process.env, { APPRENTICE_LLM_URL: `http://127.0.0.1:${model.address().port}/v1`, APPRENTICE_LLM_MODEL: "stand-in" });
-const { adoptRule, applySuggestion, dismissSuggestion, groupRules, refreshSuggestions, removeRule, rulesFile, rulesOf, suggestionsPayload, wordDemands } = await import("../src/suggest.mjs");
+const { applySuggestion, dismissSuggestion, groupRules, refreshSuggestions, removeRule, rulesFile, rulesOf, suggestionsPayload, wordDemands } = await import("../src/suggest.mjs");
 test.after(() => model.close());
 
 const memories = {
@@ -135,18 +135,3 @@ test("a demand from the prompts becomes a proposal at once when more was read, a
   assert.equal(await refreshSuggestions({}, now + 60_000, { repeated: grown, soon: true }), true);
   assert.deepEqual((await suggestionsPayload()).open, []);
 });
-
-test("a rule taken over from someone else is written once, kept with whose it was, and can be taken out", async () => {
-  const before = await readFile(rulesFile(), "utf8").catch(() => "");
-  assert.equal(await adoptRule("  - Run the tests after every change and show the result.  ", "S. Hale"), true);
-  assert.equal(await adoptRule("Run the tests after every change and show the result.", "Someone else"), true);
-  const text = await readFile(rulesFile(), "utf8");
-  assert.equal(text.split("- Run the tests after every change and show the result.").length, 2);
-  const taken = (await suggestionsPayload()).applied.filter((rule) => rule.rule === "Run the tests after every change and show the result.");
-  assert.equal(taken.length, 1);
-  assert.equal(taken[0].from, "S. Hale");
-  assert.equal(await adoptRule("   "), false);
-  await removeRule(taken[0].id);
-  assert.equal((await readFile(rulesFile(), "utf8").catch(() => "")).trim(), before.trim());
-});
-

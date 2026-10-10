@@ -210,21 +210,6 @@ export async function applySuggestion(id, wording = "") {
   return true;
 }
 
-// A rule taken over from someone else's workflow: written in the same place,
-// kept with whose it was, and taken out again the same way as one's own.
-export async function adoptRule(text, from = "") {
-  const rule = clean(text, 220).replace(/^-\s*/, "");
-  if (!rule) return false;
-  const store = await load();
-  const id = fingerprint(`taken over\n${rule}`);
-  if (store.applied.some((item) => item.id === id || item.rule === rule)) return true;
-  const line = `- ${rule}`;
-  await writeRules((before) => before.split("\n").includes(line) ? before : withLine(before, line));
-  store.applied.push({ id, rule, line, at: new Date().toISOString(), from: clean(from, 40) });
-  await atomicJson(file(), store);
-  return true;
-}
-
 // No: it is not proposed again.
 export async function dismissSuggestion(id) {
   const store = await load();
@@ -250,5 +235,5 @@ export async function removeRule(id) {
 export async function suggestionsPayload() {
   const store = await load();
   const shown = rulesFile().replace(os.homedir(), "~");
-  return { open: store.open.map((proposal) => ({ ...proposal, file: shown })), applied: store.applied.map(({ id, rule, at, from }) => ({ id, rule, at, ...(from ? { from } : {}) })) };
+  return { open: store.open.map((proposal) => ({ ...proposal, file: shown })), applied: store.applied.map(({ id, rule, at }) => ({ id, rule, at })) };
 }

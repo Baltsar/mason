@@ -20,7 +20,7 @@ import { pageOf, piecesOf, replayOf, saveReplay, shownReplay, textOf } from "./r
 import { saveShare } from "./share.mjs";
 import { nudgesPayload, offerNudge, openNudge, settleNudges } from "./nudge.mjs";
 import { beforeSaid, findSaid, forgetSaid, refreshSaid, repeatedSaid, saidStatus, unreadSaid } from "./said.mjs";
-import { adoptRule, applySuggestion, dismissSuggestion, refreshSuggestions, removeRule, suggestionsPayload } from "./suggest.mjs";
+import { applySuggestion, dismissSuggestion, refreshSuggestions, removeRule, suggestionsPayload } from "./suggest.mjs";
 import { buildGaps, buildTeachBack, confirmation, debriefProgress } from "./debrief.mjs";
 import { logSources, projectIndex, summarizeProjects } from "./projects.mjs";
 import { callContext, ensureAgent, recallContext, signedUrl, tutorContext } from "./agent.mjs";
@@ -31,7 +31,7 @@ import { modelStatus, onUse } from "./llm.mjs";
 import { fromHere } from "./guard.mjs";
 import { collectable } from "./collection.mjs";
 import { recordUse, usagePayload } from "./usage.mjs";
-import { fileOf, heldBack, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
+import { fileOf, handover, heldBy, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
 
 useMemoryStore();
 await loadLocalEnv();
@@ -580,17 +580,10 @@ const server = http.createServer(async (request, response) => {
       const theirs = readWorkflow((await body(request, 400_000)).text);
       if (!theirs) return json(response, 400, { error: "Not a workflow from Mason" });
       const own = await workflow();
-      const told = new Set((await suggestionsPayload()).applied.map((rule) => rule.rule));
-      return json(response, 200, { theirs: { ...theirs, rules: theirs.rules.map((rule) => ({ ...rule, told: told.has(rule.rule) })) }, mine: own.cards.find((card) => card.purpose === theirs.purpose) || own.cards[0] });
-    }
-    if (url.pathname === "/api/workflow/adopt" && post) {
-      // One rule of theirs, on a press. It is looked at again here: what the window sends is not taken on trust.
-      const input = await body(request);
-      const rule = String(input.rule || "").trim();
-      if (!rule || heldBack(rule)) return json(response, 400, { error: "That rule is not offered" });
-      await adoptRule(rule, String(input.from || ""));
-      broadcast("suggestions");
-      return json(response, 200, await suggestionsPayload());
+      // A rule that is offered comes with the prompt that hands it to an agent,
+      // and with the agents whose rules already hold it. Mason writes it nowhere.
+      const rules = await Promise.all(theirs.rules.map(async (rule) => ({ ...rule, hand: handover(rule.rule), told: rule.held ? [] : await heldBy(rule.rule) })));
+      return json(response, 200, { theirs: { ...theirs, rules }, mine: own.cards.find((card) => card.purpose === theirs.purpose) || own.cards[0] });
     }
     if (url.pathname === "/api/workflow/collect" && post) {
       // One's own workflow in the form the collection keeps: read back with

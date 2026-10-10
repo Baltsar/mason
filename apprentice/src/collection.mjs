@@ -77,7 +77,7 @@ export function galleryOf(entries) {
 
 How people work with coding agents, measured and not told. Each one was read by [Mason](../README.md) out of the agents' own logs on its owner's Mac: who they talk to, at what pace, how long an agent works on one thing, and what they tell their agents again and again. No project, no file name and nothing that was said is in any of them.
 
-**Try one.** Save its file, open Workflow in Mason and drop the file there (or press *Open one*). Theirs is shown beside yours, and a rule of theirs can be taken over with one press: one line where your agents read their rules, taken out again in Settings.
+**Try one.** Save its file, open Workflow in Mason and drop the file there (or press *Open one*). Theirs is shown beside yours, and a rule of theirs can be handed to the agent you choose: Claude Code, Codex or Cursor opens with a prompt that is ready and not sent, you read it and press Enter, and the agent shows you the change before it saves. Mason writes none of it for you.
 
 **Add yours.** In Mason, open Workflow, press *Share*, choose the rules that go with it and press *Add to the collection*. That copies the file and opens a form here to paste it in. Or open a pull request that adds the file to this folder. Either way it is checked the same way as a file someone opens: see [what is let in](#what-is-let-in).
 
@@ -91,7 +91,7 @@ A file in this folder is a stranger's, and its rules are made to be put where an
 - a rule is one plain sentence about how to work: no command, no address, no path, nothing about secrets, nothing that tells an agent to set its rules aside or to stop asking, nothing about publishing, sending, deleting or paying, and no character that cannot be seen;
 - the file says nothing else, and says it in one fixed order.
 
-\`npm run workflows -- check\` in \`apprentice/\` runs that check, and it runs on every pull request. Mason runs the same reading again on your Mac when you open a file, and once more when you take a rule over. Read a rule before you press: the check is a net, not a judge.
+\`npm run workflows -- check\` in \`apprentice/\` runs that check, and it runs on every pull request. Mason runs the same reading again on your Mac when you open a file, and it writes no rule itself: a rule goes to an agent as a prompt you read and send. Read it before you do: the check is a net, not a judge.
 `;
 }
 
