@@ -307,6 +307,10 @@ export async function saveWorkflow(workflow, label = workflow.purpose) {
 const RULE_AT_MOST = 180;
 const RULES_AT_MOST = 12;
 const HELD = [
+  // A character that cannot be seen, or that turns the writing around, can hide what a rule says.
+  [/[\u00ad\u034f\u061c\u115f\u1160\u17b4\u17b5\u180b-\u180e\u200b-\u200f\u2028-\u202f\u205f-\u206f\u3164\ufe00-\ufe0f\ufeff\ufff9-\ufffb]|[\u{e0000}-\u{e0fff}]/u, "it holds characters that cannot be seen"],
+  // A rule is one sentence in a list. A heading, a second item or a link is something else.
+  [/^\s*(?:[#>*+=-]|\d+[.)])|\]\s*\(|!\[|\[[^\]]*\]\s*:|\*\*|__|~~/, "it is laid out as more than one sentence"],
   [/https?:|www\.|\b[\w-]+\.(?:com|net|org|io|dev|sh|ai|app|se|co|ru|cn|xyz|zip)\b/i, "it names an address"],
   [/[`$|<>{}\\]|&&|\.\.\/|(?:^|\s)[~/][\w.-]*\//, "it holds a command or a path"],
   [/\b(?:curl|wget|sudo|bash|zsh|chmod|chown|eval|exec|npx|pip|brew|ssh|scp|nc|base64|rm)\b/i, "it names a command"],
@@ -350,14 +354,38 @@ export function readWorkflow(text) {
     agents: list(raw.agents, 6).map((agent) => ({ name: named(agent.name, 30), prompts: figure(agent.prompts), share: figure(agent.share, 100) })).filter((agent) => agent.name),
     handed: list(raw.handed, 6).map((agent) => ({ name: named(agent.name, 30), sessions: figure(agent.sessions) })).filter((agent) => agent.name),
     parallel: { usual: figure(raw.parallel?.usual, 1000), share: figure(raw.parallel?.share, 100) },
-    turn: raw.turn && typeof raw.turn === "object" ? { seconds: figure(raw.turn.seconds), long: figure(raw.turn.long) } : null,
-    piece: raw.piece && typeof raw.piece === "object" ? { prompts: figure(raw.piece.prompts, 10_000), minutes: figure(raw.piece.minutes), opener: figure(raw.piece.opener, 10_000), follower: figure(raw.piece.follower, 10_000) } : null,
+    turn: raw.turn && typeof raw.turn === "object" ? { seconds: figure(raw.turn.seconds), long: figure(raw.turn.long), count: figure(raw.turn.count) } : null,
+    piece: raw.piece && typeof raw.piece === "object" ? { count: figure(raw.piece.count), prompts: figure(raw.piece.prompts, 10_000), minutes: figure(raw.piece.minutes), opener: figure(raw.piece.opener, 10_000), follower: figure(raw.piece.follower, 10_000), atLeast: raw.piece.atLeast === true } : null,
     // Only tools known here are named: a name in a file could be anything.
-    screen: screen ? { waitSeconds: figure(screen.waitSeconds), left: figure(screen.left, 100), tools: list(screen.tools, 8).map((tool) => ({ name: named(tool.name, 30), role: roleOf(named(tool.name, 30)), share: figure(tool.share, 100) })).filter((tool) => tool.role) } : null,
+    screen: screen ? { days: figure(screen.days, 366), hours: figure(screen.hours), other: figure(screen.other, 100), perHour: figure(screen.perHour, 10_000), waitSeconds: figure(screen.waitSeconds), left: figure(screen.left, 100), tools: list(screen.tools, 8).map((tool) => ({ name: named(tool.name, 30), role: roleOf(named(tool.name, 30)), share: figure(tool.share, 100) })).filter((tool) => tool.role) } : null,
     rules: list(raw.rules, RULES_AT_MOST).map((item) => {
       const rule = (typeof item.rule === "string" ? item.rule : "").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim().slice(0, 400);
       return { rule, times: figure(item.times, 100_000), projects: figure(item.projects, 10_000), held: heldBack(rule) };
     }).filter((item) => item.rule),
   };
+}
+
+// A workflow that was read with care, as a file again: only what the reading
+// kept, in one fixed order, and without the rules that were held back. This is
+// the form a workflow has in the collection, so that a file there holds
+// nothing a reader here would not show.
+export function fileFrom(opened) {
+  const kept = (value) => {
+    if (Array.isArray(value)) return value.map(kept);
+    if (!value || typeof value !== "object") return value;
+    const entries = Object.entries(value).map(([key, inner]) => [key, kept(inner)]).filter(([, inner]) => inner !== null && inner !== undefined && !(typeof inner === "object" && !Array.isArray(inner) && !Object.keys(inner).length));
+    return Object.fromEntries(entries);
+  };
+  const { by, purpose, from, to, days, minutes, projects, prompts, perHour, tokens, agents, handed, parallel, turn, piece, screen, rules } = opened;
+  return kept({
+    format: "mason.workflow",
+    version: 1,
+    by,
+    purpose: PURPOSES.find((item) => item.key === purpose)?.word || "all my work",
+    from, to, days, minutes, projects, prompts, perHour, tokens, agents, handed, parallel, turn,
+    piece: piece && { ...piece, atLeast: piece.atLeast || null },
+    screen,
+    rules: rules.filter((rule) => !rule.held).map(({ rule, projects: inProjects, times }) => ({ rule, projects: inProjects, times })),
+  });
 }
 

@@ -1,0 +1,25 @@
+name: Share a workflow
+description: Add how you work with coding agents to the collection.
+title: "Workflow: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        In Mason: open **Workflow**, press **Share**, choose the rules that go with it, then press **Add to the collection**. That copied the file. Paste it below.
+
+        The file holds figures, the names of well-known tools and the rules you left in. No project, no file name and nothing you said is in it. It will be public, under the name it carries.
+  - type: textarea
+    id: file
+    attributes:
+      label: The workflow file
+      description: Paste what Mason copied, as it is.
+      render: json
+    validations:
+      required: true
+  - type: checkboxes
+    id: read
+    attributes:
+      label: Before you send it
+      options:
+        - label: I have read every rule in it, and it may be shown publicly under the name in the file.
+          required: true

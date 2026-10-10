@@ -9,6 +9,7 @@
     "build:reader": "node scripts/build-reader.mjs",
     "start": "node scripts/build-reader.mjs && node src/server.mjs",
     "test": "node --test",
+    "workflows": "node scripts/workflows.mjs",
     "mcp": "node src/mcp.mjs"
   },
   "engines": {
