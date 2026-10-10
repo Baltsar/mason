@@ -1,6 +1,7 @@
 import { open, readdir, readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { dayStart } from "./activity.mjs";
 import { redact } from "./redact.mjs";
 import { settings } from "./settings.mjs";
 
@@ -38,7 +39,27 @@ const NEWLINE = 10;
 const WHEN = /"(?:timestamp|ts)":"([^"]+)"/;
 
 const minuteOf = (at) => Math.floor(at / 60_000);
-const freshLog = () => ({ cwd: null, byHand: true, prompts: [], turns: [], minutes: new Set() });
+const freshLog = () => ({ cwd: null, byHand: true, prompts: [], turns: [], minutes: new Set(), spent: new Map() });
+
+// What an agent took, as its own log counts it, by the day it was taken:
+// tokens read for the first time, tokens read again from a cache, and tokens
+// written. The three are kept apart because they are not worth the same: most
+// of what a long session takes is the same conversation read again.
+export function spend(spent, at, fresh, cached, written) {
+  const count = (value) => Math.max(0, Math.round(Number(value) || 0));
+  if (!count(fresh) && !count(cached) && !count(written)) return;
+  const day = dayStart(at);
+  const taken = spent.get(day) || { fresh: 0, cached: 0, written: 0 };
+  taken.fresh += count(fresh);
+  taken.cached += count(cached);
+  taken.written += count(written);
+  spent.set(day, taken);
+}
+// One count of what was taken, added into another, from a moment on.
+export function addSpent(into, from, since = 0) {
+  for (const [day, taken] of from || []) if (day >= dayStart(since)) spend(into, day, taken.fresh, taken.cached, taken.written);
+  return into;
+}
 // What the person said, without what the program wrapped around it.
 const typed = (text) => {
   const said = String(text ?? "").trim();
@@ -74,6 +95,12 @@ function absorbCodex(log, line, cut = false) {
     return;
   }
   log.minutes.add(minuteOf(at));
+  // Codex says after each step what the step took; what it read includes what came from the cache.
+  if (row.type === "event_msg" && payload.type === "token_count") {
+    const took = payload.info?.last_token_usage;
+    if (took) spend(log.spent, at, (took.input_tokens || 0) - (took.cached_input_tokens || 0), took.cached_input_tokens, took.output_tokens);
+    return;
+  }
   const turn = log.turns.at(-1);
   if (row.type === "response_item" && payload.type === "message" && payload.role === "user") {
     const said = typed((Array.isArray(payload.content) ? payload.content : []).find((part) => part?.type === "input_text")?.text);
@@ -101,9 +128,12 @@ function absorbGrok(log, line, cut = false) {
 }
 
 // What a Grok session was: where, whether it was typed in, and what was typed.
-function describeGrok(log, summary, history) {
+function describeGrok(log, summary, history, usage = "") {
   let known = {};
   try { known = JSON.parse(summary); } catch {}
+  // Grok keeps what each turn took in a file of its own.
+  const spent = new Map();
+  try { for (const turn of JSON.parse(usage).turns || []) spend(spent, Date.parse(turn.endedAt), (turn.inputTokens || 0) - (turn.cachedReadTokens || 0), turn.cachedReadTokens, turn.outputTokens); } catch {}
   const prompts = [];
   for (const line of String(history ?? "").split("\n")) {
     if (!line) continue;
@@ -115,7 +145,7 @@ function describeGrok(log, summary, history) {
     if (!Number.isFinite(at) || row.session_id !== known.info?.id || row.is_bash || said.length < A_SENTENCE) continue;
     prompts.push({ at, text: redact(said, 600), agent: "Grok" });
   }
-  return { ...log, cwd: known.info?.cwd || null, byHand: known.session_kind !== "headless", prompts };
+  return { ...log, cwd: known.info?.cwd || null, byHand: known.session_kind !== "headless", prompts, spent };
 }
 
 const lineByLine = (text, absorb) => {
@@ -129,7 +159,7 @@ export const codexLog = (text) => lineByLine(text, absorbCodex);
 
 // One Grok session, from the three files that say what it was: its summary,
 // its events, and what was typed in its folder.
-export const grokSession = ({ summary, events, history }) => describeGrok(lineByLine(events, absorbGrok), summary, history);
+export const grokSession = ({ summary, events, history, usage }) => describeGrok(lineByLine(events, absorbGrok), summary, history, usage);
 
 // Follows one log: reads what was added since the last time, a piece at a
 // time, and hands each line to `absorb`. Returns what is known of the log.
@@ -193,7 +223,7 @@ async function grokLogs(since) {
     for (const session of await listed(path.join(GROK_DIR, place))) {
       const folder = path.join(GROK_DIR, place, session);
       const entry = await follow(path.join(folder, "events.jsonl"), absorbGrok);
-      if (entry && entry.mtime >= since) logs.push({ ...describeGrok(entry.log, await small(path.join(folder, "summary.json")), history), source: "Grok" });
+      if (entry && entry.mtime >= since) logs.push({ ...describeGrok(entry.log, await small(path.join(folder, "summary.json")), history, await small(path.join(folder, "usage.json"))), source: "Grok" });
     }
   }
   return logs;
@@ -208,7 +238,8 @@ export function otherProjects(since) {
     if (!settings().logs) return found;
     for (const log of [...await codexLogs(since), ...await grokLogs(since)]) {
       if (!log.cwd || TEMPORARY.test(log.cwd)) continue;
-      const project = found.get(log.cwd) || { name: path.basename(log.cwd), folder: log.cwd, prompts: [], minutes: new Set(), turns: [], source: log.source };
+      const project = found.get(log.cwd) || { name: path.basename(log.cwd), folder: log.cwd, prompts: [], minutes: new Set(), turns: [], spent: new Map(), source: log.source };
+      addSpent(project.spent, log.spent, since);
       let worked = false;
       for (const minute of log.minutes) if (minute * 60_000 >= since - 60_000) { project.minutes.add(minute); worked = true; }
       // A session another agent started is work that was handed over to this one.

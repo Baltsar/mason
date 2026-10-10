@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { lookBack, usualWait } from "./coach.mjs";
+import { dayStart } from "./activity.mjs";
 import { dayKey, daysOf } from "./days.mjs";
 import { buildFlow } from "./flow.mjs";
 import { askModel } from "./llm.mjs";
@@ -103,9 +104,19 @@ export function cardOf(projects, { from, to }) {
   // How long an agent worked on one thing that was asked for, start to finish.
   const turns = projects.flatMap((project) => project.turns).filter((turn) => turn.ended && inside(turn.prompt)).map((turn) => (turn.done - turn.prompt) / 1000).filter((seconds) => seconds > 0).sort((a, b) => a - b);
 
+  // What the agents took, by their own count: all of it, and the part they wrote.
+  const taken = { all: 0, written: 0 };
+  for (const project of projects) for (const [day, spent] of project.spent || []) {
+    if (day < dayStart(from) || day > to) continue;
+    taken.all += spent.fresh + spent.cached + spent.written;
+    taken.written += spent.written;
+  }
+  const days = Object.keys(worked).length;
+
   return {
-    days: Object.keys(worked).length,
+    days,
     minutes,
+    tokens: taken.all ? { ...taken, aDay: Math.round(taken.all / Math.max(1, days)) } : null,
     projects: projects.filter((project) => [...project.minutes].some((minute) => inside(minute * 60_000))).length,
     prompts: said.length,
     perHour: minutes >= 60 ? Math.round(said.length / (minutes / 60)) : null,

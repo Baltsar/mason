@@ -860,6 +860,7 @@ function renderWorkflow() {
           [card.projects, `${card.projects === 1 ? "project" : "projects"} in ${card.days} days`],
           [card.parallel.usual, "on a usual day"],
           [`${card.parallel.share}%`, "of the time agents were at work in two projects at once"],
+          card.tokens && [tokens(card.tokens.aDay), `tokens on a day of work, ${tokens(Math.round(card.tokens.written / Math.max(1, card.days)))} of them written by the agents`],
         ])}`,
       wait: () => `${head("Around a prompt", `from the ${screen.days} days Mason was watching`)}
         <div class="drill-grid">
@@ -1015,7 +1016,8 @@ function renderDays() {
   const totals = new Map();
   for (const key of keys) {
     for (const [name, work] of Object.entries(days.days[key] || {})) {
-      const total = totals.get(name) || { name, minutes: 0, prompts: 0, days: 0 };
+      const total = totals.get(name) || { name, minutes: 0, prompts: 0, days: 0, tokens: 0 };
+      total.tokens += work.tokens || 0;
       total.minutes += work.minutes;
       total.prompts += work.prompts;
       total.days += 1;
@@ -1029,9 +1031,12 @@ function renderDays() {
   const sum = (key) => worked(key).reduce((total, [, work]) => total + work.minutes, 0);
   const workedDays = keys.filter((key) => sum(key) > 0);
   const total = workedDays.reduce((count, key) => count + sum(key), 0);
+  // What the agents took that month, by their own logs' count.
+  const took = keys.reduce((count, key) => count + worked(key).reduce((ofDay, [, work]) => ofDay + (work.tokens || 0), 0), 0);
   renderBigs($("#days-bigs"), [
     { key: "days", number: workedDays.length, word: workedDays.length === 1 ? "day" : "days", meta: "", tone: "var(--paper)" },
     { key: "hours", number: Math.round(total / 60), unit: "h", word: "with agents", meta: "", tone: "var(--lime)" },
+    ...(took ? [{ key: "tokens", number: tokens(took).slice(0, -1), unit: tokens(took).slice(-1), word: "tokens", meta: "", tone: "var(--gold)" }] : []),
   ], null);
 
   const busiest = Math.max(1, ...keys.map(sum));
@@ -1055,7 +1060,8 @@ function renderDays() {
     const most = Math.max(1, shown[0][1].minutes);
     const moved = days.moves[dayOpen];
     paint(open, JSON.stringify([dayOpen, shown, moved]), `<header><h2>${dateOf(dayOpen).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</h2>${moved ? `<p>${moved.jumps} jumps · ${minutes(moved.seconds)} in front</p><button type="button" data-flow-day="${dayOpen}">Flow →</button>` : ""}</header>
-      <ul class="bars wide">${shown.map(([name, work]) => `<li style="--w:${Math.round((work.minutes / most) * 100)}%;--tone:${toneOf.get(name)}"><span>${esc(name)}</span><i></i><b>${minutes(work.minutes * 60)}</b></li>`).join("")}</ul>`);
+      <ul class="bars wide">${shown.map(([name, work]) => `<li style="--w:${Math.round((work.minutes / most) * 100)}%;--tone:${toneOf.get(name)}"><span>${esc(name)}</span><i></i><b>${minutes(work.minutes * 60)}${work.tokens ? ` · ${tokens(work.tokens)}` : ""}</b></li>`).join("")}</ul>
+      ${shown.some(([, work]) => work.tokens) ? `<p class="took">${tokens(shown.reduce((count, [, work]) => count + (work.tokens || 0), 0))} tokens, ${tokens(shown.reduce((count, [, work]) => count + (work.written || 0), 0))} of them written by the agents. The rest is what they read, most of it the same conversation again.</p>` : ""}`);
   }
 
   // Each project's month as a strip: the days it was worked on.
@@ -1129,7 +1135,7 @@ function renderAgents() {
 
 /* Settings */
 
-const tokens = (count) => count >= 1_000_000 ? `${(count / 1_000_000).toFixed(1)}M` : count >= 1000 ? `${Math.round(count / 1000)}k` : String(count);
+const tokens = (count) => count >= 1_000_000_000 ? `${(count / 1_000_000_000).toFixed(1)}B` : count >= 10_000_000 ? `${Math.round(count / 1_000_000)}M` : count >= 1_000_000 ? `${(count / 1_000_000).toFixed(1)}M` : count >= 1000 ? `${Math.round(count / 1000)}k` : String(count);
 const thousands = (count) => count >= 10_000 ? `${Math.round(count / 1000)}k` : String(count);
 
 // Three questions, one line per answer: what Mason reads, what it sends away

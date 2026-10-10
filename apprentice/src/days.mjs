@@ -14,7 +14,8 @@ import { atomicJson, paths, readEvents, readJson } from "./store.mjs";
 // 2: the days are also read from Codex and Grok.
 // 3: a minute in which two projects were worked on is counted once.
 // 4: a session started in the home folder no longer takes every project into it.
-const VERSION = 4;
+// 5: what the agents took in tokens is kept with each day.
+const VERSION = 5;
 const file = () => path.join(paths.data, "days.json");
 // An agent that ran by itself for a few minutes is not a day's work.
 const WORTH_MINUTES = 10;
@@ -44,6 +45,13 @@ export function daysOf(projects, since = 0) {
   for (const project of projects) {
     for (const minute of project.minutes) if (minute * 60_000 >= since) entry(minute * 60_000, project.name).minutes += 1 / sharing.get(minute);
     for (const prompt of project.prompts) if (prompt.at >= since) entry(prompt.at, project.name).prompts += 1;
+    // What the agents took that day: all of it, and the part they wrote.
+    for (const [day, taken] of project.spent || []) {
+      if (day < dayStart(since)) continue;
+      const work = entry(day, project.name);
+      work.tokens = (work.tokens || 0) + taken.fresh + taken.cached + taken.written;
+      work.written = (work.written || 0) + taken.written;
+    }
   }
   for (const [day, worked] of Object.entries(days)) {
     for (const [name, work] of Object.entries(worked)) {

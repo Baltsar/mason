@@ -42,3 +42,11 @@ test("a look back is due after three finished days of real work, and never cover
   // Once written, the same days are not looked back on again.
   assert.deepEqual(dueDays(moves, [{ from: "2026-10-01", to: "2026-10-05" }], "2026-10-07"), []);
 });
+
+test("what the agents took is kept with the day and the project it was taken in", () => {
+  const start = (day) => new Date(2026, 9, day, 4).getTime();
+  const days = daysOf([{ name: "MASON", minutes: minutesFrom(at(4, 10), 30), prompts: [{ at: at(4, 10, 2) }], spent: new Map([[start(4), { fresh: 100, cached: 9000, written: 400 }], [start(2), { fresh: 5, cached: 5, written: 5 }]]) }]);
+  // A day with tokens and no work in it is not a day of work.
+  assert.deepEqual(days, { "2026-10-04": { MASON: { minutes: 30, prompts: 1, tokens: 9500, written: 400 } } });
+});
+

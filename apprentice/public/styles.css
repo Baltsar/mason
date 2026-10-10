@@ -514,3 +514,5 @@ html[data-shell="desktop"] :is(dialog, .toast) { background: #17171a; }
 .settings .fine.mend { color: var(--gold); }
 .settings .files { font-size: 16px; color: var(--muted); }
 .settings .files .with { gap: 8px; }
+.bars.wide li:has(b:not(:empty)) { grid-template-columns: minmax(190px, 320px) 1fr minmax(64px, max-content); }
+.drill .took { margin: 18px 0 0; color: var(--muted); font-size: 14px; line-height: 1.45; }

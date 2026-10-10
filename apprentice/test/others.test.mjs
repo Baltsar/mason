@@ -124,3 +124,35 @@ test("a session started in the home folder does not take every project into it",
   assert.deepEqual(ledger.prompts.map((prompt) => prompt.text), ["Add a column for the invoice number", "And show that column on the first page"]);
   assert.deepEqual(index.list.find((project) => project.folder === home).prompts.map((prompt) => prompt.text), ["Where on this Mac did I put the invoices"]);
 });
+
+test("what each agent took is read from its own count, an answer in several lines once, a helper's too", async () => {
+  // Codex says what each step took; what it read includes what came from the cache.
+  const codex = codexLog(lines([
+    { timestamp: at(0), type: "session_meta", payload: { cwd: "/Users/x/code/shop", originator: "Codex Desktop", source: "vscode" } },
+    { timestamp: at(1), type: "event_msg", payload: { type: "token_count", info: { total_token_usage: { input_tokens: 1000 }, last_token_usage: { input_tokens: 1000, cached_input_tokens: 800, output_tokens: 50 } } } },
+    { timestamp: at(2), type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: 500, cached_input_tokens: 500, output_tokens: 10 } } } },
+    { timestamp: at(3), type: "event_msg", payload: { type: "token_count", info: null } },
+  ]));
+  assert.deepEqual([...codex.spent.values()], [{ fresh: 200, cached: 1300, written: 60 }]);
+
+  const grok = grokSession({ ...grokFiles("g-9", "interactive", "/Users/x/code/shop"), usage: JSON.stringify({ turns: [{ endedAt: at(33), inputTokens: 900, cachedReadTokens: 700, outputTokens: 40 }] }) });
+  assert.deepEqual([...grok.spent.values()], [{ fresh: 200, cached: 700, written: 40 }]);
+
+  // Claude Code writes an answer in parts, each line with the count for all of it.
+  const said = (id, minute) => ({ type: "assistant", timestamp: at(minute), cwd: "/Users/x/code/counted", message: { id, stop_reason: "end_turn", content: [], usage: { input_tokens: 10, cache_creation_input_tokens: 90, cache_read_input_tokens: 4000, output_tokens: 300 } } });
+  const folder = path.join(root, "claude", "-Users-x-code-counted");
+  await mkdir(path.join(folder, "session-1", "subagents", "workflows", "wf-1"), { recursive: true });
+  await writeFile(path.join(folder, "session-1.jsonl"), lines([
+    { type: "user", timestamp: at(50), cwd: "/Users/x/code/counted", message: { content: "Count what this takes, please" } },
+    said("msg-1", 51), said("msg-1", 51), said("msg-2", 52),
+  ]));
+  // A helper the session started: what it took counts, what was said to it is not its owner's.
+  await writeFile(path.join(folder, "session-1", "subagents", "workflows", "wf-1", "agent-a.jsonl"), lines([
+    { type: "user", timestamp: at(53), isSidechain: true, message: { content: "A brief the agent wrote for its helper" } },
+    { ...said("msg-9", 54), isSidechain: true },
+  ]));
+  const counted = (await projectIndex(0, { maxAgeMs: 0 })).list.find((project) => project.folder === "/Users/x/code/counted");
+  assert.deepEqual([...counted.spent.values()], [{ fresh: 300, cached: 12_000, written: 900 }]);
+  assert.deepEqual(counted.prompts.map((prompt) => prompt.text), ["Count what this takes, please"]);
+});
+

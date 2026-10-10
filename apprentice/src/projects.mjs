@@ -2,7 +2,7 @@ import { open, readdir, readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { redact } from "./redact.mjs";
-import { otherProjects, otherSources } from "./others.mjs";
+import { addSpent, otherProjects, otherSources, spend } from "./others.mjs";
 import { settings } from "./settings.mjs";
 
 // A project is a folder the work happens in. Mason never asks for a list:
@@ -40,9 +40,9 @@ const logs = new Map();
 const PIECE_BYTES = 4 * 1024 * 1024;
 const NEWLINE = 10;
 
-async function readNewLines(file, size) {
-  const known = logs.get(file) || { offset: 0, rest: Buffer.alloc(0), cwd: null, root: null, prompts: [], minutes: new Set(), files: new Map(), reports: [], turns: [] };
-  if (size < known.offset) Object.assign(known, { offset: 0, rest: Buffer.alloc(0), prompts: [], minutes: new Set(), files: new Map(), reports: [], turns: [] });
+async function readNewLines(file, size, absorb = absorbAll) {
+  const known = logs.get(file) || { offset: 0, rest: Buffer.alloc(0), cwd: null, root: null, prompts: [], minutes: new Set(), files: new Map(), reports: [], turns: [], spent: new Map() };
+  if (size < known.offset) Object.assign(known, { offset: 0, rest: Buffer.alloc(0), prompts: [], minutes: new Set(), files: new Map(), reports: [], turns: [], spent: new Map() });
   if (size > known.offset) {
     const handle = await open(file, "r");
     try {
@@ -65,12 +65,32 @@ async function readNewLines(file, size) {
   return known;
 }
 
-function absorb(log, line) {
+// What one answer took. An answer in several parts is written as several
+// lines, each with the count for the whole of it, so it is counted once.
+function absorbSpent(log, row, at) {
+  const took = row.type === "assistant" && row.message?.usage;
+  if (!took || row.message.id === log.counted) return;
+  log.counted = row.message.id;
+  spend(log.spent, at, (took.input_tokens || 0) + (took.cache_creation_input_tokens || 0), took.cache_read_input_tokens, took.output_tokens);
+}
+
+// The log of a helper an agent started: only what it took is read from it.
+// What was said in it is a brief the agent wrote, not something its owner said.
+function absorbHelper(log, line) {
+  if (!line || !line.includes('"usage"')) return;
+  let row;
+  try { row = JSON.parse(line); } catch { return; }
+  const at = Date.parse(row.timestamp);
+  if (Number.isFinite(at)) absorbSpent(log, row, at);
+}
+
+function absorbAll(log, line) {
   if (!line) return;
   let row;
   try { row = JSON.parse(line); } catch { return; }
   const at = Date.parse(row.timestamp);
   if (!Number.isFinite(at)) return;
+  absorbSpent(log, row, at);
   if (row.cwd) {
     log.cwd = row.cwd;
     // The project is where the session began, not the subfolder it later moved into.
@@ -130,7 +150,15 @@ async function claudeProjects(since) {
       const log = await readNewLines(file, info.size).catch(() => null);
       // Work in a temporary folder is a tool running, not a project of its owner.
       if (!log?.root || /^(\/private)?\/(tmp|var\/folders)\//.test(log.root)) continue;
-      const project = found.get(log.root) || { name: path.basename(log.root), folder: log.root, prompts: [], minutes: new Set(), turns: [], source: "Claude Code" };
+      const project = found.get(log.root) || { name: path.basename(log.root), folder: log.root, prompts: [], minutes: new Set(), turns: [], spent: new Map(), source: "Claude Code" };
+      addSpent(project.spent, log.spent, since);
+      // The helpers the session started keep their logs in a folder beside it.
+      const beside = path.join(CLAUDE_DIR, folder, name.slice(0, -".jsonl".length), "subagents");
+      for (const helper of await readdir(beside, { recursive: true }).catch(() => [])) {
+        if (!helper.endsWith(".jsonl")) continue;
+        const size = await stat(path.join(beside, helper)).then((found) => found.mtimeMs >= since ? found.size : 0, () => 0);
+        if (size) addSpent(project.spent, (await readNewLines(path.join(beside, helper), size, absorbHelper).catch(() => null))?.spent, since);
+      }
       for (const prompt of log.prompts) if (prompt.at >= since) project.prompts.push(prompt);
       // Each turn with the moment the next thing was said in the same session, if anything was.
       log.turns.forEach((turn, index) => { if (turn.done >= since) project.turns.push({ ...turn, next: log.turns[index + 1]?.prompt ?? null }); });
@@ -239,6 +267,7 @@ export async function projectIndex(since, { maxAgeMs = 20_000 } = {}) {
     known.prompts.push(...other.prompts);
     known.turns.push(...other.turns);
     for (const minute of other.minutes) known.minutes.add(minute);
+    addSpent(known.spent ||= new Map(), other.spent);
     known.handed = other.handed;
   }
   // Cursor touches many workspaces when it starts; the two newest are the ones in use.
@@ -256,6 +285,7 @@ export async function projectIndex(since, { maxAgeMs = 20_000 } = {}) {
     parent.prompts.push(...child.prompts);
     parent.turns.push(...child.turns);
     for (const minute of child.minutes) parent.minutes.add(minute);
+    addSpent(parent.spent ||= new Map(), child.spent);
     for (const [agent, sessions] of Object.entries(child.handed || {})) (parent.handed ||= {})[agent] = (parent.handed[agent] || 0) + sessions;
     parent.tokens = [...new Set([...parent.tokens, ...child.tokens])];
     projects.delete(child.folder);
