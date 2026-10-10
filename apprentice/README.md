@@ -4,6 +4,8 @@ You install it and work. Nothing to fill in, nothing to configure, no rules to w
 
 Mason sits behind real work on this Mac and learns it from what you already do: which project you are in, and what you tell your coding agents. From that alone it can tell you where you left a project a week ago, what you keep having to repeat, and where the day went. When it wants to understand more it does not interrupt: it offers a two-minute voice call you take when you have time.
 
+The docs, a page for each thing, are in [`docs/`](../docs/get-started.md). This file is the long form, as it was written while the app was built.
+
 ## Start
 
 Double-click **Mason.app** in this folder (drag it to the Dock to keep it there). It starts its own local server and stops it when it quits. `npm run build:reader` builds the app if it is not there yet. The first run may ask for permission under **System Settings → Privacy & Security → Accessibility** (to read the active app, window title and focused prompt field) and for the microphone (for spoken answers and the call). It takes no screenshots and logs no keystrokes.
