@@ -132,7 +132,8 @@ export function cardOf(projects, { from, to }) {
 export function screenOf(events, { projectOf = (event) => event.project || null, turns = [], mine = () => true, now = Date.now() } = {}) {
   const watched = events.filter((event) => event.type === "activity" || event.type === "private");
   if (!watched.length) return null;
-  const flow = buildFlow(watched.filter(mine));
+  const own = watched.filter(mine);
+  const flow = buildFlow(own);
   if (flow.totalSeconds < 3600) return null;
   const seconds = {};
   for (const tool of flow.tools) {
@@ -150,7 +151,8 @@ export function screenOf(events, { projectOf = (event) => event.project || null,
   const looked = lookBack([...byDay].sort((a, b) => a[0].localeCompare(b[0])).map(([day, ofDay]) => ({ day, events: ofDay })), { projectOf, turns });
   const wait = usualWait(watched, { projectOf, turns, now });
   return {
-    days: byDay.size,
+    // The days this work was on the screen, not every day that was watched.
+    days: new Set(own.map((event) => dayKey(Date.parse(event.startedAt || event.at)))).size,
     hours: Math.round(flow.totalSeconds / 3600),
     tools: tools.slice(0, TOOLS_SHOWN),
     other: share(seconds.other?.seconds || 0, flow.totalSeconds),
@@ -183,7 +185,8 @@ let placing = null;
 // until what the project is said to be changes. `known` are [{ name, about }].
 // With no model nothing is placed, and there is one workflow for all the work.
 export function placeProjects(known) {
-  placing ||= (async () => {
+  // One at a time: a second list waits for the first, and is then asked about itself.
+  const next = (placing || Promise.resolve()).catch(() => {}).then(async () => {
     const store = { placed: {}, ...(await readJson(file(), {})) };
     const asked = known.filter((project) => project.about && store.placed[project.name]?.basis !== fingerprint(project.about));
     if (asked.length) {
@@ -195,8 +198,9 @@ export function placeProjects(known) {
       if (reply) await atomicJson(file(), store);
     }
     return Object.fromEntries(known.map((project) => [project.name, store.placed[project.name]?.purpose || null]));
-  })().finally(() => { placing = null; });
-  return placing;
+  });
+  placing = next;
+  return next;
 }
 
 const short = (text, max) => String(text ?? "").replace(/\s+/g, " ").trim().slice(0, max);
