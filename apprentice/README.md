@@ -96,7 +96,7 @@ ELEVENLABS_API_KEY=...
 
 ## The model
 
-A model is used for four things: the summary of a project, the script of the weekly recap, saying which of your repeated rules mean the same, and saying which of the things you said again and again is a way of working and not a job. Everything else is plain code. By default the model is Claude through your own login (the Claude Code CLI), the same place your prompts already went: it is sent redacted excerpts of them. To use another, name it in `.env.local`:
+A model is used for five things: the summary of a project, the script of the weekly recap, saying which of your repeated rules mean the same, saying which of the things you said again and again is a way of working and not a job, and saying what each project was for (building, design, writing, research, going to market). Everything else is plain code. By default the model is Claude through your own login (the Claude Code CLI), the same place your prompts already went: it is sent redacted excerpts of them. To use another, name it in `.env.local`:
 
 ```dotenv
 APPRENTICE_LLM_URL=http://127.0.0.1:11434/v1   # Ollama on this Mac; or any provider's OpenAI-style address
@@ -105,6 +105,8 @@ APPRENTICE_LLM_KEY=                             # only when the provider asks fo
 ```
 
 Anything that answers in the OpenAI chat format works. With a model on the Mac and ElevenLabs switched off, nothing leaves it. **Summaries** in Settings shows which model is writing and switches it off (`APPRENTICE_LLM=0` does the same); the memory is then your own words.
+
+What the model takes is counted and shown on the same row: the tokens of today, and under it the last seven days and what most of them went to. The count is the provider's own figure for each answered call; nothing of what was sent or answered is kept with it. A summary sends some six thousand tokens of your prompts, so it is written an hour after you leave a project and not while you work in it. When the model refuses (a login that ran out, a key that is not taken, no usage left) the row says so, and how to mend it.
 
 ## Finding what you said, by what it means
 
@@ -147,27 +149,43 @@ The page carries its figures a second time as data, without any of its words (pr
 
 A replay shows your half only. What the agent answered is not in it yet.
 
+## Your workflow, and other people's
+
+**Workflow.** Thirty days of the agents' logs as one card: which agent you talk to and how much, prompts an hour, how a piece of work runs (how many prompts, how long, how long the first one is), how long an agent works on one prompt, how many projects a day, the tokens a day of work takes, and what you tell your agents again and again. Where Mason has watched the screen it adds how long a finished answer waits and the tools around the agents, by what each is for. It is read from logs that are already on the Mac, so it is there the first day. With a model, each project is placed by what it was for and there is a card for each; without one there is the one card.
+
+**Share** makes it a picture and a file (`data/share/mason-workflow-*.json`). The file holds figures, the names of tools Mason knows, and the rules you left in, each read before it goes. No project, no file name, nothing you said. Mason posts nothing.
+
+**Open one.** Choose someone else's file, or drop it on the view. Theirs is shown in the large figures with yours beside each, for the same kind of work. A rule of theirs has a button: one press writes it as one line under `## Learned by Mason` in the file your agents read, and **Told every agent** in Settings takes it out again.
+
+That file is a stranger's, and its rules go where an agent reads its instructions, so nothing in it is taken as it stands. Figures are read as figures, names are cut short, and only tools Mason knows are named. A rule is offered only when it is one plain sentence about how to work: no command, no address, no path, nothing about secrets, nothing that tells an agent to set its rules aside or to stop asking, nothing about publishing, sending, deleting or paying, no character that cannot be seen, and nothing laid out as a heading, a list or a link. A rule that is held back is still shown, with the reason and without a button, and the server looks at a rule again when it is taken over. This is a net, not a judge: read a rule before you press.
+
+**The collection** is the folder [`workflows/`](../workflows/) of this repository, one file for each workflow and a page made from them. **Add to the collection** in the share dialog copies yours in the form the collection keeps and opens a form in the browser to paste it into; it is sent from there, by you, or not at all. A file is let in only in the one form a careful reading gives it, which `npm run workflows -- check` checks, here and on every pull request.
+
 ## Logos from the web
 
 Off until you switch it on in Settings. A tool that is a site has no app to lend it an icon, so it shows a lettered tile. Switched on, Mason asks each site you used for its own icon, once, over https, and keeps the picture in `data/icons/`. It asks only public names: never an address on this Mac or on the network at home, and it follows a site's redirects one step at a time for the same reason. Only pictures are kept, never an SVG.
 
 ## What it writes outside its own folder
 
-One file, and only when you press: a proposal you say yes to becomes one line under the heading `## Learned by Mason` in `~/.claude/CLAUDE.md`, the file every Claude Code agent on the Mac reads. The line is shown before it is written and its words can be changed. The file as it was before Mason first touched it is kept as `data/rules-before-mason.md`, and **Told every agent** in Settings takes a line out again. `APPRENTICE_RULES_FILE` points it at another file.
+One file, and only when you press: a proposal you say yes to, or a rule you take over from someone else's workflow, becomes one line under the heading `## Learned by Mason` in `~/.claude/CLAUDE.md`, the file every Claude Code agent on the Mac reads. The line is shown before it is written and its words can be changed. The file as it was before Mason first touched it is kept as `data/rules-before-mason.md`, and **Told every agent** in Settings takes a line out again. `APPRENTICE_RULES_FILE` points it at another file.
 
 ## What it reads
 
 | | How | Kept |
 |---|---|---|
 | The screen | macOS Accessibility, which you grant once: the front app, the window title, the site of a browser's front tab and the text of a prompt field. | Events, with redacted excerpts. Of an address only the host ("figma.com"), never the path or the query. Never pictures or keystrokes. |
-| Agent logs | Claude Code writes every session to `~/.claude/projects`. They are your own files and need no permission; Mason reads what you said, the names of the files the agents changed, and what they reported. Of Cursor it reads only which folder each workspace is, and when it was last used. | Redacted excerpts, file names, minutes per day. **Agent logs** in Settings switches it off. |
+| Agent logs | Claude Code writes every session to `~/.claude/projects`. They are your own files and need no permission; Mason reads what you said, the names of the files the agents changed, what they reported, and the count of tokens each answer took. Of Cursor it reads only which folder each workspace is, and when it was last used. | Redacted excerpts, file names, minutes per day. **Agent logs** in Settings switches it off. |
 | Chat and mail | Not read. Counted as a refusal. With **Chat and mail by name** switched on, the name of the app or site and the time spent there are kept, so Flow shows every jump. Password managers, banking, health and private windows are never named. | Name and time only, never a title. |
 
 ElevenLabs has a switch in Settings, next to what is left of the month's credits. Switched off, Mason speaks with the Mac's own voice, answers are typed, there are no calls, and nothing is sent or spent.
 
 What leaves the Mac for ElevenLabs, and only when a key is set and the switch is on: the text to be spoken, the audio of an answer while the microphone is open, and for a call the day's summary (project names, minutes, the sites outside the projects without their titles, and redacted excerpts of your prompts).
 
-**Codex and Grok too.** The sessions Codex keeps in `~/.codex/sessions` and Grok in `~/.grok/sessions` are read into the same projects, under the same **Agent logs** switch. A session you typed in is yours: its prompts count as said and its answers as waiting for you. A session another agent started with a brief of its own counts as time worked on the project and nothing more.
+**Codex and Grok too.** The sessions Codex keeps in `~/.codex/sessions` and Grok in `~/.grok/sessions` are read into the same projects, under the same **Agent logs** switch. A session you typed in is yours: its prompts count as said and its answers as waiting for you. A session another agent started with a brief of its own counts as time worked on the project, and as tokens taken, and nothing more.
+
+## Who the server answers
+
+The server listens on `127.0.0.1` and nowhere else. A page in a browser is on this Mac too, though, and a browser lets any page send a request to an address on the same machine. So a request is answered only when it was addressed to this Mac by number or as `localhost`, and, when a browser says which page sent it, only when that page is Mason's own. The island, the agents and a terminal name no page and are let through. A link someone sends cannot switch a setting, read the memory or have a rule written.
 
 ## The challenge, module by module
 
@@ -229,7 +247,9 @@ PORT=4318 APPRENTICE_DATA=/tmp/apprentice-rehearsal APPRENTICE_MUTE=1 APPRENTICE
 
 - Memory is built from the Claude Code logs on this Mac: your prompts, the names of the files the agents changed, and what the agents reported back. Chats in ChatGPT or on claude.ai are not on disk and are not read; a project worked on only there, or only in Cursor or Codex, has time but no memory yet.
 - What a part does is taken from the agents' own reports and can be wrong where they were. File contents are never read.
-- Projects come from Claude Code and Cursor. Work done only in Codex, ChatGPT or a terminal is counted as time but not tied to a project.
+- Projects come from Claude Code, Codex, Grok and Cursor. Work done only in ChatGPT or a terminal is counted as time but not tied to a project.
+- Tokens are each agent's own count, read from its log: what it read for the first time, what it read again from a cache, and what it wrote. Most of a month is the same conversation read again. It is a count and not a cost, and Cursor's are not read.
+- What a project was for is the model's reading of one line about it. The card for a purpose is as right as that reading.
 - A call is an open line: start talking and the agent stops. If it keeps hearing itself through the laptop speakers it falls back to taking turns, and **Cut in** (or the space bar) still interrupts it. Headphones avoid the fallback.
 - Live questions in a session and the written **Check** are deterministic: a new decision is matched to a guardrail by shared terms and a short list of synonyms, so a paraphrase with no word in common is not caught. The tutor call judges by meaning.
 - The week's episode covers work that left a Claude Code log. Its hours are the minutes in which those logs were active, not time at the screen.
