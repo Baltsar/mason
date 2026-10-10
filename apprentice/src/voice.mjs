@@ -56,6 +56,15 @@ export function playFile(file, seconds = 0) {
   return { done: track(child) };
 }
 
+// One soft note for an answer that is ready. It is not speech: it stops
+// nothing that is being said, and it is silent whenever Mason is.
+export function chime() {
+  if (process.env.APPRENTICE_MUTE || playing) return;
+  const child = spawn("afplay", ["-v", "0.35", "/System/Library/Sounds/Glass.aiff"], { detached: true, stdio: "ignore" });
+  child.once("error", () => {});
+  child.unref();
+}
+
 export async function notifyAndSpeak(text, { title = "Mason · one question" } = {}) {
   if (process.env.APPRENTICE_MUTE) return { engine: null, done: Promise.resolve() };
   const notice = spawn("osascript", ["-e", `display notification ${JSON.stringify(text)} with title ${JSON.stringify(title)}`], { detached: true, stdio: "ignore" });

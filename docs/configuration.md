@@ -16,6 +16,7 @@ Under the gear in the app window. Mason calls you by the first name on this Mac'
 | **What you said, by meaning** | Off | An embedding model on this Mac places your prompts by meaning, for Find. |
 | **Chat and mail by name** | Off | Keeps the name of a chat or mail app and the time spent there. Off: counted, never named. |
 | **Sound** | On | Mason speaks. Off: silent. |
+| **Answer ready** | On | A small card drops from the menu bar when Claude Code, Codex or Grok has finished an answer and you are somewhere else: the project, the agent, how long it worked, and a press that brings its app forward. It leaves by itself after nine seconds, takes no keyboard, and is not shown for an answer you were waiting in front of. Several at once come as one card, and after time away from the Mac there is one card for all of them. A soft note is played with it unless **Sound** is off. Cursor keeps no record of when it finished, so its answers are not told of. |
 | **A word on the island** | On | Nudges on the island when an answer has waited. |
 | **Island by the notch** | On | Mason sits in the menu bar as the island beside the notch, showing the day. Off, it is one icon among the others on the right, with a dot when there is something to come back to. |
 | **Liquid glass** | Off | A second look to try: glass panels over the desktop. |

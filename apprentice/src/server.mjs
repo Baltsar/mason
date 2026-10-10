@@ -1,16 +1,16 @@
 import http from "node:http";
 import { readFile, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { Collector } from "./collector.mjs";
 import { appendEvent, ensureStore, eventsVersion, loadMap, loadRuntime, paths, readEvents, readEventsSince, saveMap, saveRuntime, useMemoryStore } from "./store.mjs";
 import { buildRecap, writeVault, writeWiki } from "./wiki.mjs";
-import { elevenLabsCredits, speak, stopSpeaking, voiceStatus } from "./voice.mjs";
+import { chime, elevenLabsCredits, speak, stopSpeaking, voiceStatus } from "./voice.mjs";
 import { handleMcp } from "./mcp-handler.mjs";
 import { loadLocalEnv } from "./config.mjs";
 import { aggregateActivity, classifyActivity, dayStart } from "./activity.mjs";
-import { buildFlow } from "./flow.mjs";
+import { buildFlow, toolOf } from "./flow.mjs";
 import { embedStatus, stopEmbedder } from "./embed.mjs";
 import { ICON_FILE, ICON_TYPES, iconFolder, iconsFor, siteIconsFor } from "./icons.mjs";
 import { dayKey, daysPayload, loadDays, refreshDays } from "./days.mjs";
@@ -34,6 +34,7 @@ import { lookForUpdate, newer, ownVersion, updatePayload } from "./updates.mjs";
 import { endTrial, trialPayload } from "./trial.mjs";
 import { endWelcome, welcomePayload } from "./welcome.mjs";
 import { recordUse, usagePayload } from "./usage.mjs";
+import { noticeFor } from "./notice.mjs";
 import { fileOf, handover, heldBy, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
 
 useMemoryStore();
@@ -178,7 +179,8 @@ async function waitingPayload() {
 const JUST_NOW_MS = 2 * 60_000;
 const cued = new Set();
 function cueFor(measure, runtime) {
-  if (!settings().cues || runtime.session?.active) return null;
+  // With the card switched on, the card says it.
+  if (!settings().cues || settings().ready || runtime.session?.active) return null;
   const state = presence(runtime);
   // Only someone who is at the Mac, and not already where answers are read.
   if (!(state === "private-surface" || state === "watching" && !readsAnswers(runtime.currentApp))) return null;
@@ -187,6 +189,49 @@ function cueFor(measure, runtime) {
   if (!ready) return null;
   cued.add(`${ready.project}|${ready.since}`);
   return `Answer ready · ${short(ready.project, 20)}`;
+}
+
+// The card that says an answer is ready (notice.mjs has the rules). One at a
+// time: it is on the panel until it is pressed, put away or has run out, and
+// the panel says which. Should the panel never say, it is taken back anyway.
+const TAKEN_BACK_MS = 45_000;
+// Coming back counts as coming back for this long, so that the island's next
+// look, a few seconds later, still finds it.
+const BACK_FOR_MS = 20_000;
+const told = new Set();
+let showing = null;
+const away = { since: 0, backAt: 0, ms: 0 };
+async function noticeNow(waiting, runtime, index, { busy = false } = {}) {
+  const now = Date.now();
+  const state = presence(runtime);
+  if (state === "idle") away.since ||= now - (runtime.currentIdleSeconds ?? 0) * 1000;
+  else if (away.since) Object.assign(away, { ms: now - away.since, backAt: now, since: 0 });
+  if (now - away.backAt > BACK_FOR_MS) away.ms = 0;
+  const here = state === "watching" || state === "private-surface";
+  // An agent in front: its project when Mason can tell, otherwise any of them.
+  const reading = state === "watching" && readsAnswers(runtime.currentApp)
+    ? index.resolve({ app: runtime.currentApp, window: runtime.currentWindow || "", at: new Date(now).toISOString() }) || true
+    : false;
+  if (showing) {
+    const seen = reading === true || showing.answers.every((answer) => answer.project === reading);
+    if (seen || now - showing.at > TAKEN_BACK_MS || !settings().ready) showing = null;
+    return showing;
+  }
+  if (!settings().ready) return null;
+  const notice = noticeFor({ ready: waiting.ready, turns: index.turns(), prompts: index.prompts(), told, here, reading, busy: busy || Boolean(runtime.session?.active), awayMs: away.ms, now });
+  if (!notice) return null;
+  for (const key of notice.keys) told.add(key);
+  away.ms = 0;
+  // Where each answer is read: the agent's window that was last in front for that project today.
+  const events = (await readEventsSince(dayStart())).filter((event) => event.type === "activity" && readsAnswers(toolOf(event))).reverse();
+  for (const answer of notice.answers) {
+    const app = events.find((event) => index.of(event) === answer.project)?.app || null;
+    // In that app already, a press would change nothing: the answer is in another window of it.
+    answer.app = app && app !== runtime.currentApp ? app : null;
+  }
+  showing = { ...notice, at: now };
+  chime();
+  return showing;
 }
 
 // How long a finished answer is usually left, over the last week. It changes
@@ -497,6 +542,8 @@ async function statePayload() {
     // How the last few days of work were done, as it was written down then.
     lookback: days.lookbacks.at(-1) || null,
     suggestions,
+    // The card that says an answer is ready, while it is on the panel.
+    notice: showing,
     // What the window is made of: the dark look, or liquid glass.
     look: settings().glass ? "glass" : "",
     // The nudge that was just said, and how the last week of them went.
@@ -527,23 +574,27 @@ async function islandPayload() {
   const [map, runtime, activity, index, waiting] = await Promise.all([loadMap(), loadRuntime(), todayActivity(), projectIndex(dayStart()), waitingPayload()]);
   const question = map.questions.find((item) => item.status === "open");
   const project = runtime.currentApp ? index.resolve({ app: runtime.currentApp, window: runtime.currentWindow || "", at: new Date().toISOString() }) : null;
+  const onCall = map.debrief?.call?.status === "live";
+  // A question comes first, and nothing is said into a call.
+  const notice = await noticeNow(waiting, runtime, index, { busy: Boolean(question) || onCall });
   return {
     status: presence(runtime),
     // Where Mason sits in the menu bar: as the island beside the notch, or as an icon among the others.
     bar: settings().island ? "island" : "icon",
     app: runtime.currentApp,
     project,
-    returning: returningTo(runtime, project) || cueFor(waiting, runtime) || await nudgeFor(waiting, runtime, index),
+    returning: returningTo(runtime, project) || notice?.text || cueFor(waiting, runtime) || await nudgeFor(waiting, runtime, index),
     category: runtime.currentCategory,
     group: runtime.currentGroup,
     work: activity.workPercent,
     social: activity.socialPercent,
     other: activity.otherPercent,
     totalSeconds: activity.totalSeconds,
-    question: question ? { id: question.id, kind: question.kind, text: question.text, evidence: question.evidence } : null,
+    // The card about a ready answer drops the same small panel a question does.
+    question: question ? { id: question.id, kind: question.kind, text: question.text, evidence: question.evidence } : notice ? { id: notice.id, kind: notice.kind, text: notice.text, evidence: "" } : null,
     session: runtime.session?.active ? { startedAt: runtime.session.startedAt, questions: runtime.session.questions || 0 } : null,
     debriefReady: Boolean(runtime.debriefReady),
-    onCall: map.debrief?.call?.status === "live",
+    onCall,
     // For the eye on the island: a count that goes up with everything taken
     // in from the screen, and whether something is being worked out right now.
     seen: eventsVersion(),
@@ -636,6 +687,17 @@ const server = http.createServer(async (request, response) => {
       await endWelcome();
       broadcast("welcome");
       return json(response, 200, { ok: true });
+    }
+    if (url.pathname === "/api/notice" && post) {
+      // The card was pressed, put away or ran out. A press brings the agent's
+      // app to the front: the one Mason itself saw that project in, never a
+      // name that came with the request.
+      const input = await body(request);
+      const notice = showing && showing.id === input.id ? showing : null;
+      const app = input.action === "go" && notice?.answers.find((answer) => answer.project === input.project)?.app;
+      if (app) execFile("/usr/bin/open", ["-a", app], () => {});
+      if (notice) { showing = null; broadcast("notice"); }
+      return json(response, 200, { ok: true, opened: Boolean(app) });
     }
     if (url.pathname === "/api/trial" && post) {
       // "Use evaluation copy": the card about the trial is put away for good.
