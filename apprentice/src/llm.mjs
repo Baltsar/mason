@@ -32,6 +32,15 @@ const refusal = (text) => /authenticat|oauth|log ?in|unauthori[sz]ed|api key|\b4
 const note = (why) => { refused = { where: endpoint(), why }; };
 const problem = () => refused.where === endpoint() ? refused.why : "";
 
+// What a call took is told to whoever asked to hear it: the server keeps the
+// count. Tokens are the provider's own figure, and where a provider gives
+// none, the length of what went in and came out, at a little under four
+// characters a token.
+let heard = null;
+export const onUse = (listener) => { heard = listener; };
+const roughly = (text) => Math.round(String(text ?? "").length / 3.6);
+const tell = (purpose, input, output) => { try { heard?.({ purpose, input, output }); } catch {} };
+
 // Which model writes the summaries and where it runs, for the settings screen.
 export function modelStatus() {
   const url = endpoint();
@@ -52,7 +61,7 @@ function parsed(text) {
   } catch { return null; }
 }
 
-function askClaude(system, prompt, timeoutMs, model) {
+function askClaude(system, prompt, timeoutMs, model, purpose) {
   return new Promise((resolve) => {
     // A summary needs no long deliberation: without thinking the same answer
     // comes in seconds instead of a minute. A session's own CLAUDE_* settings
@@ -73,14 +82,17 @@ function askClaude(system, prompt, timeoutMs, model) {
       let reply;
       try { reply = JSON.parse(output); } catch { return resolve(null); }
       note(reply.is_error ? refusal(String(reply.result ?? "")) : "");
-      resolve(reply.is_error ? null : parsed(reply.result));
+      if (reply.is_error) return resolve(null);
+      const used = reply.usage || {};
+      tell(purpose, (used.input_tokens || 0) + (used.cache_creation_input_tokens || 0) + (used.cache_read_input_tokens || 0) || roughly(system + prompt), used.output_tokens || roughly(reply.result));
+      resolve(parsed(reply.result));
     });
     child.stdin.on("error", () => {});
     child.stdin.end(prompt);
   });
 }
 
-async function askEndpoint(system, prompt, timeoutMs) {
+async function askEndpoint(system, prompt, timeoutMs, purpose) {
   const model = (process.env.APPRENTICE_LLM_MODEL || "").trim();
   if (!model) return null;
   try {
@@ -93,14 +105,18 @@ async function askEndpoint(system, prompt, timeoutMs) {
     });
     note(response.ok ? "" : refusal(String(response.status)));
     if (!response.ok) return null;
-    return parsed((await response.json()).choices?.[0]?.message?.content);
+    const reply = await response.json();
+    const said = reply.choices?.[0]?.message?.content;
+    tell(purpose, reply.usage?.prompt_tokens || roughly(system + prompt), reply.usage?.completion_tokens || roughly(said));
+    return parsed(said);
   } catch { return null; }
 }
 
 // Returns the parsed JSON the model replied with, or null when there is no
 // model, it timed out, or the reply was not the JSON that was asked for.
 // `model` names a Claude model; an endpoint always uses the model it was given.
-export async function askModel(system, prompt, { timeoutMs = 75_000, model = process.env.APPRENTICE_LLM_MODEL || "haiku" } = {}) {
+// `purpose` says what the call is for, for the count of what it took.
+export async function askModel(system, prompt, { timeoutMs = 75_000, model = process.env.APPRENTICE_LLM_MODEL || "haiku", purpose = "other" } = {}) {
   if (!modelAvailable()) return null;
-  return endpoint() ? askEndpoint(system, prompt, timeoutMs) : askClaude(system, prompt, timeoutMs, model);
+  return endpoint() ? askEndpoint(system, prompt, timeoutMs, purpose) : askClaude(system, prompt, timeoutMs, model, purpose);
 }

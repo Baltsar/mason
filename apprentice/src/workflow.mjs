@@ -190,7 +190,7 @@ export function placeProjects(known) {
     const store = { placed: {}, ...(await readJson(file(), {})) };
     const asked = known.filter((project) => project.about && store.placed[project.name]?.basis !== fingerprint(project.about));
     if (asked.length) {
-      const reply = await askModel(SYSTEM, asked.map((project, index) => `${index + 1}. ${project.about}`).join("\n"));
+      const reply = await askModel(SYSTEM, asked.map((project, index) => `${index + 1}. ${project.about}`).join("\n"), { purpose: "purposes" });
       for (const item of Array.isArray(reply?.projects) ? reply.projects : []) {
         const project = asked[Number(item?.line) - 1];
         if (project) store.placed[project.name] = { purpose: PURPOSE_KEYS.has(item.purpose) ? item.purpose : null, basis: fingerprint(project.about) };

@@ -1129,6 +1129,7 @@ function renderAgents() {
 
 /* Settings */
 
+const tokens = (count) => count >= 1_000_000 ? `${(count / 1_000_000).toFixed(1)}M` : count >= 1000 ? `${Math.round(count / 1000)}k` : String(count);
 const thousands = (count) => count >= 10_000 ? `${Math.round(count / 1000)}k` : String(count);
 
 // Three questions, one line per answer: what Mason reads, what it sends away
@@ -1156,29 +1157,33 @@ function renderSettings() {
     : model.problem !== "login expired" ? `${model.name || "The model"} gave no answer the last time it was asked. Summaries, proposals and the recap wait until it does.`
     : model.name === "Claude" ? "Summaries, proposals and the recap wait for a login. Open a terminal, run claude, then /login."
     : `Summaries, proposals and the recap wait: ${model.where} did not take the key in APPRENTICE_LLM_KEY.`;
+  // What the model took, where the switch for it is: today in the row, the week under it.
+  const { usage } = status;
+  const spent = usage.today.tokens ? ` · ${tokens(usage.today.tokens)} tokens today` : "";
+  const most = usage.week.by[0];
+  const week = usage.week.calls ? `7 days: ${tokens(usage.week.tokens)} tokens in ${usage.week.calls} ${usage.week.calls === 1 ? "call" : "calls"}${most && usage.week.by.length > 1 ? `, ${Math.round((most.tokens / usage.week.tokens) * 100)}% of it ${most.purpose}` : ""}. A summary is written an hour after you leave a project, not while you work in it.` : "";
+  const voice = !status.elevenLabsKey ? off("No key in .env.local") : !settings.elevenlabs ? off("Mac voice, no calls") : status.credits ? on(`ElevenLabs · ${thousands(status.credits.left)} credits left`) : on("ElevenLabs");
   paint(node, JSON.stringify([prefs, applied, snapshot?.nudges]), `
     <label class="set"><span>Name</span><input id="set-name" type="text" value="${esc(settings.name || name)}" maxlength="40" autocomplete="off" spellcheck="false" /></label>
+    <p class="group">Leaves this Mac</p>
+    ${row("summaries", "Summaries", settings.summaries ? (model.ready ? on(`${writer}${spent}`) : off(writer)) : off("Your own words"))}
+    ${mend ? `<p class="fine mend">${esc(mend)}</p>` : settings.summaries && week ? `<p class="fine under">${esc(week)}</p>` : ""}
+    ${status.elevenLabsKey ? row("elevenlabs", "Voice", voice) : `<div class="set"><span>Voice</span>${voice}</div>`}
+    ${row("logos", "Logos from the web", settings.logos ? on("Asks each site once") : off("Lettered tiles"))}
+    <p class="group">Stays on this Mac</p>
+    <div class="set"><span>Screen</span>${status.access === "on" ? on("App, window, site") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
+    ${row("logs", "Agent logs", settings.logs ? on([`Claude Code ${logs.claude}`, logs.codex ? `Codex ${logs.codex}` : "", logs.grok ? `Grok ${logs.grok}` : ""].filter(Boolean).join(" · ")) : off("Not read"))}
+    ${row("meaning", "What you said, by meaning", reader)}
+    ${row("chats", "Chat and mail by name", settings.chats ? on("Name and time") : off("Counted, not named"))}
+    <p class="group">Look and sound</p>
     ${row("speech", "Sound")}
     ${row("cues", "A word on the island", settings.cues ? on(nudged) : off("Silent"))}
     ${row("glass", "Liquid glass", settings.glass ? on("A look to try") : off("Dark"))}
-    <p class="group">Reads</p>
-    <div class="set"><span>Screen: app, window, site, prompt</span>${status.access === "on" ? on("On") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
-    ${row("logs", "Agent logs", settings.logs ? on([`Claude Code ${logs.claude}`, logs.codex ? `Codex ${logs.codex}` : "", logs.grok ? `Grok ${logs.grok}` : ""].filter(Boolean).join(" · ")) : off("Not read"))}
-    ${row("chats", "Chat and mail by name", settings.chats ? on("Name and time") : off("Counted, not named"))}
-    ${row("meaning", "What you said, by meaning", reader)}
-    <p class="group">Sends</p>
-    ${row("summaries", "Summaries", settings.summaries ? (model.ready ? on(writer) : off(writer)) : off("Your own words"))}
-    ${mend ? `<p class="fine mend">${esc(mend)}</p>` : ""}
-    ${row("logos", "Logos from the web", settings.logos ? on("Asks each site once") : off("Lettered tiles"))}
-    ${status.elevenLabsKey
-      ? row("elevenlabs", "ElevenLabs voice", settings.elevenlabs ? (status.credits ? on(`${thousands(status.credits.left)} credits left`) : "") : off("Mac voice, no calls"))
-      : `<div class="set"><span>ElevenLabs voice</span>${off("No key in .env.local")}</div>`}
     ${applied.length ? `<p class="group">Told every agent</p>${applied.map((rule) => `<div class="set rule"><span>${esc(rule.rule)}</span><button class="secondary" type="button" data-rule-remove="${esc(rule.id)}">Take out</button></div>`).join("")}` : ""}
-    <p class="group">Keeps</p>
-    <div class="set"><span>Memory</span><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Show in Finder</button></div>
-    <div class="set"><span>Notes for Obsidian</span><button class="secondary" type="button" data-reveal="notes">Show in Finder</button></div>
-    ${said.count ? `<div class="set"><span>What you said · ${thousands(said.count)} prompts</span><button class="secondary" type="button" data-forget-said>Forget</button></div>` : ""}
-    <p class="fine">No screenshots, no keystrokes. Of a page in a browser only the site is kept, never its address. The agent logs are the files Claude Code already writes on this Mac; Mason keeps short, redacted excerpts. With What you said switched on, each prompt is kept, redacted, and read by a model that runs on this Mac. With everything under Sends switched off, nothing leaves this Mac.</p>`);
+    <p class="group">Kept on this Mac</p>
+    <div class="set files"><span>Open</span><span class="with"><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Memory</button><button class="secondary" type="button" data-reveal="notes">Notes for Obsidian</button></span></div>
+    ${said.count ? `<div class="set files"><span>${thousands(said.count)} prompts, read by meaning</span><button class="secondary" type="button" data-forget-said>Forget</button></div>` : ""}
+    <p class="fine">No screenshots, no keystrokes, and of a page in a browser only the site. With everything under Leaves this Mac switched off, nothing does.</p>`);
 }
 
 async function loadPrefs() {

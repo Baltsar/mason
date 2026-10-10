@@ -19,6 +19,15 @@ const words = (text, count) => String(text ?? "").replace(/\s+/g, " ").trim().sp
 // A silence this long between two prompts is a new visit to the project.
 const VISIT_GAP_MS = 6 * 3_600_000;
 const JUST_ARRIVED_MS = 30 * 60_000;
+// A memory says where a project was left, so it is written when the project
+// is left: once nothing has been said in it for this long. Each one sends
+// some six thousand tokens of prompts; written every ten minutes while the
+// work went on, a week of work asked for over two hundred of them, and after
+// an hour of silence for some eighty.
+const SETTLED_MS = 60 * 60_000;
+// A summary that could not be written is not tried again for this long.
+const TRY_AGAIN_MS = 10 * 60_000;
+const tried = new Map();
 const memoryDir = () => path.join(paths.data, "memory");
 const fileFor = (name) => path.join(memoryDir(), `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "project"}.json`);
 const short = (text, max) => {
@@ -75,7 +84,7 @@ function fromOwnWords(name, prompts) {
 async function digest(name, prompts, work, reports) {
   const lines = prompts.slice(-MAX_PROMPTS).map((prompt) => `[${stamp(prompt.at)}] ${short(prompt.text, 420)}`);
   const files = work.slice(0, 40).map((item) => `${item.file} (${item.edits})`);
-  const reply = await askModel(SYSTEM, `Project: ${name}\nToday is ${stamp(Date.now())}.\n\nPrompts, oldest first:\n${lines.join("\n")}\n\nFiles the agents changed, most changed first, with the number of changes:\n${files.join("\n") || "(none recorded)"}\n\nWhat the agents reported back, oldest first:\n${reports.map((report) => `[${stamp(report.at)}] ${short(report.text, 600)}`).join("\n") || "(nothing recorded)"}`);
+  const reply = await askModel(SYSTEM, `Project: ${name}\nToday is ${stamp(Date.now())}.\n\nPrompts, oldest first:\n${lines.join("\n")}\n\nFiles the agents changed, most changed first, with the number of changes:\n${files.join("\n") || "(none recorded)"}\n\nWhat the agents reported back, oldest first:\n${reports.map((report) => `[${stamp(report.at)}] ${short(report.text, 600)}`).join("\n") || "(nothing recorded)"}`, { purpose: "summaries" });
   if (!reply || typeof reply.left_off !== "string") return null;
   const said = prompts.map((prompt) => prompt.text.toLowerCase().replace(/\s+/g, " "));
   const list = (value, max) => (Array.isArray(value) ? value : []).filter((item) => typeof item === "string" && item.trim()).slice(0, max).map((item) => short(item, 200));
@@ -130,9 +139,12 @@ export async function projectMemory(project, { wait = false } = {}) {
   };
   if (!last) return { ...facts, ...fromOwnWords(project.name, prompts), building: false };
   const fresh = saved?.basedOn === last.at && saved?.version === VERSION;
-  // A project in full swing is not summarised after every single prompt.
-  const recentlyBuilt = saved?.version === VERSION && saved?.generatedAt && Date.now() - Date.parse(saved.generatedAt) < 10 * 60_000;
-  if (!fresh && !recentlyBuilt && !building.has(project.name)) {
+  // A project in full swing is not summarised: its memory is written once
+  // the work in it has stopped. One that has no memory yet gets its first now.
+  const settled = Date.now() - last.at >= SETTLED_MS || !saved;
+  const justTried = Date.now() - (tried.get(project.name) || 0) < TRY_AGAIN_MS;
+  if (!fresh && settled && !justTried && !building.has(project.name)) {
+    tried.set(project.name, Date.now());
     const job = digest(project.name, prompts, work, reports).then(async (result) => {
       if (!result) return null;
       await mkdir(memoryDir(), { recursive: true });

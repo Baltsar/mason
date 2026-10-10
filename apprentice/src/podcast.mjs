@@ -143,7 +143,7 @@ Reply with JSON only, no code fence:
 {"title": "episode title, at most 5 words, no full stop", "headlines": ["exactly three, at most 6 words each"], "lines": [{"speaker": "anchor", "text": "..."}, {"speaker": "reporter", "text": "..."}]}`;
 
 async function writeScript(facts, listener) {
-  const reply = await askModel(SYSTEM, briefing(facts, listener), { model: process.env.APPRENTICE_PODCAST_MODEL || "sonnet", timeoutMs: 150_000 });
+  const reply = await askModel(SYSTEM, briefing(facts, listener), { model: process.env.APPRENTICE_PODCAST_MODEL || "sonnet", timeoutMs: 150_000, purpose: "recap" });
   const lines = (Array.isArray(reply?.lines) ? reply.lines : [])
     .filter((line) => line && typeof line.text === "string" && shown(line.text))
     .map((line) => ({ speaker: line.speaker === "reporter" ? "reporter" : "anchor", text: line.text.replace(/\s+/g, " ").trim() }));

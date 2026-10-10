@@ -273,7 +273,7 @@ dialog mark { background: rgba(215, 255, 66, .16); color: var(--lime); }
 .gear { display: grid; place-items: center; width: 34px; padding: 0; }
 .gear svg { width: 17px; height: 17px; }
 .settings { display: grid; max-width: 720px; margin-top: 26px; border-top: 1px solid var(--line); }
-.settings .set { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 66px; border-bottom: 1px solid var(--line); font-size: 20px; letter-spacing: -.02em; }
+.settings .set { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 56px; border-bottom: 1px solid var(--line); font-size: 18px; letter-spacing: -.02em; }
 .settings .set b { color: var(--lime); font-size: 15px; font-weight: 600; letter-spacing: 0; }
 .settings .set b[data-off] { color: var(--muted); }
 .settings .with { display: flex; align-items: center; gap: 16px; }
@@ -510,4 +510,7 @@ html[data-shell="desktop"] :is(dialog, .toast) { background: #17171a; }
 .told li span { color: var(--muted); font: 12px var(--mono); white-space: nowrap; }
 @media (max-width: 720px) { .told li { grid-template-columns: 1fr; } }
 
-.settings .fine.mend { margin: 2px 0 10px; color: var(--gold); }
+.settings .fine.mend, .settings .fine.under { max-width: none; margin: 0; padding: 10px 0 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.settings .fine.mend { color: var(--gold); }
+.settings .files { font-size: 16px; color: var(--muted); }
+.settings .files .with { gap: 8px; }

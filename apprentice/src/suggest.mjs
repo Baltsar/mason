@@ -71,7 +71,7 @@ export function rulesOf(memories) {
 export async function groupRules(rules) {
   if (new Set(rules.map((rule) => rule.project)).size < ENOUGH_PROJECTS) return [];
   const lines = rules.map((rule, index) => `${index + 1}. [${rule.project}] ${rule.rule} — "${rule.example}" (said ${rule.times} times)`);
-  const reply = await askModel(SYSTEM, lines.join("\n"));
+  const reply = await askModel(SYSTEM, lines.join("\n"), { purpose: "proposals" });
   // No answer from a model is not the same as nothing to propose.
   if (!Array.isArray(reply?.groups)) return null;
   const proposals = [];
@@ -100,7 +100,7 @@ export async function wordDemands(repeated) {
   const demands = repeated.filter((demand) => !demand.ways.some((way) => ACTS_OUTWARD.test(way.text)));
   if (!demands.length) return [];
   const lines = demands.map((demand, index) => `${index + 1}. Said ${demand.times} times in ${demand.projects.length} projects:\n${demand.ways.slice(0, 5).map((way) => `   "${clean(way.text, 200)}"`).join("\n")}`);
-  const reply = await askModel(DEMANDS, lines.join("\n"));
+  const reply = await askModel(DEMANDS, lines.join("\n"), { purpose: "proposals" });
   if (!Array.isArray(reply?.groups)) return null;
   const proposals = new Map();
   for (const item of reply.groups) {

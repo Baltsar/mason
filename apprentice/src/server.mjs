@@ -27,13 +27,16 @@ import { callContext, ensureAgent, recallContext, signedUrl, tutorContext } from
 import { MEMORY_VERSION, mergeInferred, projectMemory, savedMemory } from "./memory.mjs";
 import { makeEpisode, playEpisode, podcastBusy, podcastState } from "./podcast.mjs";
 import { hasElevenLabsKey, loadSettings, ownerName, saveSettings, settings } from "./settings.mjs";
-import { modelStatus } from "./llm.mjs";
+import { modelStatus, onUse } from "./llm.mjs";
+import { recordUse, usagePayload } from "./usage.mjs";
 import { fileOf, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
 
 useMemoryStore();
 await loadLocalEnv();
 await ensureStore();
 await loadSettings();
+// Every answer from the model is counted: what it was for and what it took.
+onUse(recordUse);
 let clients = new Set();
 // Changes the island should show at once, rather than at its next poll.
 const NUDGES = new Set(["question", "answer", "control", "session", "intervention", "call", "window", "prompt", "presence", "podcast", "memory"]);
@@ -962,6 +965,7 @@ const server = http.createServer(async (request, response) => {
           elevenLabsKey: hasElevenLabsKey(),
           credits: await elevenLabsCredits(),
           model: modelStatus(),
+          usage: await usagePayload(),
           // The model that places what was said, and how much it has read.
           said: { ...embedStatus(), ...(await saidStatus()), waiting: saidWaiting },
           logs: await logSources(),
