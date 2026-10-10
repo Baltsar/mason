@@ -187,6 +187,8 @@ What leaves the Mac for ElevenLabs, and only when a key is set and the switch is
 
 The server listens on `127.0.0.1` and nowhere else. A page in a browser is on this Mac too, though, and a browser lets any page send a request to an address on the same machine. So a request is answered only when it was addressed to this Mac by number or as `localhost`, and, when a browser says which page sent it, only when that page is Mason's own. The island, the agents and a terminal name no page and are let through. A link someone sends cannot switch a setting, read the memory or have a rule written.
 
+It does trust this Mac. A program that runs here and is not a browser, or an agent that may call a local address, can ask the server what Mason's own window can: read the memory, switch a setting, say yes to an open proposal. So the words of a proposal are checked like a stranger's before they are written, whoever asks, and nothing a caller sends is spoken or run. A secret for each start, known only to Mason's own window, would close this and is not built yet.
+
 ## The challenge, module by module
 
 | Module | Where | What proves it |

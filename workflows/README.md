@@ -35,4 +35,4 @@ A file in this folder is a stranger's, and its rules are made to be put where an
 - a rule is one plain sentence about how to work: no command, no address, no path, nothing about secrets, nothing that tells an agent to set its rules aside or to stop asking, nothing about publishing, sending, deleting or paying, and no character that cannot be seen;
 - the file says nothing else, and says it in one fixed order.
 
-`npm run workflows -- check` in `apprentice/` runs that check, and it runs on every pull request. Mason runs the same reading again on your Mac when you open a file, and it writes no rule itself: a rule goes to an agent as a prompt you read and send. Read it before you do: the check is a net, not a judge.
+`npm run workflows -- check` in `apprentice/` runs that check, and it runs on every pull request. A pull request that adds a workflow may change nothing outside this folder, so that the check that read it is the one on main. Mason runs the same reading again on your Mac when you open a file, and it writes no rule itself: a rule goes to an agent as a prompt you read and send. Read it before you do: the check is a net, not a judge.

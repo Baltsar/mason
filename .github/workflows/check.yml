@@ -26,9 +26,23 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+          # The commit before, to see what a pull request changes.
+          fetch-depth: 2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 18
+      # The check below is the pull request's own copy. So a pull request that
+      # adds a workflow may change nothing else: then the check that read it is
+      # the one on main. One that changes the check itself is read by a person.
+      - name: A workflow comes alone
+        if: github.event_name == 'pull_request'
+        working-directory: .
+        run: |
+          changed=$(git diff --name-only HEAD^1 HEAD)
+          if echo "$changed" | grep -q '^workflows/.*\.json$' && echo "$changed" | grep -qv '^workflows/'; then
+            echo "A pull request that adds a workflow may change nothing outside workflows/."
+            exit 1
+          fi
       - name: Tests
         run: npm test
       - name: The collection of workflows
