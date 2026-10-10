@@ -14,6 +14,12 @@ If the island says `access` although the switch in System Settings is already on
 
 Quit from the island (right-click → Quit Mason), with ⌘Q in the app window, or with **Stop Mason.command**.
 
+## The first start
+
+The window opens by itself and shows two things. First, what Mason has already read: the days and hours of your work with agents, from the logs Claude Code, Codex, Grok and Cursor keep, with a way to see how you work at once. Then the one thing it asks for: leave to see which window is in front, with what that lets it read (the app, the window's title, the site of a tab, the prompt you are writing) and what it never does (pictures of the screen, what you type elsewhere). macOS is asked only when **Open System Settings** is pressed, and the screen follows by itself when Mason is switched on in the list. **Not now** skips it; the island then says **Fix access** until it is given.
+
+Nothing else is asked at the start. A model for summaries and a voice are optional, and Mason says in Settings when one is missing.
+
 ## Three stages on the desktop
 
 Mason is a native macOS app. Nothing opens in a browser.
