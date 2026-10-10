@@ -1339,6 +1339,7 @@ function renderSettings() {
     <p class="group">Look and sound</p>
     ${row("speech", "Sound")}
     ${row("cues", "A word on the island", settings.cues ? on(nudged) : off("Silent"))}
+    ${row("island", "Island by the notch", settings.island ? on("Shows the day") : off("An icon among the others"))}
     ${row("glass", "Liquid glass", settings.glass ? on("A look to try") : off("Dark"))}
     ${applied.length ? `<p class="group">In your agents' rules</p>${applied.map((rule) => `<div class="set rule"><span>${esc(rule.rule)}</span><b>${esc(rule.by.join(" · "))}</b></div>`).join("")}` : ""}
     <p class="group">Kept on this Mac</p>

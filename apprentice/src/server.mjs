@@ -529,6 +529,8 @@ async function islandPayload() {
   const project = runtime.currentApp ? index.resolve({ app: runtime.currentApp, window: runtime.currentWindow || "", at: new Date().toISOString() }) : null;
   return {
     status: presence(runtime),
+    // Where Mason sits in the menu bar: as the island beside the notch, or as an icon among the others.
+    bar: settings().island ? "island" : "icon",
     app: runtime.currentApp,
     project,
     returning: returningTo(runtime, project) || cueFor(waiting, runtime) || await nudgeFor(waiting, runtime, index),

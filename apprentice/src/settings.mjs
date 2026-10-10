@@ -8,7 +8,7 @@ import { atomicJson, paths, readJson } from "./store.mjs";
 // Naming chat and mail, asking sites for their icons, and placing what was
 // said by its meaning are off until asked for.
 // Looking for a new version asks GitHub once a day and sends nothing of its owner's.
-const DEFAULTS = { name: "", speech: true, summaries: true, elevenlabs: true, chats: false, logs: true, cues: true, logos: false, meaning: false, glass: false, updates: true };
+const DEFAULTS = { name: "", speech: true, summaries: true, elevenlabs: true, chats: false, logs: true, cues: true, logos: false, meaning: false, glass: false, updates: true, island: true };
 const file = () => path.join(paths.data, "settings.json");
 
 // What was set from outside (a rehearsal runs muted, for one) is kept and
@@ -54,6 +54,7 @@ function clean(value) {
     meaning: value?.meaning === true,
     glass: value?.glass === true,
     updates: value?.updates !== false,
+    island: value?.island !== false,
   };
 }
 

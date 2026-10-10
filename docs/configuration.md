@@ -17,6 +17,7 @@ Under the gear in the app window. Mason calls you by the first name on this Mac'
 | **Chat and mail by name** | Off | Keeps the name of a chat or mail app and the time spent there. Off: counted, never named. |
 | **Sound** | On | Mason speaks. Off: silent. |
 | **A word on the island** | On | Nudges on the island when an answer has waited. |
+| **Island by the notch** | On | Mason sits in the menu bar as the island beside the notch, showing the day. Off, it is one icon among the others on the right, with a dot when there is something to come back to. |
 | **Liquid glass** | Off | A second look to try: glass panels over the desktop. |
 
 The first four are grouped as **Leaves this Mac**, the next three as **Stays on this Mac**. What each one sends or keeps is in [What it reads, sends and keeps](privacy.md).
