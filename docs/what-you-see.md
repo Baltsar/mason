@@ -10,7 +10,7 @@ Mason has three surfaces: the island in the menu bar, the panel under it, and th
 | [Flow](#flow) | How you moved between tools. Replay and Share are here. |
 | [Days](#days) | Every day worked, and the tokens your agents took. |
 | [Workflow](#workflow) | Thirty days of how you work with agents, as one card. |
-| [Built](#built) | One question at a time about what you built. |
+| [Built](#built) | A quiz about what you built. |
 | [More](#more) | Find, Recap and Agents. |
 
 ## The island
@@ -69,7 +69,9 @@ Share makes it a picture and a file. Opening someone else's file puts theirs bes
 
 ## Built
 
-Mason asks one question at a time about a project you worked on: how it is put together, what you decided, what you built last, where you left it. **Show** gives what Mason remembers. Nothing is typed. **Ask me aloud** turns it into a call, with a voice switched on.
+A quiz about your own projects, five questions at a time: which one it is, what each part does, where it runs, where you left it. Each question has up to four answers to choose between; press one, or the figure beside it. Right or wrong is said at once, with the reason in a line. A question you got wrong is asked once more at the end of the round and comes back tomorrow; one you got right comes back after three days, then a week, three weeks, two months.
+
+The questions are written by the model that writes the summaries, in the same call, and the wrong answers are partly what is true of your other projects. Without a model there are no questions, and Built says so with the switch that mends it. **Ask me aloud** turns it into a call; without a voice it says what is missing.
 
 ## More
 

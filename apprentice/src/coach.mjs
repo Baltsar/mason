@@ -11,7 +11,7 @@ import { buildFlow, NOT_A_TOOL, toolOf } from "./flow.mjs";
 // Under five seconds somewhere else is a glance, not leaving.
 const GLANCE_SECONDS = 5;
 // Where an agent's answer is read. With one of these in front, nothing waits.
-const AGENT_SURFACE = /^(claude|cursor|terminal|iterm2?|warp|ghostty|visual studio code|code|windsurf|zed)$/i;
+const AGENT_SURFACE = /^(claude|codex|cursor|terminal|iterm2?|warp|ghostty|visual studio code|code|windsurf|zed)$/i;
 // An answer has to be left for this long before it counts as waiting.
 const WAITING_MS = 30_000;
 // An answer older than this is no longer something to hurry back to.
@@ -76,10 +76,12 @@ function waitedOf(spans, turns, from, now) {
 }
 
 // The answers that are finished right now and have not been looked at since.
+// An agent in front for another project is not a look at this one: with
+// three agents at work, two of the answers are behind the third.
 function readyOf(spans, turns, now) {
   return turns
     .filter((turn) => turn.ended && turn.next === null && now - turn.done < STALE_MS)
-    .filter((turn) => !spans.some((span) => readsAnswers(span.tool) && span.end > turn.done))
+    .filter((turn) => !spans.some((span) => readsAnswers(span.tool) && span.end > turn.done && (!span.project || span.project === turn.project)))
     .sort((a, b) => a.done - b.done)
     .map((turn) => ({ project: turn.project, since: new Date(turn.done).toISOString() }));
 }

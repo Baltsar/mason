@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -54,6 +55,17 @@ export function playFile(file, seconds = 0) {
     ? spawn("sleep", [String(Math.ceil(seconds))], { stdio: "ignore" })
     : spawn("afplay", [file], { stdio: "ignore" });
   return { done: track(child) };
+}
+
+// Two notes on a lute for an answer that is ready (made once with ElevenLabs
+// and kept in the repository, so playing it calls nothing). It is not speech:
+// it stops nothing that is being said, and it is silent whenever Mason is.
+const READY_SOUND = fileURLToPath(new URL("../sounds/ready.mp3", import.meta.url));
+export function chime() {
+  if (process.env.APPRENTICE_MUTE || playing) return;
+  const child = spawn("afplay", ["-v", "0.5", READY_SOUND], { detached: true, stdio: "ignore" });
+  child.once("error", () => {});
+  child.unref();
 }
 
 export async function notifyAndSpeak(text, { title = "Mason · one question" } = {}) {

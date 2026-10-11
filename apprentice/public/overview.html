@@ -88,6 +88,26 @@
       .ask .dismiss { position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: rgba(24, 17, 10, .12); color: var(--night); }
       .ask .dismiss:hover { background: rgba(24, 17, 10, .22); }
       .ask .dismiss svg { width: 10px; height: 10px; }
+      /* An answer is ready: one line that says whose, and a large way out. */
+      .ready { position: relative; display: flex; align-items: center; gap: 4px; margin: 0 0 16px; padding: 8px 8px 11px 6px; overflow: hidden; border-radius: 17px; background: var(--lime); color: #101100; animation: arrive .42s var(--ease) both; }
+      html[data-mode="ask"] .ready { margin: 0; }
+      html[data-mode="full"] .ready .timer { display: none; }
+      .ready button { border: 0; background: transparent; color: inherit; }
+      .ready .what { margin: 0; display: flex; flex: 1; align-items: baseline; gap: 9px; min-width: 0; min-height: 44px; padding: 0 10px; border-radius: 12px; text-align: left; }
+      .ready button.what:hover { background: rgba(16, 17, 0, .09); }
+      .ready .what i { flex: none; align-self: center; width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: settle 1.1s var(--ease) both; }
+      .ready .what b { overflow: hidden; font-size: 23px; line-height: 44px; letter-spacing: -.04em; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+      .ready .what span { flex: none; font-size: 15px; font-weight: 600; opacity: .7; }
+      .ready .quiet { display: grid; flex: none; place-items: center; width: 34px; height: 34px; padding: 0; border-radius: 50%; opacity: .62; }
+      .ready .quiet:hover { background: rgba(16, 17, 0, .12); opacity: 1; }
+      .ready .quiet svg { width: 17px; height: 17px; }
+      .ready .dismiss { display: grid; flex: none; place-items: center; width: 44px; height: 44px; margin-left: 4px; padding: 0; border-radius: 50%; background: #101100; color: var(--lime); }
+      .ready .dismiss:hover { background: #000; }
+      .ready .dismiss svg { width: 14px; height: 14px; }
+      .ready .timer { background: rgba(16, 17, 0, .12); }
+      .ready .timer i { background: #101100; }
+      @keyframes settle { 0% { transform: scale(2.6); opacity: 0; } 60% { transform: scale(.8); opacity: 1; } 100% { transform: none; } }
+      @media (prefers-reduced-motion: reduce) { .ready, .ready .what i { animation: none; } }
       .composer { position: relative; display: flex; align-items: flex-end; gap: 8px; min-height: 54px; margin-top: 14px; padding: 7px 7px 7px 16px; border-radius: 27px; background: var(--night); color: var(--paper); }
       .composer textarea { flex: 1; align-self: center; min-width: 0; max-height: 96px; padding: 0; resize: none; border: 0; outline: 0; background: transparent; font-size: 16px; line-height: 1.35; user-select: text; -webkit-user-select: text; }
       .composer textarea::placeholder { color: #a39a85; }
@@ -215,6 +235,10 @@
         stop: `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>`,
         close: `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8"/></svg>`,
         play: `<svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2.5 1.2v9.6L10.5 6z"/></svg>`,
+        sound: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>`,
+        silent: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>`,
+        belloff: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.2 4.6A6 6 0 0 1 18 9c0 2.3.4 4 1 5.2M6.3 7.5C6.1 8 6 8.500 6 9c0 5-2 6.500-2 6.500h11.500"/><path d="M10 19.500a2.200 2.200 0 0 0 4 0"/><path d="M3.500 3.500l17 17"/></svg>`,
+        go: `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6h8M6.5 2.5 10 6l-3.5 3.5"/></svg>`,
         halt: `<svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><rect x="2.5" y="2.5" width="7" height="7" rx="1.5"/></svg>`,
         quiz: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 9a3.5 3.5 0 1 1 5.2 3.1c-1 .6-1.7 1.3-1.7 2.4"/><path d="M12 18.4v.1"/></svg>`,
         phone: `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .57 3.6 1 1 0 0 1-.25 1z"/></svg>`,
@@ -222,6 +246,8 @@
       // Long enough to hear the question and decide, short enough to be gone
       // before it is in the way.
       const WAIT_MS = 24_000;
+      // A card that asks nothing is read in a glance and stays a third as long.
+      const READY_MS = 9000;
       // How long an opened microphone waits for a first word before it gives up.
       const QUIET_MS = 9000;
 
@@ -238,7 +264,9 @@
       let playing = null;
       // "Fix access" has been pressed and the switch in System Settings is awaited.
       let fixing = null;
-      const timer = { left: WAIT_MS, timeout: null, running: false, cancelled: false };
+      const timer = { left: WAIT_MS, whole: WAIT_MS, timeout: null, running: false, cancelled: false };
+      // The card about a ready answer that is on the panel, if one is.
+      let notice = null;
       const mode = () => document.documentElement.dataset.mode;
 
       async function post(url, body) {
@@ -255,11 +283,11 @@
         timer.startedAt = performance.now();
         const bar = $("#timer");
         bar.style.transition = "none";
-        bar.style.transform = `scaleX(${timer.left / WAIT_MS})`;
+        bar.style.transform = `scaleX(${timer.left / timer.whole})`;
         void bar.offsetWidth;
         bar.style.transition = `transform ${timer.left}ms linear`;
         bar.style.transform = "scaleX(0)";
-        timer.timeout = setTimeout(() => tell({ type: "close", reason: "timeout" }), timer.left);
+        timer.timeout = setTimeout(() => { if (notice) settle(notice, "left"); tell({ type: "close", reason: "timeout" }); }, timer.left);
       }
       function holdTimer() {
         if (!timer.running) return;
@@ -269,10 +297,10 @@
         const bar = $("#timer");
         if (!bar) return;
         bar.style.transition = "none";
-        bar.style.transform = `scaleX(${timer.left / WAIT_MS})`;
+        bar.style.transform = `scaleX(${timer.left / timer.whole})`;
       }
       function cancelTimer() { holdTimer(); timer.cancelled = true; }
-      function resetTimer() { clearTimeout(timer.timeout); Object.assign(timer, { left: WAIT_MS, running: false, cancelled: false }); }
+      function resetTimer() { const whole = notice ? READY_MS : WAIT_MS; clearTimeout(timer.timeout); Object.assign(timer, { left: whole, whole, running: false, cancelled: false }); }
 
       /* The answer field. */
 
@@ -370,6 +398,29 @@
             <button class="trouble" type="button" id="trouble"></button>
             <div class="timer"><i id="timer"></i></div>
           </form>`;
+      }
+
+      /* An answer that is ready. */
+
+      // One line: whose answer it is. Two small ways to make Mason quieter, and a large way out.
+      function readyMarkup(card) {
+        const names = card.answers.map((answer) => answer.project);
+        const rest = names.length - 1 + card.more;
+        const [first] = card.answers;
+        const where = !rest && first.app ? `go to ${first.app}` : "open Mason";
+        return `
+          <section class="ready" id="ready" role="status" aria-label="${esc(card.text)}">
+            <button class="what" type="button" id="ready-go" ${!rest && first.app ? `data-go="${esc(first.project)}"` : ""} title="${esc(where[0].toUpperCase() + where.slice(1))}" aria-label="${esc(`${card.text}, ${where}`)}"><i></i><b>${esc(names[0])}</b><span>${rest ? `+${rest} ready` : "ready"}</span></button>
+            <button class="quiet" type="button" id="ready-sound" aria-pressed="${card.sound ? "false" : "true"}" title="${card.sound ? "Without the sound" : "With the sound"}" aria-label="${card.sound ? "Without the sound" : "With the sound"}">${card.sound ? ICON.sound : ICON.silent}</button>
+            <button class="quiet" type="button" id="ready-off" title="Stop telling me" aria-label="Stop telling me when an answer is ready">${ICON.belloff}</button>
+            <button class="dismiss" type="button" id="ready-close" title="Close" aria-label="Close">${ICON.close}</button>
+            <div class="timer"><i id="timer"></i></div>
+          </section>`;
+      }
+      // Pressed, put away or run out: the server is told, so the card is not shown again.
+      function settle(card, action, project = "") {
+        notice = null;
+        return post("/api/notice", { id: card.id, action, project }).catch(() => {});
       }
 
       /* The debrief call. */
@@ -480,16 +531,20 @@
         const question = map.questions.find((item) => item.status === "open");
         // The form is rebuilt only for a new question, so a half-said or
         // half-typed answer survives every live update.
-        if ((question?.id || null) !== askedId) {
+        // A question comes before a card that only tells.
+        const card = question ? null : state.notice || null;
+        const shown = question?.id || card?.id || null;
+        if (shown !== askedId) {
           session?.cancel();
           session = null;
-          askedId = question?.id || null;
+          askedId = shown;
+          notice = card;
           resetTimer();
-          $("#ask").innerHTML = question ? askMarkup(question) : "";
+          $("#ask").innerHTML = question ? askMarkup(question) : card ? readyMarkup(card) : "";
           runTimer();
         }
-        // In ask mode the panel exists for the question. When it is gone, so is the panel.
-        if (!question && mode() === "ask") tell({ type: "close", reason: "gone" });
+        // In ask mode the panel exists for the question or the card. When it is gone, so is the panel.
+        if (!shown && mode() === "ask") tell({ type: "close", reason: "gone" });
 
         // The project last worked in, where it was left, and two controls.
         const project = state.now.recent;
@@ -519,7 +574,8 @@
         // An answer that is ready comes first; then how long answers waited
         // today; then, for a day after it was written, how the last days went.
         const { waiting, lookback } = state;
-        const answered = [...new Set(waiting.ready.map((answer) => answer.project))];
+        // While the card is up it says this itself.
+        const answered = card ? [] : [...new Set(waiting.ready.map((answer) => answer.project))];
         const fresh = lookback && Date.now() - Date.parse(lookback.writtenAt) < 86_400_000 ? lookback.lines[0] : "";
         // A piece of work that was done before in another project: said for a
         // few minutes after the prompt, and a press shows where.
@@ -575,6 +631,34 @@
       document.addEventListener("click", async (event) => {
         if (event.target.closest("#mic")) return listen();
         if (event.target.closest("#stop")) return session?.stop();
+        const go = event.target.closest("#ready-go");
+        if (go && notice) {
+          // One answer goes to its agent. Several, or an agent Mason cannot bring forward, open the day.
+          await settle(notice, "go", go.dataset.go || "");
+          return go.dataset.go ? tell({ type: "close", reason: "went" }) : open("today");
+        }
+        if (event.target.closest("#ready-sound") && notice) {
+          // Changed on the card itself; the card stays, and shows which it is now.
+          cancelTimer();
+          notice.sound = !notice.sound;
+          await post("/api/settings", { chime: notice.sound });
+          const button = $("#ready-sound");
+          const label = notice.sound ? "Without the sound" : "With the sound";
+          button.innerHTML = notice.sound ? ICON.sound : ICON.silent;
+          button.title = label;
+          button.setAttribute("aria-label", label);
+          button.setAttribute("aria-pressed", String(!notice.sound));
+          return;
+        }
+        if (event.target.closest("#ready-off") && notice) {
+          // Said once where to find it again, then gone.
+          cancelTimer();
+          const card = notice;
+          await post("/api/settings", { ready: false });
+          $("#ready").innerHTML = `<p class="what"><b>Off</b><span>Back on in Settings</span></p>`;
+          return setTimeout(async () => { await settle(card, "dismiss"); if (mode() === "ask") tell({ type: "close", reason: "off" }); else load(); }, 1600);
+        }
+        if (event.target.closest("#ready-close") && notice) { await settle(notice, "dismiss"); return mode() === "ask" ? tell({ type: "close", reason: "dismissed" }) : load(); }
         if (event.target.closest("#later")) {
           session?.cancel();
           await post("/api/answer", { id: askedId, action: "later" });
@@ -626,7 +710,7 @@
       });
       // Typing needs the keyboard, so only then does the panel take it from the work.
       document.addEventListener("pointerdown", (event) => { if (event.target.id === "answer") { cancelTimer(); tell({ type: "key" }); } });
-      document.addEventListener("pointerover", (event) => { if (event.target.closest(".ask")) holdTimer(); });
+      document.addEventListener("pointerover", (event) => { if (event.target.closest(".ask, .ready")) holdTimer(); });
       // The round buttons are icons only. Pointing at one says what it does, in
       // the place where the project's name stands; nothing is added to the panel.
       const naming = { label: null };
@@ -642,10 +726,10 @@
         $("#who b").textContent = naming.label;
         naming.label = null;
       });
-      document.addEventListener("pointerout", (event) => { if (event.target.closest(".ask") && !event.relatedTarget?.closest?.(".ask")) runTimer(); });
+      document.addEventListener("pointerout", (event) => { if (event.target.closest(".ask, .ready") && !event.relatedTarget?.closest?.(".ask, .ready")) runTimer(); });
       document.addEventListener("keydown", (event) => {
         if (event.key === "Enter" && !event.shiftKey && event.target.id === "answer") { event.preventDefault(); $("#ask-form").requestSubmit(); }
-        if (event.key === "Escape") tell({ type: "close", reason: "escape" });
+        if (event.key === "Escape") { if (notice) settle(notice, "dismiss"); tell({ type: "close", reason: "escape" }); }
         if (event.key === " " && call && event.target.tagName !== "TEXTAREA") { event.preventDefault(); call.cutIn(); }
       });
 

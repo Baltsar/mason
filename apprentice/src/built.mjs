@@ -1,37 +1,51 @@
+import path from "node:path";
+import { quizOf } from "./quiz.mjs";
+import { atomicJson, paths, readJson } from "./store.mjs";
+
 // What Mason can teach its owner about their own work. Someone who builds by
-// talking to agents often no longer knows how the thing is put together or why
-// it was done that way. Mason does: it is in what it remembers of each project.
-// So it asks one question at a time and holds the answer. Nothing is typed and
-// no model is asked: a question, a press, the answer.
+// talking to agents often can no longer say what the thing does, what it is
+// made of, or where it runs. The aim is one thing: that they can explain
+// their own project to someone else a month from now.
+//
+// It stays by being asked, not by being read: a question with answers to
+// choose between (quiz.mjs), right or wrong said at once, and the reason in a
+// line. What was got wrong comes back the next day; what was got right comes
+// back after longer and longer.
 
-// The questions one project gives, each with the answer that is remembered.
-// A project nothing was summarised for gives none.
-export function cardsOf(project, memory) {
-  if (!memory || memory.source !== "model") return [];
-  const cards = [];
-  const add = (question, lines) => {
-    const answer = lines.filter(Boolean);
-    if (answer.length) cards.push({ question, answer });
-  };
-  add(`How is ${project} put together?`, memory.how || []);
-  add(`What did you decide in ${project}?`, memory.decided || []);
-  add(`What did you build last in ${project}?`, memory.built || []);
-  add(`Where did you leave ${project}?`, [memory.left_off, ...(memory.open || []).map((line) => `Open: ${line}`)]);
-  add(`What do you keep telling the agents in ${project}?`, (memory.keeps_saying || []).map((item) => `${item.rule}: “${item.example}”`));
-  return cards;
-}
+const file = () => path.join(paths.data, "built.json");
+// How long until a question comes back, by how many times in a row it was got right.
+const BACK_AFTER_DAYS = [3, 7, 21, 60];
+const NOT_KNOWN_DAYS = 1;
+const DAY_MS = 86_400_000;
 
-// Every project of the last three weeks that there is something to ask about,
-// the one not touched for the longest first: that is the one being forgotten.
-// `days` is the ledger of the long view; `memories` what is remembered of each
-// project, by its name.
-export function builtOf({ days = {}, memories = {}, today } = {}) {
+// Every project of the last three weeks with something to ask about that is
+// due, the one not touched for the longest first: that is the one being
+// forgotten. `days` is the ledger of the long view; `memories` what is
+// remembered of each project; `asked` when each question is due again.
+export function builtOf({ days = {}, memories = {}, today, asked = {}, now = Date.now() } = {}) {
   const last = new Map();
   for (const day of Object.keys(days).filter((key) => key <= today).sort().slice(-21)) {
     for (const name of Object.keys(days[day])) last.set(name, day);
   }
   return [...last]
-    .map(([project, lastDay]) => ({ project, lastDay, about: memories[project]?.one_line || "", cards: cardsOf(project, memories[project]) }))
-    .filter((item) => item.cards.length)
+    .map(([project, lastDay]) => ({ project, lastDay, about: memories[project]?.one_line || "", questions: quizOf(project, memories[project], memories, today).filter((question) => !(asked[question.id]?.due > now)) }))
+    .filter((item) => item.questions.length)
     .sort((a, b) => a.lastDay.localeCompare(b.lastDay) || a.project.localeCompare(b.project));
 }
+
+// When each card is due again.
+export const askedBefore = async () => (await readJson(file(), {})).asked || {};
+
+// "Knew it" or "did not", for one card. Known, it comes back after longer each
+// time; not known, tomorrow, and the count starts again.
+export async function answerCard(id, knew, now = Date.now()) {
+  if (!/^[a-f0-9]{16}$/.test(String(id))) return false;
+  const kept = { asked: {}, ...(await readJson(file(), {})) };
+  const step = knew ? Math.min((kept.asked[id]?.step ?? -1) + 1, BACK_AFTER_DAYS.length - 1) : -1;
+  kept.asked[id] = { step, due: now + (knew ? BACK_AFTER_DAYS[step] : NOT_KNOWN_DAYS) * DAY_MS, at: new Date(now).toISOString() };
+  await atomicJson(file(), kept);
+  return true;
+}
+
+// When the next card comes back, for the day there is nothing to ask.
+export const nextDue = (asked, now = Date.now()) => Math.min(...Object.values(asked).map((card) => card.due).filter((due) => due > now), Infinity);
