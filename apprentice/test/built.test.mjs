@@ -1,50 +1,79 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { builtOf, cardsOf } from "../src/built.mjs";
+import { builtOf } from "../src/built.mjs";
+import { quizOf } from "../src/quiz.mjs";
 
 const kiosk = {
   source: "model",
+  headline: "Modem power still a guess",
   one_line: "A phone booth that answers with a voice",
-  how: ["voice.ts picks the voice and streams it", "The test panels live in app/test"],
-  decided: ["Use the turbo voice for the first word, because the plain one waits too long"],
-  built: ["Tested four voices on the test panels"],
+  plainly: "A phone booth you can ask anything, and it answers out loud.",
+  parts: [
+    { name: "The voice", like: "like a switchboard operator", does: "picks who speaks and passes the words on", where: "voice.ts" },
+    { name: "The test bench", like: "", does: "lets four voices be tried side by side", where: "app/test" },
+    { name: "The line", like: "like a telephone exchange", does: "keeps the call open while the answer is made", where: "line.ts" },
+  ],
+  quiz: [{ ask: "Where does it run?", right: "Vercel", wrong: ["Netlify", "Fly.io", "vercel", "Render"], why: "The reports show it deployed with the Vercel CLI." }],
   left_off: "Modem power is a guess, not a measurement.",
-  open: ["Measure what the modem really draws"],
-  keeps_saying: [{ rule: "Show me, do not claim", times: 2, example: "ge mig länk" }],
 };
+const town = { source: "model", headline: "Street names missing", plainly: "A map of the town that shows what is open right now.", parts: [{ name: "The clock", like: "", does: "checks each shop's hours against the time" }], left_off: "The street names are not on the map yet." };
+const shop = { source: "model", headline: "Checkout untested", plainly: "A small shop for prints, paid for by card.", left_off: "Nobody has paid in the checkout yet." };
+const all = { KIOSK: kiosk, TOWN: town, SHOP: shop, DRAFT: { source: "own-words", plainly: "Never a wrong answer: nothing was summarised for it." } };
 
-test("a project is asked about as one would explain it: what it does, its parts with a likeness, why, and where it was left", () => {
-  const cards = cardsOf("KIOSK", { ...kiosk, plainly: "A phone booth you can ask anything, and it answers out loud.", parts: [{ name: "The voice", like: "like a switchboard operator", does: "picks who speaks and passes the words on", where: "voice.ts" }, { name: "The test bench", like: "", does: "lets four voices be tried side by side", where: "app/test" }, { name: "", does: "left out" }] });
-  assert.deepEqual(cards.map((card) => [card.question, card.answer]), [
-    ["What does KIOSK do? Say it as to a friend.", ["A phone booth you can ask anything, and it answers out loud."]],
-    ["What is KIOSK made of?", ["The voice, like a switchboard operator: picks who speaks and passes the words on", "The test bench: lets four voices be tried side by side"]],
-    ["Why is KIOSK built the way it is?", ["Use the turbo voice for the first word, because the plain one waits too long"]],
-    ["Where did you leave KIOSK?", ["Modem power is a guess, not a measurement.", "Open: Measure what the modem really draws"]],
+test("a project is asked about with answers to choose between: one right, the others true of something else", () => {
+  const quiz = quizOf("KIOSK", kiosk, all, "2026-10-11");
+  assert.deepEqual(quiz.map((item) => [item.kind, item.question]), [
+    ["what", "Which one is KIOSK?"],
+    ["fact", "Where does it run?"],
+    ["part", "What does “The voice” do?"],
+    ["part", "What does “The test bench” do?"],
+    ["part", "What does “The line” do?"],
+    ["left", "Where did you leave KIOSK?"],
   ]);
-  // Where it lives in the code is kept apart, for the day it is needed.
-  assert.deepEqual(cards[1].where, ["The voice: voice.ts", "The test bench: app/test"]);
-  assert.equal(cards.every((card) => /^[a-f0-9]{16}$/.test(card.id)), true);
-  // A memory from before parts had a likeness still says what it is and how it is put together.
-  assert.deepEqual(cardsOf("KIOSK", kiosk).slice(0, 2).map((card) => card.answer), [["A phone booth that answers with a voice"], kiosk.how]);
-  assert.deepEqual(cardsOf("NEW", { source: "own-words", built: ["fix the thing"] }), []);
-  assert.deepEqual(cardsOf("NONE", null), []);
+  const [what, fact, voice, , , left] = quiz;
+  // The right answer is among the options, and the others are the other projects.
+  assert.equal(what.options[what.right], kiosk.plainly);
+  assert.deepEqual([...what.options].sort(), [kiosk.plainly, town.plainly, shop.plainly].sort());
+  // The model's own wrong answers, at most three, and never the right one in other letters.
+  assert.equal(fact.options[fact.right], "Vercel");
+  assert.equal(fact.options.length, 4);
+  assert.equal(fact.options.includes("vercel"), false);
+  assert.equal(fact.why, "The reports show it deployed with the Vercel CLI.");
+  // A part is told apart from the other parts of the same project first.
+  assert.equal(voice.options[voice.right], "picks who speaks and passes the words on");
+  assert.ok(voice.options.includes("lets four voices be tried side by side") && voice.options.includes("keeps the call open while the answer is made"));
+  assert.equal(voice.why, "The voice is like a switchboard operator.");
+  // Where it was left is asked in a few words, and said in full afterwards.
+  assert.equal(left.options[left.right], "Modem power still a guess");
+  assert.equal(left.why, kiosk.left_off);
+  assert.equal(quiz.every((item) => /^[a-f0-9]{16}$/.test(item.id)), true);
 });
 
-test("the project not touched for the longest is asked about first, and a card that is not due is not asked", () => {
+test("a question with nothing to mistake the answer for is not asked, and the order changes by the day", () => {
+  // Alone, a project has only its own parts and the model's questions to choose between.
+  assert.deepEqual(quizOf("KIOSK", kiosk, { KIOSK: kiosk }, "d").map((item) => item.kind), ["fact", "part", "part", "part"]);
+  assert.deepEqual(quizOf("SHOP", shop, { SHOP: shop, TOWN: town }, "d"), []);
+  assert.deepEqual(quizOf("DRAFT", all.DRAFT, all, "d"), []);
+  assert.deepEqual(quizOf("NONE", null, all, "d"), []);
+  const orders = new Set(["a", "b", "c", "d", "e", "f"].map((day) => quizOf("KIOSK", kiosk, all, day)[1].options.join("|")));
+  assert.ok(orders.size > 1);
+});
+
+test("the project not touched for the longest is asked about first, and a question that is not due is not asked", () => {
   const given = {
     today: "2026-10-06",
     days: {
-      "2026-10-02": { OLD: { minutes: 90, prompts: 9 }, KIOSK: { minutes: 20, prompts: 2 } },
+      "2026-10-02": { TOWN: { minutes: 90, prompts: 9 }, KIOSK: { minutes: 20, prompts: 2 } },
       "2026-10-05": { KIOSK: { minutes: 60, prompts: 4 }, BLANK: { minutes: 30, prompts: 3 } },
       "2026-10-07": { LATER: { minutes: 10, prompts: 1 } },
     },
-    memories: { OLD: { source: "model", one_line: "A map of the town" }, KIOSK: kiosk, LATER: kiosk },
+    memories: { TOWN: town, KIOSK: kiosk, SHOP: shop, LATER: kiosk },
   };
   const projects = builtOf(given);
-  assert.deepEqual(projects.map((item) => [item.project, item.lastDay, item.cards.length]), [["OLD", "2026-10-02", 1], ["KIOSK", "2026-10-05", 4]]);
+  assert.deepEqual(projects.map((item) => [item.project, item.lastDay, item.questions.length]), [["TOWN", "2026-10-02", 3], ["KIOSK", "2026-10-05", 6]]);
   assert.equal(projects[1].about, "A phone booth that answers with a voice");
   const now = Date.now();
-  const [first, second] = projects[1].cards;
-  const later = builtOf({ ...given, now, asked: { [first.id]: { due: now + 1000 }, [second.id]: { due: now - 1000 }, [projects[0].cards[0].id]: { due: now + 1000 } } });
-  assert.deepEqual(later.map((item) => [item.project, item.cards.length]), [["KIOSK", 3]]);
+  const [first, second] = projects[1].questions;
+  const later = builtOf({ ...given, now, asked: { [first.id]: { due: now + 1000 }, [second.id]: { due: now - 1000 }, ...Object.fromEntries(projects[0].questions.map((item) => [item.id, { due: now + 1000 }])) } });
+  assert.deepEqual(later.map((item) => [item.project, item.questions.length]), [["KIOSK", 5]]);
 });

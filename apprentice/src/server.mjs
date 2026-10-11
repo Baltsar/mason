@@ -634,7 +634,7 @@ const server = http.createServer(async (request, response) => {
     if (url.pathname === "/api/island" && request.method === "GET") return json(response, 200, await islandPayload());
     if (url.pathname === "/api/state" && request.method === "GET") return json(response, 200, await statePayload());
     if (url.pathname === "/api/built") {
-      // "Knew it" or "did not": the card comes back later, or tomorrow.
+      // Right or wrong: the question comes back later, or tomorrow.
       if (post) {
         const input = await body(request);
         if (!(await answerCard(input.id, input.knew === true))) return json(response, 400, { error: "No such card" });
@@ -642,7 +642,16 @@ const server = http.createServer(async (request, response) => {
         broadcast("built");
       }
       const next = nextDue(await askedBefore());
-      return json(response, 200, { today: dayKey(Date.now()), projects: await builtProjects(), next: Number.isFinite(next) ? new Date(next).toISOString() : null });
+      const model = modelStatus();
+      return json(response, 200, {
+        today: dayKey(Date.now()),
+        projects: await builtProjects(),
+        next: Number.isFinite(next) ? new Date(next).toISOString() : null,
+        // What the questions are written by and what asks them aloud, so that
+        // the page can say what is missing instead of standing empty.
+        writer: { on: settings().summaries, ready: model.ready, name: model.name, problem: model.problem || "" },
+        voice: { key: hasElevenLabsKey(), on: settings().elevenlabs },
+      });
     }
     if (url.pathname === "/api/suggestions") {
       if (post) {

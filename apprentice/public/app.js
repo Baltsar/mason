@@ -48,8 +48,6 @@ let found = null;
 let findTimer = null;
 let findTurn = 0;
 let findOpen = null;
-let builtShown = false;
-let builtWhere = false;
 // What the settings screen shows: the settings and the state of what Mason depends on.
 let prefs = null;
 // How a day moved between tools: the day shown (none is today) and the tool picked in it.
@@ -366,35 +364,71 @@ async function loadBuilt() {
   if (view === "built") renderBuilt();
 }
 
+// One round of the quiz: a handful of questions about one project, what was
+// picked for the one in front, and how it went. A question that was got wrong
+// is asked once more at the end of the round.
+const ROUND = 5;
+let round = null;
+// The card that says what is missing for Mason to speak, when that was asked for.
+let voiceAsked = false;
+function startRound(index) {
+  const item = built.projects[index];
+  builtAt = { project: index, card: 0 };
+  round = item ? { project: item.project, list: item.questions.slice(0, ROUND), asked: Math.min(ROUND, item.questions.length), at: 0, picked: null, right: 0, again: new Set() } : null;
+}
+// What Built says when there is nothing to ask: what is missing, and the one press that mends it.
+function builtEmpty() {
+  const { writer } = built;
+  const back = built.next ? Math.max(1, Math.round((Date.parse(built.next) - Date.now()) / 86_400_000)) : 0;
+  if (back) return `<h1 class="question">Nothing to recall today.</h1><p class="lede">The next question comes back ${back === 1 ? "tomorrow" : `in ${back} days`}. What you got right comes back after longer each time.</p>`;
+  if (!writer.on) return `<h1 class="question">The quiz needs a model.</h1><p class="lede">Questions about your projects are written by a model, from your agents' logs. Summaries are switched off, so nothing is written. Everything else in Mason works without one.</p><div class="row"><button class="primary" type="button" data-setting-on="summaries">Switch summaries on</button></div>`;
+  if (!writer.ready) return `<h1 class="question">No model to write the questions.</h1><p class="lede">${esc(writer.problem || `Mason asks ${writer.name || "a model"} to write them, and cannot reach it.`)} Everything else in Mason works without one.</p><div class="row"><button class="secondary" type="button" data-view="settings">Open Settings</button></div>`;
+  return `<h1 class="question">Nothing to ask about yet.</h1><p class="lede">Questions are written an hour after you leave a project. Work with your agents as usual.</p>`;
+}
+function voiceMissing() {
+  const { voice } = built;
+  return `<div class="missing" role="status"><b>No voice yet.</b><p>${voice.key
+    ? "Mason asks aloud with ElevenLabs, and Voice is switched off."
+    : "Mason asks aloud with ElevenLabs. Put your key in the file .env.local in Mason's folder, as ELEVENLABS_API_KEY, and start Mason again."}</p><div class="row">${voice.key
+    ? `<button class="primary" type="button" data-setting-on="elevenlabs">Switch voice on</button>`
+    : `<a class="secondary" href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">Get a key</a>`}<button class="quiet" type="button" data-voice-missing="close">Not now</button></div></div>`;
+}
 function renderBuilt() {
-  if (!built) return;
+  if (!built || !snapshot) return;
   const card = $("#built-card");
   const { projects } = built;
-  if (!projects.length) {
+  if (!projects.length && !round) {
     $("#built-meta").textContent = "";
     paint($("#built-projects"), "none", "");
-    // Nothing is due: either all of it was known lately, or nothing is remembered yet.
-    const back = built.next ? Math.max(1, Math.round((Date.parse(built.next) - Date.now()) / 86_400_000)) : 0;
-    return paint(card, `empty-${back}`, back
-      ? `<h1 class="question">Nothing to recall today.</h1><p class="lede">The next question comes back ${back === 1 ? "tomorrow" : `in ${back} days`}. What you knew comes back after longer each time.</p>`
-      : `<h1 class="question">Nothing to ask about yet.</h1><p class="lede">It fills by itself as you work with your agents.</p>`);
+    return paint(card, `empty-${JSON.stringify([built.next, built.writer])}`, builtEmpty());
   }
-  builtAt.project = Math.min(builtAt.project, projects.length - 1);
-  const item = projects[builtAt.project];
-  builtAt.card = Math.min(builtAt.card, item.cards.length - 1);
-  const asked = item.cards[builtAt.card];
-  const days = Math.round((dateOf(built.today) - dateOf(item.lastDay)) / 86_400_000);
-  const left = projects.reduce((count, project) => count + project.cards.length, 0);
-  $("#built-meta").textContent = `${item.project} · ${days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`} · ${left} to recall`;
-  // The question first, in large type. Say the answer to yourself, then look:
-  // what was not known comes back tomorrow, what was known after longer.
-  paint(card, JSON.stringify([asked, builtShown, builtWhere, snapshot.voice.elevenLabs]), `<h1 class="question">${esc(asked.question)}</h1>
-    ${builtShown ? `<ul class="held">${asked.answer.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>
-      ${builtWhere && asked.where.length ? `<ul class="where-in-code">${asked.where.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>` : ""}` : `<p class="lede">Say it to yourself first. Then look.</p>`}
-    <div class="row">${builtShown
-      ? `<button class="primary" type="button" data-built="knew">Knew it</button><button class="secondary" type="button" data-built="not">Did not</button>${asked.where.length && !builtWhere ? `<button class="quiet" type="button" data-built="where">Where in the code</button>` : ""}`
-      : `<button class="primary" type="button" data-built="show">Show</button><button class="quiet" type="button" data-built="skip">Skip</button>`}${snapshot.voice.elevenLabs ? `<button class="secondary" type="button" data-recall="${esc(item.project)}">Ask me aloud</button>` : ""}</div>`);
-  paint($("#built-projects"), JSON.stringify([projects.map((project) => project.project), builtAt.project]), projects.map((project, index) => `<button type="button" data-built-project="${index}" aria-pressed="${index === builtAt.project}">${esc(project.project)}</button>`).join(""));
+  if (!round) startRound(Math.min(builtAt.project, projects.length - 1));
+  const item = projects.find((project) => project.project === round.project);
+  const days = item ? Math.round((dateOf(built.today) - dateOf(item.lastDay)) / 86_400_000) : 0;
+  const left = projects.reduce((count, project) => count + project.questions.length, 0);
+  $("#built-meta").textContent = `${round.project}${item ? ` · ${days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`}` : ""} · ${left} to recall`;
+  const aloud = `<button class="secondary" type="button" ${snapshot.voice.elevenLabs ? `data-recall="${esc(round.project)}"` : `data-voice-missing="open"`}>Ask me aloud</button>`;
+  const steps = `<div class="steps" role="progressbar" aria-valuemin="0" aria-valuemax="${round.list.length}" aria-valuenow="${Math.min(round.at, round.list.length)}" aria-label="Question ${Math.min(round.at + 1, round.list.length)} of ${round.list.length}">${round.list.map((_, index) => `<i data-state="${index < round.at ? "done" : index === round.at ? "now" : "next"}"></i>`).join("")}</div>`;
+  const chips = () => paint($("#built-projects"), JSON.stringify([projects.map((project) => project.project), round.project]), projects.map((project, index) => `<button type="button" data-built-project="${index}" aria-pressed="${project.project === round.project}">${esc(project.project)}</button>`).join(""));
+  if (round.at >= round.list.length) {
+    // The round is over: how it went, in one figure, and what happens to the rest.
+    const missed = round.asked - round.right;
+    const more = item?.questions.length || 0;
+    chips();
+    return paint(card, JSON.stringify(["done", round.right, round.asked, more, voiceAsked]), `${steps}
+      <h1 class="question score">${round.right}<i> of ${round.asked}</i></h1>
+      <p class="lede">${missed ? `${missed === 1 ? "The one you missed comes" : `The ${missed} you missed come`} back tomorrow.` : "All of it. It comes back after longer each time."}</p>
+      <div class="row">${more ? `<button class="primary" type="button" data-quiz="again">${more} more in ${esc(round.project)}</button>` : projects.length ? `<button class="primary" type="button" data-quiz="other">Next project</button>` : ""}${aloud}</div>${voiceAsked ? voiceMissing() : ""}`);
+  }
+  const asked = round.list[round.at];
+  const answered = round.picked !== null;
+  const right = round.picked === asked.right;
+  chips();
+  paint(card, JSON.stringify([asked.id, round.at, round.picked, snapshot.voice.elevenLabs, voiceAsked]), `${steps}
+    <h1 class="question quizzed">${esc(asked.question)}</h1>
+    <div class="options" role="group" aria-label="Answers">${asked.options.map((option, index) => `<button type="button" class="option" data-pick="${index}" ${answered ? "disabled" : ""} data-state="${!answered ? "open" : index === asked.right ? "right" : index === round.picked ? "wrong" : "rest"}"><kbd>${index + 1}</kbd><span>${esc(option)}</span></button>`).join("")}</div>
+    ${answered ? `<div class="verdict" data-right="${right}" role="status"><b>${right ? "Right." : "Not this time."}</b>${asked.why ? `<span>${esc(asked.why)}</span>` : right ? "" : `<span>It comes back at the end.</span>`}</div>` : ""}
+    <div class="row">${answered ? `<button class="primary" type="button" data-quiz="next">Continue</button>` : `<button class="quiet" type="button" data-quiz="skip">Skip</button>`}${aloud}</div>${voiceAsked ? voiceMissing() : ""}`);
 }
 
 /* Find: something that was said, by what it means */
@@ -1475,25 +1509,45 @@ async function act(event) {
   const nav = target.closest("[data-view]");
   if (nav) return show(nav.dataset.view);
 
-  const turned = target.closest("[data-built]");
-  if (turned) {
-    const what = turned.dataset.built;
-    if (what === "show") builtShown = true;
-    else if (what === "where") builtWhere = true;
-    else if (what === "skip") {
-      // The next question of the project, and after its last one the next project.
-      const more = builtAt.card + 1 < built.projects[builtAt.project].cards.length;
-      builtAt = more ? { project: builtAt.project, card: builtAt.card + 1 } : { project: (builtAt.project + 1) % built.projects.length, card: 0 };
-    } else {
-      // Known or not: the card leaves, and comes back when it is due.
-      const asked = built.projects[builtAt.project].cards[builtAt.card];
-      built = await post("/api/built", { id: asked.id, knew: what === "knew" });
+  const quizOption = target.closest("[data-pick]");
+  if (quizOption && round && round.picked === null) {
+    const asked = round.list[round.at];
+    round.picked = Number(quizOption.dataset.pick);
+    const right = round.picked === asked.right;
+    // A question asked again at the end of the round was already counted, and scheduled, as wrong.
+    const second = round.again.has(asked.id);
+    if (right && !second) round.right += 1;
+    if (!right && !second) { round.again.add(asked.id); round.list.push(asked); }
+    renderBuilt();
+    if (!second) { built = await post("/api/built", { id: asked.id, knew: right }); renderBuilt(); }
+    return;
+  }
+  const quizOnward = target.closest("[data-quiz]");
+  if (quizOnward && round) {
+    const what = quizOnward.dataset.quiz;
+    if (what === "again") startRound(Math.max(0, built.projects.findIndex((project) => project.project === round.project)));
+    else if (what === "other") startRound(0);
+    else {
+      // A question that was skipped is not counted, and comes back as it was.
+      if (what === "skip") round.asked -= 1;
+      Object.assign(round, { at: round.at + 1, picked: null });
+      // A round in which everything was skipped has nothing to say: on to the next project.
+      if (round.at >= round.list.length && !round.asked) startRound((builtAt.project + 1) % built.projects.length);
     }
-    if (what !== "show" && what !== "where") { builtShown = false; builtWhere = false; }
     return renderBuilt();
   }
-  const about = target.closest("[data-built-project]");
-  if (about) { builtAt = { project: Number(about.dataset.builtProject), card: 0 }; builtShown = false; builtWhere = false; return renderBuilt(); }
+  const quizProject = target.closest("[data-built-project]");
+  if (quizProject) { startRound(Number(quizProject.dataset.builtProject)); return renderBuilt(); }
+  const noVoice = target.closest("[data-voice-missing]");
+  if (noVoice) { voiceAsked = noVoice.dataset.voiceMissing === "open"; return renderBuilt(); }
+  const quizSwitch = target.closest("[data-setting-on]");
+  if (quizSwitch) {
+    // The one switch that was missing, pressed where it was missed.
+    prefs = await post("/api/settings", { [quizSwitch.dataset.settingOn]: true });
+    voiceAsked = false;
+    await Promise.all([load(), loadBuilt()]);
+    return renderBuilt();
+  }
   if (target.closest("#today-said")) { waitedOpen = !waitedOpen; return render(); }
   if (target.closest("[data-lookback-open]")) { lookbackOpen = !lookbackOpen; return render(); }
   if (target.closest("[data-propose-open]")) { proposeOpen = !proposeOpen; return render(); }
@@ -1726,6 +1780,12 @@ document.addEventListener("input", (event) => {
 document.addEventListener("keydown", (event) => {
   // A tool in the flow picture is pressed with the keyboard like any button.
   if ((event.key === "Enter" || event.key === " ") && event.target.matches?.(".flowmap .node, [data-again], [data-replay-line], [data-wrule]")) { event.preventDefault(); return event.target.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
+  // The quiz is answered from the keyboard: a figure picks, Enter goes on.
+  if (view === "built" && round && !event.metaKey && !event.ctrlKey && !event.altKey && !event.target.matches?.("input, textarea")) {
+    const press = /^[1-4]$/.test(event.key) ? `[data-pick="${Number(event.key) - 1}"]:not([disabled])` : event.key === "Enter" && !event.target.matches?.("button, a") ? `[data-quiz="next"], [data-quiz="again"], [data-quiz="other"]` : "";
+    const button = press && $(`#built-card ${press}`);
+    if (button) { event.preventDefault(); return button.click(); }
+  }
   if (event.key !== "Enter" || event.shiftKey) return;
   const button = { "live-answer": "[data-answer]" }[event.target.id];
   if (!button) return;
