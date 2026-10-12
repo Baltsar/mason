@@ -26,7 +26,8 @@ import { logSources, projectIndex, summarizeProjects } from "./projects.mjs";
 import { callContext, ensureAgent, recallContext, signedUrl, tutorContext } from "./agent.mjs";
 import { MEMORY_VERSION, mergeInferred, projectMemory, savedMemory } from "./memory.mjs";
 import { makeEpisode, playEpisode, podcastBusy, podcastState } from "./podcast.mjs";
-import { hasElevenLabsKey, loadSettings, ownerName, saveSettings, settings } from "./settings.mjs";
+import { hasElevenLabsKey, loadSettings, outsideEndpoint, ownerName, saveSettings, settings } from "./settings.mjs";
+import { checkModel, waysPayload } from "./ways.mjs";
 import { modelStatus, onUse } from "./llm.mjs";
 import { fromHere, holdsKey, makeKey, needsKey, usableKey } from "./guard.mjs";
 import { collectable } from "./collection.mjs";
@@ -692,6 +693,24 @@ const server = http.createServer(async (request, response) => {
       // and with the agents whose rules already hold it. Mason writes it nowhere.
       const rules = await Promise.all(theirs.rules.map(async (rule) => ({ ...rule, hand: handover(rule.rule), told: rule.held ? [] : await heldBy(rule.rule) })));
       return json(response, 200, { theirs: { ...theirs, rules }, mine: own.cards.find((card) => card.purpose === theirs.purpose) || own.cards[0] });
+    }
+    if (url.pathname === "/api/ways") {
+      // The ways Mason can be run, which one is in use, and one question to
+      // the model to see that it answers. Choosing a way is a setting like
+      // any other: what may be chosen is decided where settings are cleaned.
+      if (post) {
+        const input = await body(request);
+        if (input.action === "check") return json(response, 200, await checkModel());
+        const way = String(input.way || "");
+        if (way === "none") await saveSettings({ summaries: false });
+        else if (way === "claude") await saveSettings({ summaries: true, writer: "claude" });
+        else if (way === "local") await saveSettings({ summaries: true, writer: "local", localUrl: String(input.url || ""), localModel: String(input.model || "") });
+        else if (way === "own") await saveSettings({ summaries: true, writer: "" });
+        else return json(response, 400, { error: "No such way" });
+        builtMemo.at = 0;
+        broadcast("settings");
+      }
+      return json(response, 200, await waysPayload({ outside: outsideEndpoint() }));
     }
     if (url.pathname === "/api/welcome" && post) {
       // "Start" or "Not now": the first start is over, and the window is as on any day.

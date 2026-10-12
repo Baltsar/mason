@@ -8,7 +8,12 @@ import { atomicJson, paths, readJson } from "./store.mjs";
 // Naming chat and mail, asking sites for their icons, and placing what was
 // said by its meaning are off until asked for.
 // Looking for a new version asks GitHub once a day and sends nothing of its owner's.
-const DEFAULTS = { name: "", speech: true, summaries: true, elevenlabs: true, chats: false, logs: true, cues: true, logos: false, meaning: false, updates: true, island: true, ready: true, chime: true, skin: "lime" };
+const DEFAULTS = { name: "", speech: true, summaries: true, elevenlabs: true, chats: false, logs: true, cues: true, logos: false, meaning: false, updates: true, island: true, ready: true, chime: true, skin: "lime", writer: "", localUrl: "", localModel: "" };
+// Where a model on this Mac may be reached from here: the address Ollama and
+// LM Studio listen on by default, and nothing else. Any other endpoint is set
+// by hand in .env.local, so that a press in a window can never point the
+// summaries, and the prompts in them, at a place on the internet.
+const LOCAL_URLS = ["http://127.0.0.1:11434/v1", "http://127.0.0.1:1234/v1"];
 // What the window is made of (public/skins.css). All but the last are glass.
 export const SKINS = ["lime", "slate", "sandstone", "patina", "marble", "granite"];
 const file = () => path.join(paths.data, "settings.json");
@@ -41,6 +46,20 @@ function apply() {
   // voice, answers are typed, there are no calls, and no credit is spent.
   if (!current.elevenlabs) delete process.env.ELEVENLABS_API_KEY;
   else if (outside.key) process.env.ELEVENLABS_API_KEY = outside.key;
+  // Which model writes. A key that belongs to an endpoint named in .env.local
+  // goes to that endpoint only, never to another model.
+  const put = (name, value) => { if (value) process.env[name] = value; else delete process.env[name]; };
+  const model = current.writer === "local" ? [current.localUrl, current.localModel, ""] : current.writer === "claude" ? ["", "", ""] : [outside.llmUrl, outside.llmModel, outside.llmKey];
+  put("APPRENTICE_LLM_URL", model[0]);
+  put("APPRENTICE_LLM_MODEL", model[1]);
+  put("APPRENTICE_LLM_KEY", model[2]);
+}
+
+function writerOf(value) {
+  const localUrl = LOCAL_URLS.includes(value?.localUrl) ? value.localUrl : "";
+  const localModel = /^[\w.:\/-]{1,80}$/.test(value?.localModel || "") ? value.localModel : "";
+  const local = value?.writer === "local" && localUrl && localModel;
+  return { writer: local ? "local" : value?.writer === "claude" ? "claude" : "", localUrl: local ? localUrl : "", localModel: local ? localModel : "" };
 }
 
 function clean(value) {
@@ -61,11 +80,14 @@ function clean(value) {
     // The window is glass unless the one skin without it is chosen. A switch
     // that was once kept for the glass is not read any more.
     skin: SKINS.includes(value?.skin) ? value.skin : "lime",
+    // Which model writes: "" is what .env.local names or else Claude, "claude"
+    // is the Claude login whatever .env.local says, "local" a model on this Mac.
+    ...writerOf(value),
   };
 }
 
 export async function loadSettings() {
-  outside ??= { mute: process.env.APPRENTICE_MUTE, llm: process.env.APPRENTICE_LLM, key: process.env.ELEVENLABS_API_KEY };
+  outside ??= { mute: process.env.APPRENTICE_MUTE, llm: process.env.APPRENTICE_LLM, key: process.env.ELEVENLABS_API_KEY, llmUrl: process.env.APPRENTICE_LLM_URL, llmModel: process.env.APPRENTICE_LLM_MODEL, llmKey: process.env.APPRENTICE_LLM_KEY };
   current = clean({ ...DEFAULTS, ...(await readJson(file(), {})) });
   apply();
   return current;
@@ -79,6 +101,9 @@ export async function saveSettings(patch) {
 }
 
 export const settings = () => current;
+
+// The endpoint .env.local names for the summaries, if it names one.
+export const outsideEndpoint = () => (outside?.llmUrl || "").trim();
 
 // Whether there is a key at all, also while ElevenLabs is switched off.
 export const hasElevenLabsKey = () => Boolean(outside?.key);

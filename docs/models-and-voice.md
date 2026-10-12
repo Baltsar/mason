@@ -24,6 +24,8 @@ APPRENTICE_LLM_KEY=
 
 That example is Ollama on this Mac. Anything that answers in the OpenAI chat format works: a model on the Mac, or any provider's address. The key is only for a provider that asks for one.
 
+**Choose what writes**, on the second screen of the first start and under Summaries in Settings, lays the ways side by side: no model, Claude, or a model on this Mac. Ollama and LM Studio are found by themselves when one is running, at the address each listens on, and their models are listed to pick from; nothing has to be written in `.env.local` for that. Another endpoint, and a key for it, are still named there.
+
 **Summaries** in Settings shows which model is writing and switches it off. On the same row stand the tokens it took today, and under it the last seven days. The count is the provider's own figure; nothing of what was sent or answered is kept with it.
 
 A summary sends some six thousand tokens of your prompts, so it is written an hour after you leave a project and not while you work in it.
