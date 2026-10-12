@@ -21,12 +21,19 @@ const rulesFiles = () => process.env.APPRENTICE_RULES_FILE ? [["Claude Code", ru
 
 // The agents on this Mac that open with a prompt in their input, each with the
 // address that does it. None of the three sends the prompt by itself.
+// Claude Code can also be told which folder to open in.
 const OPENERS = [
-  ["Claude Code", ".claude", (prompt) => `claude-cli://open?q=${encodeURIComponent(prompt)}`],
+  ["Claude Code", ".claude", (prompt, folder) => `claude-cli://open?${folder ? `cwd=${encodeURIComponent(folder)}&` : ""}q=${encodeURIComponent(prompt)}`],
   ["Codex", ".codex", (prompt) => `codex://new?prompt=${encodeURIComponent(prompt)}`],
   ["Cursor", "Library/Application Support/Cursor", (prompt) => `cursor://anysphere.cursor-deeplink/prompt?text=${encodeURIComponent(prompt)}`],
 ];
 export const agentsHere = () => OPENERS.filter(([, folder]) => existsSync(path.join(os.homedir(), folder))).map(([agent]) => agent);
+
+// An address for each agent on this Mac that opens with this prompt ready.
+// Cursor loses what follows an ampersand in a link, so such a prompt is copied instead.
+export const linksFor = (prompt, { agents = agentsHere(), folder = "" } = {}) => OPENERS
+  .filter(([agent]) => agents.includes(agent) && !(agent === "Cursor" && prompt.includes("&")))
+  .map(([agent, , address]) => ({ agent, url: address(prompt, folder) }));
 
 // Where a rule comes from, said to the agent that is asked to add it.
 const FROM = {
@@ -57,9 +64,7 @@ export function handover(rule, agents = agentsHere(), whose = "theirs") {
   const words = tidy(rule);
   if (!words || heldBack(words)) return null;
   const prompt = promptFor(words, whose);
-  // Cursor loses what follows an ampersand in a link, so such a rule is copied instead.
-  const links = OPENERS.filter(([agent]) => agents.includes(agent) && !(agent === "Cursor" && words.includes("&"))).map(([agent, , address]) => ({ agent, url: address(prompt) }));
-  return { prompt, links };
+  return { prompt, links: linksFor(prompt, { agents }) };
 }
 
 // The rules files are asked about often and change seldom: each is read again only when it was written to.

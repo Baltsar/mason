@@ -119,7 +119,8 @@ function absorbAll(log, line) {
     }
     return;
   }
-  if (row.type !== "user" || row.isMeta) return;
+  // What Claude Code writes itself when a long session is folded together is not something its owner said.
+  if (row.type !== "user" || row.isMeta || row.isCompactSummary) return;
   const content = row.message?.content;
   const raw = typeof content === "string" ? content : Array.isArray(content) ? content.find((part) => part?.type === "text")?.text : null;
   // The result of a tool coming back: the agent goes on working.

@@ -30,6 +30,8 @@ test("a turn lasts until the model ends it, and knows when the next thing was sa
     result(22),
     // What the harness wraps in a tag is not the person speaking.
     row(23, { type: "user", message: { role: "user", content: "<task-notification>done</task-notification>" } }),
+    // Nor is the summary Claude Code writes when a long session is folded together.
+    row(23, { type: "user", isCompactSummary: true, message: { role: "user", content: "This session is being continued from a previous conversation that ran out of context." } }),
     step(24, "tool_use", "tool"),
   ].join("\n") + "\n");
   const index = await projectIndex(0, { maxAgeMs: 0 });

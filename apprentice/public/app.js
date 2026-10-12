@@ -6,7 +6,7 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 const native = window.webkit?.messageHandlers?.apprentice;
 
-const VIEWS = ["today", "flow", "days", "workflow", "built", "more", "find", "recap", "agents", "settings"];
+const VIEWS = ["today", "flow", "days", "workflow", "built", "more", "continue", "find", "recap", "agents", "settings"];
 // Names a view once had, or that led to a page that is gone.
 const LEGACY = { now: "today", capture: "today", mcp: "agents", map: "more", teach: "more" };
 const TONES = { work: "var(--lime)", social: "var(--red)", other: "var(--grey)" };
@@ -314,7 +314,7 @@ function renderProjects() {
           <p>${esc(memory.left_off)}</p>
           ${memory.open?.length ? `<ul>${memory.open.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>` : ""}
           ${memory.keeps_saying?.length ? `<p class="says">${memory.keeps_saying.map((rule) => `<em>${esc(rule.rule)} <u>×${rule.times}</u></em>`).join("")}</p>` : ""}
-          ${snapshot.voice.elevenLabs ? `<div class="row"><button class="secondary" type="button" data-recall="${esc(item.name)}">Quiz me</button></div>` : ""}
+          <div class="row"><button class="secondary" type="button" data-continue-project="${esc(item.name)}">Continue in a new session</button>${snapshot.voice.elevenLabs ? `<button class="secondary" type="button" data-recall="${esc(item.name)}">Quiz me</button>` : ""}</div>
         </div>` : "";
       const hear = memory?.spoken ? `<button class="hear" type="button" data-hear-project="${esc(item.name)}" data-state="${playing === item.name ? "playing" : "idle"}" aria-label="${playing === item.name ? "Stop" : "Hear where you left off"}"></button>` : `<span></span>`;
       return `<li data-open="${isOpen}"><button class="line" type="button" data-project="${esc(item.name)}"><b>${esc(item.name)}</b><span class="hl">${esc(memory?.headline || "")}</span><i style="--w:${width(item.seconds)}%"></i><span class="time">${item.seconds >= 30 ? minutes(item.seconds) : ""}</span></button>${hear}${more}</li>`;
@@ -479,9 +479,46 @@ function renderFind() {
 
 /* More: what is not looked at every day */
 
+/* Continue: a project handed to a new session, with what an agent needs to know of it */
+
+let handoff = null;
+// The project that was asked for, and whether the notes that are handed over are shown.
+let handoffProject = null;
+let handoffOpen = false;
+async function loadContinue() {
+  handoff = await api(`/api/continue${handoffProject ? `?project=${encodeURIComponent(handoffProject)}` : ""}`);
+  if (view === "continue") renderContinue();
+}
+const ago = (iso) => {
+  const hours = (Date.now() - Date.parse(iso)) / 3_600_000;
+  return hours < 1 ? "just now" : hours < 24 ? `${Math.round(hours)} h ago` : `${Math.round(hours / 24)} ${Math.round(hours / 24) === 1 ? "day" : "days"} ago`;
+};
+function renderContinue() {
+  if (!handoff) return;
+  const card = $("#continue-card");
+  if (!handoff.project) {
+    $("#continue-meta").textContent = "";
+    paint($("#continue-projects"), "none", "");
+    return paint(card, "empty", `<h1 class="question">Nothing to pick up yet.</h1><p class="lede">Work with your agents as usual. Mason reads their logs, and a project you have worked in can be handed to a new session from here.</p>`);
+  }
+  // When the notes were written, and how much was said after them. That is in the brief too.
+  const fresh = handoff.writtenAt ? `Notes written ${ago(handoff.writtenAt)}${handoff.since ? ` · ${handoff.since} ${handoff.since === 1 ? "prompt" : "prompts"} since, included` : ""}` : handoff.text ? "Your own last words, no summary yet" : "";
+  $("#continue-meta").textContent = [handoff.project, fresh].filter(Boolean).join(" · ");
+  const [first, ...rest] = handoff.links;
+  paint(card, JSON.stringify([handoff.project, handoff.text, handoff.links.map((link) => link.agent), handoffOpen]), handoff.text ? `
+    <h1 class="question">Pick up ${esc(handoff.project)}.</h1>
+    ${handoff.leftOff ? `<p class="lede left">${esc(handoff.leftOff)}</p>` : ""}
+    <div class="row">${first ? `<a class="primary" href="${esc(first.url)}" data-hand>Continue in ${esc(first.agent)}</a>` : ""}${rest.map((link) => `<a class="secondary" href="${esc(link.url)}" data-hand>${esc(link.agent)}</a>`).join("")}<button class="${first ? "secondary" : "primary"}" type="button" data-continue="copy">Copy</button><button class="quiet" type="button" data-continue="open" aria-expanded="${handoffOpen}">${handoffOpen ? "Hide the notes" : "What is handed over"}</button></div>
+    <p class="fine">${first ? "The agent opens with the notes in its input. Nothing is sent until you press Enter there, and Mason writes nothing into the project." : "No agent on this Mac opens with a prompt ready. Copy the notes and paste them into a new session."}</p>
+    ${handoffOpen ? `<div class="notes">${handoff.sections.map((section) => `<section><h2>${esc(section.title)}</h2><ul>${section.lines.map((line) => `<li>${esc(line)}</li>`).join("")}</ul></section>`).join("")}</div>` : ""}`
+    : `<h1 class="question">Nothing is known of ${esc(handoff.project)} yet.</h1><p class="lede">Say something to an agent in it, and it can be handed on from here.</p>`);
+  paint($("#continue-projects"), JSON.stringify([handoff.projects, handoff.project]), handoff.projects.map((name) => `<button type="button" data-continue-project="${esc(name)}" aria-pressed="${name === handoff.project}">${esc(name)}</button>`).join(""));
+}
+
 function renderMore() {
   const { podcast } = snapshot;
   const doors = [
+    ["continue", "Continue", "A project, handed to a new session"],
     ["find", "Find", "Something you said, by what it means"],
     ["recap", "Recap", podcast.episode ? podcast.episode.title : "The week as news"],
     ["agents", "Agents", "One memory, every agent"],
@@ -1433,7 +1470,7 @@ function renderShell() {
 function render() {
   applyLook();
   renderShell();
-  ({ today: renderToday, flow: renderFlow, days: renderDays, workflow: renderWorkflow, built: renderBuilt, more: renderMore, find: renderFind, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
+  ({ today: renderToday, flow: renderFlow, days: renderDays, workflow: renderWorkflow, built: renderBuilt, more: renderMore, continue: renderContinue, find: renderFind, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
 }
 
 async function load() {
@@ -1457,6 +1494,11 @@ function show(name, arg) {
   if (view === "days") loadDays().catch(() => {});
   if (view === "workflow") loadWorkflow().catch(() => {});
   if (view === "built") loadBuilt().catch(() => {});
+  if (view === "continue") {
+    // "#continue/KIOSK" opens that project; without one it is the project last worked in.
+    if (arg !== undefined) { try { handoffProject = decodeURIComponent(arg) || null; } catch { handoffProject = null; } }
+    loadContinue().catch(() => {});
+  }
   if (view === "find") {
     // Opened from a nudge about work done before: what was just said is looked for.
     const nudge = snapshot?.nudges?.latest;
@@ -1509,6 +1551,13 @@ async function act(event) {
   const nav = target.closest("[data-view]");
   if (nav) return show(nav.dataset.view);
 
+  const picksUp = target.closest("[data-continue-project]");
+  if (picksUp) { handoffProject = picksUp.dataset.continueProject; handoffOpen = false; return view === "continue" ? loadContinue() : show("continue"); }
+  const handsOn = target.closest("[data-continue]");
+  if (handsOn && handoff) {
+    if (handsOn.dataset.continue === "open") { handoffOpen = !handoffOpen; return renderContinue(); }
+    return toast(await copyText(handoff.text) ? "Copied. Paste it into a new session, and read it before you send it." : "Could not copy.");
+  }
   const quizOption = target.closest("[data-pick]");
   if (quizOption && round && round.picked === null) {
     const asked = round.list[round.at];
