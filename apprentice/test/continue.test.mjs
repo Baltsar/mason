@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { briefOf, continueIn, sectionsOf } from "../src/continue.mjs";
+import { briefOf, continueIn, notesName, sectionsOf, shortOf } from "../src/continue.mjs";
 
 const kiosk = {
   source: "model",
@@ -56,14 +56,44 @@ test("a note is one plain line: nothing unseen, no fence, and a brief that fits 
   assert.equal(big.sections.some((section) => section.title === "How it is put together"), false);
 });
 
-test("each agent on this Mac opens with the brief ready, Claude Code in the project's folder", () => {
+test("a link carries the short of it: a few lines that can be read before Enter is pressed", () => {
+  const given = { project: "KIOSK", folder: "/Users/someone/KIOSK", memory: kiosk, recent: [said("Try the modem on battery", 1)], notes: "/Users/someone/Mason/handoff/kiosk.md" };
+  const short = shortOf(given);
+  assert.equal(short, `Picking up KIOSK again, in /Users/someone/KIOSK. Notes Mason wrote from my earlier sessions, to check against the code:
+- It is: A phone booth you can ask anything, and it answers out loud.
+- I stopped at: Modem power is a guess, not a measurement.
+- Still open: Measure what the modem really draws
+- Decided: Use the turbo voice for the first word, because the plain one waits too long
+- I last asked: "Try the modem on battery"
+All the notes: /Users/someone/Mason/handoff/kiosk.md
+Say where things stand in a few lines, and wait for me before changing anything.`);
+  // An agent that is started in the folder is not told where it is.
+  assert.match(shortOf(given, false), /^Picking up KIOSK again\. Notes/);
+  // With no room, what matters least goes first, and where it was left goes last.
+  const wordy = (text) => `${text} ${"word ".repeat(40)}`;
+  const tight = shortOf({ ...given, memory: { ...kiosk, plainly: wordy("is"), left_off: wordy("stopped"), open: [wordy("open one"), wordy("open two")], decided: [wordy("decided")] }, recent: [said(wordy("asked"), 1)] });
+  assert.ok(tight.length <= 640);
+  assert.match(tight, /- I stopped at: stopped/);
+  assert.match(tight, /- Still open: open one/);
+  assert.doesNotMatch(tight, /open two|Decided/);
+  // Without a model it is one's own last two asks, and with nothing known there is nothing to say.
+  assert.match(shortOf({ project: "NEW", memory: { source: "own-words" }, recent: [said("first", 1), said("second", 2), said("third", 3)] }), /- I last asked: "second"\n- I last asked: "third"\nSay where/);
+  assert.equal(shortOf({ project: "NONE", memory: { source: "own-words" } }), "");
+  assert.equal(notesName("KATARINA SÄLJBOT"), "katarina-saljbot.md");
+  assert.equal(notesName("../../etc"), "etc.md");
+});
+
+test("each agent on this Mac opens with the short of it ready, Claude Code in the project's folder", () => {
   const given = { project: "KIOSK", folder: "/Users/someone/My KIOSK", memory: kiosk };
   const handed = continueIn(given, ["Claude Code", "Codex", "Cursor"]);
   assert.deepEqual(handed.links.map((link) => link.agent), ["Claude Code", "Codex", "Cursor"]);
   const claude = new URL(handed.links[0].url);
   assert.equal(claude.searchParams.get("cwd"), "/Users/someone/My KIOSK");
-  assert.equal(claude.searchParams.get("q"), handed.text);
-  assert.equal(new URL(handed.links[1].url).searchParams.get("prompt"), handed.text);
+  // Claude Code is started in the folder, so its words do not name it. The others are told.
+  assert.equal(claude.searchParams.get("q"), shortOf(given, false));
+  assert.equal(new URL(handed.links[1].url).searchParams.get("prompt"), handed.short);
+  assert.match(handed.short, /again, in \/Users\/someone\/My KIOSK\./);
+  assert.ok(handed.short.length < handed.text.length);
   // A folder that is not a plain path from the root is named in no link.
   assert.equal(new URL(continueIn({ ...given, folder: "/Users/someone/../other" }, ["Claude Code"]).links[0].url).searchParams.get("cwd"), null);
   // Cursor loses what follows an ampersand, so such a brief is copied instead.

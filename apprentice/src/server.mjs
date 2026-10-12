@@ -1,5 +1,5 @@
 import http from "node:http";
-import { readFile, writeFile, unlink } from "node:fs/promises";
+import { mkdir, readFile, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { execFile, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -35,7 +35,7 @@ import { endTrial, trialPayload } from "./trial.mjs";
 import { endWelcome, welcomePayload } from "./welcome.mjs";
 import { recordUse, usagePayload } from "./usage.mjs";
 import { noticeFor } from "./notice.mjs";
-import { continueIn } from "./continue.mjs";
+import { briefOf, continueIn, notesName } from "./continue.mjs";
 import { fileOf, handover, heldBy, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
 
 useMemoryStore();
@@ -712,7 +712,17 @@ const server = http.createServer(async (request, response) => {
       const written = memory.source === "model";
       // What was said after the notes were written. Without notes, all of it.
       const recent = project.prompts.filter((prompt) => !written || prompt.at > (memory.basedOn || 0));
-      const handed = continueIn({ project: project.name, folder: project.folder, memory, recent });
+      // All the notes are kept as a file in Mason's own folder, so that the
+      // few lines a link carries can say where the rest is. Nothing is
+      // written into the project.
+      const given = { project: project.name, folder: project.folder, memory, recent };
+      const all = briefOf(given);
+      const notes = all ? path.join(paths.data, "handoff", notesName(project.name)) : "";
+      if (all) {
+        await mkdir(path.dirname(notes), { recursive: true });
+        await writeFile(notes, `${all.text}\n`);
+      }
+      const handed = continueIn({ ...given, notes });
       // The agent this project was last worked with comes first.
       const last = project.prompts.at(-1).agent || "Claude Code";
       const links = handed ? [...handed.links].sort((a, b) => (b.agent === last) - (a.agent === last)) : [];
@@ -724,7 +734,7 @@ const server = http.createServer(async (request, response) => {
         writtenAt: written ? memory.generatedAt || null : null,
         since: written ? recent.length : 0,
         last,
-        ...(handed ? { sections: handed.sections, text: handed.text, links } : { sections: [], text: "", links: [] }),
+        ...(handed ? { sections: handed.sections, text: handed.text, short: handed.short, links } : { sections: [], text: "", short: "", links: [] }),
       });
     }
     if (url.pathname === "/api/notice" && post) {

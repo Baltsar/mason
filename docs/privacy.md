@@ -48,7 +48,7 @@ Inside the folder you cloned, and not in the repository:
 
 | Folder | What |
 |---|---|
-| `apprentice/data/` | The memory: events, the Work Map, settings, what was shared. |
+| `apprentice/data/` | The memory: events, the Work Map, settings, what was shared. In `handoff/`, the notes of each project you opened in Continue, as one Markdown file each. |
 | `apprentice/wiki/` | The same memory as plain Markdown notes with links between them: one note per project, your rules, the Work Map. Open it in Obsidian or any editor. |
 
 Settings → **Kept on this Mac** opens both in Finder. **Forget** empties what Find has read. Deleting the two folders deletes the memory.
