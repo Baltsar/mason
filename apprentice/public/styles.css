@@ -374,6 +374,8 @@ dialog mark { background: color-mix(in srgb, var(--loud) 16%, transparent); colo
 .handoff .notes { display: grid; gap: 22px; max-width: 900px; margin: 30px 0 0; padding: 24px 0 0; border-top: 1px solid var(--line); animation: rise .3s var(--ease) both; }
 .handoff .notes h2 { margin: 0 0 8px; color: var(--muted); font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
 .handoff .notes ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.handoff .notes .short { margin: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; color: var(--paper); font: 13px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.handoff .notes section:empty, .handoff .notes section > h2:only-child { margin-bottom: -14px; }
 .handoff .notes li { font-size: 17px; line-height: 1.4; overflow-wrap: anywhere; }
 #continue-projects { padding-top: 22px; border-top: 1px solid var(--line); }
 #built-projects { padding-top: 22px; border-top: 1px solid var(--line); }
