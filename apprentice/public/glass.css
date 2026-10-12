@@ -119,7 +119,7 @@ html[data-look="glass"] .flowmap .count circle { fill: #1c1a15; stroke: rgba(255
 
 /* The largest type stands straight on the pane, with nothing of its own
    behind it. A soft shadow keeps its edge where the desktop is bright. */
-html[data-look="glass"] :is(.big, .said, .question, .statement, .seek, .again h2, .hit h2, .doors b) { text-shadow: 0 2px 26px rgba(0, 0, 0, .45); }
+html[data-look="glass"] :is(.big, .said, .question, .statement, .seek, .again h2, .hit h2) { text-shadow: 0 2px 26px rgba(0, 0, 0, .45); }
 
 @media (prefers-reduced-transparency: reduce) {
   html[data-look="glass"] { --glass: #191713; --pill: #2a2722; }

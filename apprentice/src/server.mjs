@@ -1,5 +1,5 @@
 import http from "node:http";
-import { readFile, writeFile, unlink } from "node:fs/promises";
+import { mkdir, readFile, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { execFile, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -36,7 +36,7 @@ import { endTrial, trialPayload } from "./trial.mjs";
 import { endWelcome, welcomePayload } from "./welcome.mjs";
 import { recordUse, usagePayload } from "./usage.mjs";
 import { noticeFor } from "./notice.mjs";
-import { continueIn } from "./continue.mjs";
+import { briefOf, continueIn, notesName } from "./continue.mjs";
 import { fileOf, handover, heldBy, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
 
 useMemoryStore();
@@ -718,6 +718,18 @@ const server = http.createServer(async (request, response) => {
       broadcast("welcome");
       return json(response, 200, { ok: true });
     }
+    if (url.pathname === "/api/projects") {
+      // Every project of the last three weeks, the one last worked in first:
+      // where it was left in a few words, and how much there is to recall of it.
+      const index = await projectIndex(dayStart() - 20 * 86_400_000, { maxAgeMs: 60_000 });
+      const due = new Map((await builtProjects()).map((item) => [item.project, item.questions.length]));
+      const known = index.list.filter((item) => item.prompts.length).sort((a, b) => b.prompts.at(-1).at - a.prompts.at(-1).at);
+      const projects = await Promise.all(known.map(async (item) => {
+        const memory = memories.get(item.name) || await savedMemory(item.name);
+        return { name: item.name, lastAt: new Date(item.prompts.at(-1).at).toISOString(), headline: memory?.headline || "", about: memory?.one_line || "", due: due.get(item.name) || 0 };
+      }));
+      return json(response, 200, { projects });
+    }
     if (url.pathname === "/api/continue") {
       // A project, ready to be picked up in a new session: the notes Mason
       // holds, what was said since they were written, and an address for each
@@ -731,7 +743,17 @@ const server = http.createServer(async (request, response) => {
       const written = memory.source === "model";
       // What was said after the notes were written. Without notes, all of it.
       const recent = project.prompts.filter((prompt) => !written || prompt.at > (memory.basedOn || 0));
-      const handed = continueIn({ project: project.name, folder: project.folder, memory, recent });
+      // All the notes are kept as a file in Mason's own folder, so that the
+      // few lines a link carries can say where the rest is. Nothing is
+      // written into the project.
+      const given = { project: project.name, folder: project.folder, memory, recent };
+      const all = briefOf(given);
+      const notes = all ? path.join(paths.data, "handoff", notesName(project.name)) : "";
+      if (all) {
+        await mkdir(path.dirname(notes), { recursive: true });
+        await writeFile(notes, `${all.text}\n`);
+      }
+      const handed = continueIn({ ...given, notes });
       // The agent this project was last worked with comes first.
       const last = project.prompts.at(-1).agent || "Claude Code";
       const links = handed ? [...handed.links].sort((a, b) => (b.agent === last) - (a.agent === last)) : [];
@@ -743,7 +765,7 @@ const server = http.createServer(async (request, response) => {
         writtenAt: written ? memory.generatedAt || null : null,
         since: written ? recent.length : 0,
         last,
-        ...(handed ? { sections: handed.sections, text: handed.text, links } : { sections: [], text: "", links: [] }),
+        ...(handed ? { sections: handed.sections, text: handed.text, short: handed.short, links } : { sections: [], text: "", short: "", links: [] }),
       });
     }
     if (url.pathname === "/api/notice" && post) {

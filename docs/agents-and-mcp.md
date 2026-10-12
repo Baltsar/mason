@@ -34,7 +34,7 @@ That command reads the files itself, asks no server and needs no key.
 
 For an agent that cannot start a command, the same tools answer over HTTP at `http://127.0.0.1:4317/mcp` while Mason is running. That way needs the key of this start, sent as `Authorization: Bearer`. **More → Agents** in the app window copies the settings with the key in them. The key is new at every start, so they are pasted again after a restart.
 
-**More → Agents** also lets you try each tool.
+**Settings → Agents → Connect an agent** also lets you try each tool.
 
 ## The tools
 

@@ -254,15 +254,6 @@ dialog mark { background: color-mix(in srgb, var(--loud) 16%, transparent); colo
 .pair:has(> [hidden]) { grid-template-columns: 1fr; }
 .pair > .card { min-height: 0; }
 .ask[data-state="open"] h2 { font-size: clamp(24px, 2.8vw, 36px); }
-.log { margin-top: 28px; }
-.log summary { display: flex; align-items: center; gap: 14px; width: max-content; color: var(--muted); font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; list-style: none; cursor: pointer; }
-.log summary::-webkit-details-marker { display: none; }
-.log summary span { color: var(--faint); text-transform: none; letter-spacing: 0; }
-.log ol { display: grid; margin: 12px 0 0; padding: 0; list-style: none; }
-.log li { display: grid; grid-template-columns: 74px 150px 1fr; gap: 14px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
-.log time { color: var(--faint); font: 12px/1.6 var(--mono); }
-.log b { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.log li span { overflow: hidden; color: #b3b3af; text-overflow: ellipsis; white-space: nowrap; }
 .actions { margin-top: 26px; border: 0; padding: 0; }
 .beats article { min-height: 0; padding: 20px 22px; }
 .beats h2 { margin: 12px 0 0; font-size: 19px; }
@@ -374,6 +365,8 @@ dialog mark { background: color-mix(in srgb, var(--loud) 16%, transparent); colo
 .handoff .notes { display: grid; gap: 22px; max-width: 900px; margin: 30px 0 0; padding: 24px 0 0; border-top: 1px solid var(--line); animation: rise .3s var(--ease) both; }
 .handoff .notes h2 { margin: 0 0 8px; color: var(--muted); font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
 .handoff .notes ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.handoff .notes .short { margin: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; color: var(--paper); font: 13px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.handoff .notes section:empty, .handoff .notes section > h2:only-child { margin-bottom: -14px; }
 .handoff .notes li { font-size: 17px; line-height: 1.4; overflow-wrap: anywhere; }
 #continue-projects { padding-top: 22px; border-top: 1px solid var(--line); }
 #built-projects { padding-top: 22px; border-top: 1px solid var(--line); }
@@ -408,12 +401,6 @@ dialog mark { background: color-mix(in srgb, var(--loud) 16%, transparent); colo
 .hit li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 22px; color: #b7b7b3; font-size: 17px; line-height: 1.4; }
 .hit li span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .hit li time { color: var(--faint); font: 12px var(--mono); white-space: nowrap; }
-.doors { display: grid; border-top: 1px solid var(--line); }
-.doors button { display: grid; grid-template-columns: minmax(150px, 280px) minmax(0, 1fr) 24px; align-items: baseline; column-gap: 22px; padding: 22px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--paper); text-align: left; }
-.doors b { font-size: 34px; font-weight: 700; letter-spacing: -.05em; transition: color .15s; }
-.doors span { overflow: hidden; color: var(--muted); font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
-.doors button::after { content: "→"; color: var(--faint); }
-.doors button:hover b { color: var(--loud); }
 [data-page="today"] > .ask { margin-bottom: 16px; }
 
 /* Flow: how the day moved between tools. Each tool wears its own face, and
@@ -698,3 +685,23 @@ a.quiet { display: inline-flex; align-items: center; text-decoration: none; }
 .seg button { min-height: 30px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 13px; }
 .seg button:hover { color: var(--paper); }
 .seg button[aria-pressed="true"] { background: var(--loud); color: var(--on-loud); font-weight: 650; }
+
+/* Projects: a line each, the one last worked in first, with the two things that can be done with it. */
+.plist ol { display: grid; margin: 6px 0 0; padding: 0; border-top: 1px solid var(--line); list-style: none; }
+.plist li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; border-bottom: 1px solid var(--line); }
+.plist .line { display: grid; grid-template-columns: minmax(120px, 300px) minmax(0, 1fr) auto; align-items: baseline; gap: 20px; min-width: 0; padding: 20px 0; border: 0; background: transparent; color: var(--paper); text-align: left; }
+.plist .line b { overflow: hidden; font-size: clamp(22px, 2.6vw, 30px); letter-spacing: -.045em; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; transition: color .15s; }
+.plist .line:hover b { color: var(--loud); }
+.plist .line .hl { overflow: hidden; color: var(--muted); font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.plist .line time { color: var(--faint); font: 12px var(--mono); white-space: nowrap; }
+.plist .acts { display: flex; gap: 8px; }
+.plist .acts button { min-height: 36px; padding: 0 14px; }
+.plist .acts button:disabled { opacity: .35; cursor: default; }
+.plist .acts i { margin-left: 7px; color: var(--loud); font: 600 12px var(--mono); font-style: normal; }
+.plist .question + .lede { margin-top: 18px; }
+/* The way back from a page that is reached from another one. */
+.eyebrow .back { margin-right: 14px; padding: 0; border: 0; background: transparent; color: var(--muted); font: inherit; letter-spacing: inherit; text-transform: inherit; }
+.eyebrow .back::before { content: "\2039\00a0"; }
+.eyebrow .back:hover { color: var(--paper); }
+.aside { margin: 26px 0 0; }
+@media (max-width: 820px) { .plist li { grid-template-columns: 1fr; gap: 0; padding-bottom: 16px; } .plist .line { grid-template-columns: 1fr auto; } .plist .line .hl { grid-column: 1 / -1; grid-row: 2; } }

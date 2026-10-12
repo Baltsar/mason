@@ -11,10 +11,19 @@ import { heldBack, tidy } from "./rules.mjs";
 // The brief is handed over the way a rule is (handover.mjs): as a prompt that
 // is ready and not sent. Its owner reads it and presses Enter. Mason writes
 // nothing into the project.
+//
+// There are two sizes of it. All the notes are for copying, and are kept as
+// a file in Mason's own folder. What goes into a link is the short of it: a
+// few lines that can be read before Enter is pressed. A link to Claude Code
+// starts it in a terminal, with everything in the link packed into the
+// command that is shown there, so a long brief is a wall of letters before
+// the agent has said a word.
 
-// Claude Code takes at most 5000 characters in a link. The brief stays under
-// that with room to spare, so the same words go to every agent.
+// All the notes, at most. Claude Code takes no more than 5000 characters in a link.
 const AT_MOST = 4400;
+// The short of it, at most, and one line of it.
+const SHORT_AT_MOST = 640;
+const SHORT_LINE = 110;
 const RECENT = 5;
 
 // One line of a note: plain letters, one line, no backtick that could close a
@@ -80,11 +89,47 @@ Read what you need to check these notes against the code. Then tell me in a few 
   return { sections: kept, text: text.slice(0, AT_MOST) };
 }
 
-// The brief with an address for each agent on this Mac that opens with it
-// ready. Claude Code opens in the project's own folder.
+// The short of it: what the project is, where it was left, what is open, and
+// the last thing asked for, each in one line. `named` says whether the folder
+// is said in words (an agent that is not started in it has to be told), and
+// `notes` is where all the notes are kept, for an agent that wants more.
+export function shortOf({ project, folder = "", memory = {}, recent = [], notes = "" } = {}, named = true) {
+  const written = memory.source === "model";
+  const one = (text) => line(text, SHORT_LINE);
+  const said = recent.map((prompt) => one(prompt.text)).filter((text, index, all) => text && !/^# Files mentioned by the user/i.test(text) && all.indexOf(text) === index);
+  // In the order they are said, each with how early it is left out when there is no room.
+  const items = [
+    written && [3, "It is", one(memory.plainly || memory.one_line)],
+    written && [5, "I stopped at", one(memory.left_off)],
+    ...(written ? (memory.open || []).slice(0, 2).map((text, index) => [index ? 1 : 4, "Still open", one(text)]) : []),
+    written && [2, "Decided", one((memory.decided || [])[0])],
+    ...said.slice(written ? -1 : -2).map((text, index, all) => [written ? 2 : 4 + index - all.length, "I last asked", `"${text.replace(/"/g, "'")}"`]),
+  ].filter((item) => item && item[2] && item[2] !== '""');
+  if (!items.length) return "";
+  const write = (list) => `Picking up ${line(project, 60)} again${named && folder ? `, in ${folder}` : ""}. Notes Mason wrote from my earlier sessions, to check against the code:
+${list.map(([, title, text]) => `- ${title}: ${text}`).join("\n")}
+${notes ? `All the notes: ${notes}\n` : ""}Say where things stand in a few lines, and wait for me before changing anything.`;
+  let kept = items;
+  while (write(kept).length > SHORT_AT_MOST && kept.length > 1) {
+    const least = Math.min(...kept.map(([weight]) => weight));
+    kept = kept.filter((item, index) => index !== kept.findIndex(([weight]) => weight === least));
+  }
+  return write(kept);
+}
+
+// The brief with an address for each agent on this Mac that opens with the
+// short of it ready. Claude Code is started in the project's own folder; the
+// others are told where it is.
 export function continueIn(given, agents) {
   const brief = briefOf(given);
   if (!brief) return null;
   const folder = /^\/(?!.*(?:^|\/)\.\.(?:\/|$))/.test(given.folder || "") ? given.folder : "";
-  return { ...brief, links: linksFor(brief.text, { folder, ...(agents ? { agents } : {}) }) };
+  const short = shortOf({ ...given, folder });
+  const links = linksFor(short, agents ? { agents } : {}).map((link) => link.agent === "Claude Code" && folder
+    ? linksFor(shortOf({ ...given, folder }, false), { agents: ["Claude Code"], folder })[0]
+    : link);
+  return { ...brief, short, links };
 }
+
+// The name of the file all the notes of a project are kept in.
+export const notesName = (project) => `${String(project ?? "").normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "project"}.md`;

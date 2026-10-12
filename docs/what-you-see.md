@@ -10,8 +10,7 @@ Mason has three surfaces: the island in the menu bar, the panel under it, and th
 | [Flow](#flow) | How you moved between tools. Replay and Share are here. |
 | [Days](#days) | Every day worked, and the tokens your agents took. |
 | [Workflow](#workflow) | Thirty days of how you work with agents, as one card. |
-| [Built](#built) | A quiz about what you built. |
-| [More](#more) | Find, Recap and Agents. |
+| [Projects](#projects) | Every project in one place: where you left it, a way to pick it up, and a quiz about it. |
 
 ## The island
 
@@ -33,7 +32,7 @@ To the right of the notch sits **the eye**:
 
 Press the island. The project you were last in, where you left it in six words, and today's split in large type: work, social, other. They always sum to 100. Time inside a project counts as work whatever the window is called, and idle time over a minute is left out. The day turns over at 04:00, so a late night stays one day.
 
-Two round buttons: hear where you left off, and the debrief call, lime when one is ready.
+Two round buttons: hear where you left off, and an arrow that opens the project in the window, ready to be picked up in a new session. A third, lime, is there only when a debrief call is ready.
 
 Press a figure to open the app window.
 
@@ -61,40 +60,32 @@ Mason writes the file and posts nothing.
 
 A calendar of every day worked, back to the first day of each project, and each project's month as a strip. Beside the hours with agents stand the tokens they took, by day and by project, as the agents' own logs count them. It is a count, not a cost.
 
+**The week as news**, under the month, is the recap: the week as a two-minute bulletin in two voices. It needs a voice: see [Models and voice](models-and-voice.md#voice).
+
 ## Workflow
 
 Thirty days of the agents' logs as one card: which agent you talk to and how much, prompts an hour, how long an agent works on one prompt, how many projects a day, the tokens a day of work takes, and what you tell your agents again and again. It is read from logs that are already on the Mac, so it is there the first day.
 
 Share makes it a picture and a file. Opening someone else's file puts theirs beside yours. See [Share and try workflows](workflows.md).
 
-## Built
+## Projects
 
-A quiz about your own projects, five questions at a time: which one it is, what each part does, where it runs, where you left it. Each question has up to four answers to choose between; press one, or the figure beside it. Right or wrong is said at once, with the reason in a line. A question you got wrong is asked once more at the end of the round and comes back tomorrow; one you got right comes back after three days, then a week, three weeks, two months.
+Every project you worked in during the last three weeks, the one last touched first. A line each: its name, where you left it in a few words, and how long ago. Two things can be done with a project, and both are on its line.
+
+**Continue.** A project, handed to a new session. An agent starts every session knowing nothing; Mason holds what it needs, written from the agents' own logs. **Continue in Claude Code**, Codex or Cursor opens that agent with the short of it in its input: what the project is, where you stopped, what is open and the last thing you asked for, in a few lines you can read before you press Enter. Nothing is sent until you do, and Mason writes nothing into the project. Claude Code is started in the project's own folder, in a terminal, and first shows the command that starts it: a few lines of packed letters, which are the folder and those lines. All the notes (how it is put together, what was decided and why, everything you asked for since) are kept as a file in Mason's own folder, which the short of it names, and **Copy all notes** gives them for a teammate or a pull request. What was done with one agent can be picked up with another. A project's row in Today and the arrow in the panel lead here too.
+
+**Quiz.** A quiz about your own projects, five questions at a time: which one it is, what each part does, where it runs, where you left it. Each question has up to four answers to choose between; press one, or the figure beside it. Right or wrong is said at once, with the reason in a line. A question you got wrong is asked once more at the end of the round and comes back tomorrow; one you got right comes back after three days, then a week, three weeks, two months.
 
 The questions are written by the model that writes the summaries, in the same call, and the wrong answers are partly what is true of your other projects. Without a model there are no questions, and Built says so with the switch that mends it. **Ask me aloud** turns it into a call; without a voice it says what is missing.
 
-## More
-
-- **Continue.** A project, handed to a new session. An agent starts every session knowing nothing; Mason holds what it needs, written from the agents' own logs: what the project is, how it is put together, what was decided and why, where you stopped, what is still open, and what you asked for after those notes were written. **Continue in Claude Code**, Codex or Cursor opens that agent with the notes in its input, Claude Code in the project's own folder. Nothing is sent until you press Enter there, and Mason writes nothing into the project. **Copy** gives the same words for a teammate or a pull request. What was done with one agent can be picked up with another. Also from a project's row in Today, and from the arrow in the panel.
-- **Find.** Type what it was about and get the project, by meaning and not by the words, in Swedish or English. With nothing typed it shows what you told your agents again and again across projects. Off until switched on: see [Find by meaning](models-and-voice.md#find-by-meaning).
-- **Recap.** The week as a two-minute news bulletin in two voices. Needs a voice: see [Models and voice](models-and-voice.md#voice).
-- **Agents.** The address and the tools of the MCP server. See [Agents and MCP](agents-and-mcp.md).
-
-## Nudges
-
-A nudge is a word on the island at the moment it can be acted on. It rests on your own history, never on a clock or a list you keep. There are two:
-
-- **Waited 9 min · PROJECT.** An answer has waited twice as long as you usually leave one, while you are at the Mac in another tool.
-- **Done before · PROJECT.** A prompt you just sent is the same piece of work as one in another project, a day or more ago. Needs Find switched on.
-
-Each nudge is followed up. A kind you ignore three times in a row goes quiet for two weeks by itself. At most one in ten minutes and six in a day. **A word on the island** in Settings shows how the last week went and switches them all off.
+**Find something you said**, under the list, finds a project by what it was about, by meaning and not by the words, in Swedish or English. With nothing typed it shows what you told your agents again and again across projects. Off until switched on: see [Find by meaning](models-and-voice.md#find-by-meaning).
 
 ## Calls
 
 With a voice switched on, Mason can call you. Nothing rings: a call is offered, and you take it when you have two minutes.
 
 - **The debrief.** After a block of real work the island says `Debrief ready`. Mason opens with what it saw and asks three or four short questions. An answer that holds a decision or a rule is saved in your words while you talk. It explains the whole thing back and asks what it got wrong.
-- **The recall call.** The round **?** beside a project. Mason asks you how your own project is put together, says what you had right and brings up what you left out.
+- **The recall call.** **Quiz me** in a project's row in Today, or **Ask me aloud** in the quiz. Mason asks you how your own project is put together, says what you had right and brings up what you left out.
 
 You always see whether you are heard: the microphone's level moves around its icon, and one word says who has the floor.
 
