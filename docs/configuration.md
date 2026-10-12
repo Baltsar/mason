@@ -20,9 +20,10 @@ Under the gear in the app window. Mason calls you by the first name on this Mac'
 | **A lute with it** | On | Two notes on a lute when the card drops. The sound is a file in the repository; playing it calls nothing. Silent as well whenever **Sound** is off. |
 | **A word on the island** | On | Nudges on the island when an answer has waited. |
 | **Island by the notch** | On | Mason sits in the menu bar as the island beside the notch, showing the day. Off, it is one icon among the others on the right, with a dot when there is something to come back to. |
-| **Liquid glass** | Off | A second look to try: glass panels over the desktop. |
 
 The first four are grouped as **Leaves this Mac**, the next three as **Stays on this Mac**. What each one sends or keeps is in [What it reads, sends and keeps](privacy.md).
+
+**Skin** is what Mason is made of, chosen from six small panes that each draw themselves in their own colours. Five are glass over the desktop and differ in what the glass is tinted with and which colour is the loud one: **Lime** (the default: smoked glass and the green), **Slate** (cool glass, pale blue), **Sandstone** (warm glass, yellow), **Patina** (green glass, copper) and **Marble** (grey glass, no colour). **Granite** is solid: nothing shows through, for a desktop too busy to work on top of. A skin changes colours and nothing else; nothing moves. It applies to the window and the panel. The island in the menu bar keeps its own colours.
 
 Also in Settings: **Screen** shows whether Mason has Accessibility and offers **Fix access** when it has not, **In your agents' rules** lists the rules that stand in your agents' rules files, with the agents that hold each, and **Kept on this Mac** opens the memory and the notes in Finder.
 

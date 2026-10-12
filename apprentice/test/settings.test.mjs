@@ -25,6 +25,15 @@ test("a setting is kept, and switching the sound off silences Mason", async () =
   assert.equal((await loadSettings()).name, "Ada Lovelace");
 });
 
+test("the window is glass in the skin Lime until another is chosen, and only a skin that exists is kept", async () => {
+  assert.equal((await loadSettings()).skin, "lime");
+  assert.equal((await saveSettings({ skin: "slate" })).skin, "slate");
+  // The switch the glass once had is not read any more, and a name that is no skin is the first one.
+  const kept = await saveSettings({ skin: "url(evil)", glass: true });
+  assert.equal(kept.skin, "lime");
+  assert.equal("glass" in kept, false);
+});
+
 test("switching ElevenLabs off takes the key away from everything that would call it, and on gives it back", async () => {
   const { hasElevenLabsKey } = await import("../src/settings.mjs");
   const { voiceStatus } = await import("../src/voice.mjs");

@@ -1,0 +1,61 @@
+/* Skins: what Mason is made of. Each is named after a stone a mason builds
+   with, and each changes three things and nothing else: what the glass is
+   tinted with, which colour is the loud one, and which colour is Mason
+   speaking. Nothing moves and nothing changes size, so a skin can be tried on
+   without learning the window again.
+
+   Two rules hold for every skin. The loud colour and the speaking colour are
+   light, because both carry dark words. And the tint is dark, because what
+   lies behind glass cannot be chosen and may be a white page.
+
+   The same names are set on the small panes in Settings, so each draws
+   itself in its own colours. */
+
+/* Lime: the mortar, and the green the mark was given. This is :root as it
+   stands. It is written out once more for the small panes of Lime and
+   Granite, which would otherwise wear the colours of the skin that is on. */
+.skinpick:is([data-skin="lime"], [data-skin="granite"]) {
+  --loud: #d7ff42; --on-loud: #101100; --says: #d6a647;
+  --tint: 16, 14, 11; --pane: 10, 9, 8;
+  --paper: #f3eee2; --ink: #0e0d0b; --line: #2e2b25;
+}
+
+/* Slate: cool blue-grey glass, and the pale blue of a split stone. */
+html[data-skin="slate"], .skinpick[data-skin="slate"] {
+  --loud: #a6dcff; --on-loud: #04121c; --says: #e9c57c;
+  --tint: 13, 21, 38; --pane: 8, 15, 30; --wash: rgba(120, 180, 255, .1);
+  --paper: #edf2f8; --red: #ff7d74;
+}
+html[data-look="glass"][data-skin="slate"] { --muted: #b7c2d0; --faint: #8f9bab; }
+
+/* Sandstone: the warm stone of the mark itself. The loud colour is its
+   yellow, and Mason speaks in the green instead. */
+html[data-skin="sandstone"], .skinpick[data-skin="sandstone"] {
+  --loud: #ffc95c; --on-loud: #1d1300; --says: #d7ff42;
+  --tint: 34, 21, 10; --pane: 26, 15, 6; --wash: rgba(255, 170, 70, .1);
+  --paper: #f7ecd8;
+}
+html[data-look="glass"][data-skin="sandstone"] { --muted: #cdbfa6; --faint: #a89a82; }
+
+/* Patina: the green a copper roof turns, with the copper for Mason's voice. */
+html[data-skin="patina"], .skinpick[data-skin="patina"] {
+  --loud: #84efcb; --on-loud: #00170f; --says: #eda66a;
+  --tint: 8, 27, 24; --pane: 4, 19, 17; --wash: rgba(60, 220, 170, .09);
+  --paper: #ebf4ef;
+}
+html[data-look="glass"][data-skin="patina"] { --muted: #b5c6bd; --faint: #8da097; }
+
+/* Marble: no colour at all. White is the loud one, on grey glass. */
+html[data-skin="marble"], .skinpick[data-skin="marble"] {
+  --loud: #f6f3ec; --on-loud: #15140f; --says: #d6a647;
+  --tint: 20, 20, 22; --pane: 13, 13, 15; --wash: rgba(255, 255, 255, .06);
+  --paper: #f1f0ec;
+}
+html[data-look="glass"][data-skin="marble"] { --muted: #c2c1bc; --faint: #9c9b96; }
+
+/* Granite: nothing shows through. The dark look Mason had before the glass,
+   for a desktop too busy to work on top of. It is :root as it stands, without
+   the glass (the window is then not given the glass look at all). */
+
+/* A skin's own light, entering the pane from the upper right. */
+html[data-look="glass"] body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(80% 60% at 100% 0%, var(--wash, transparent), transparent 70%); }

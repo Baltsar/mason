@@ -545,8 +545,9 @@ async function statePayload() {
     suggestions,
     // The card that says an answer is ready, while it is on the panel.
     notice: showing && { ...showing, sound: settings().chime },
-    // What the window is made of: the dark look, or liquid glass.
-    look: settings().glass ? "glass" : "",
+    // What the window is made of: glass, in the colours of a skin, or the one skin nothing shows through.
+    look: settings().skin === "granite" ? "" : "glass",
+    skin: settings().skin,
     // The nudge that was just said, and how the last week of them went.
     nudges: await nudgesPayload(),
     trial: await trialPayload({ moves: days.moves, days: days.days, rules: suggestions.applied.length }),
