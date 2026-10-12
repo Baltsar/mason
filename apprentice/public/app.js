@@ -168,34 +168,111 @@ const dates = (from, to) => {
 // The first start: what Mason already read, and the one thing it asks for,
 // with what that lets it see and what it never does. Nothing else is asked.
 let welcomeAsked = false;
+// The first start is three short screens, one thing on each: what Mason has
+// already read, what writes, and the one leave it asks for. Which screen is
+// shown, and whether it was asked for again from Settings ("all" of it, or
+// only the "ways").
+let welcomeStep = 0;
+let welcomeForced = "";
+// The ways Mason can be run as they stand on this Mac, the model on this Mac
+// that is picked in the list, and what the one question to the model said.
+let ways = null;
+let waysAsked = false;
+let localPick = "";
+let wayCheck = null;
+async function loadWays() {
+  ways = await api("/api/ways");
+  const kept = ways.localChosen && `${ways.localChosen.url}|${ways.localChosen.model}`;
+  const offered = ways.local.flatMap((place) => place.models.map((model) => `${place.url}|${model}`));
+  if (!offered.includes(localPick)) localPick = offered.includes(kept) ? kept : offered[0] || "";
+  if (snapshot) render();
+}
+// What each way gives, costs and sends, in the same four lines, so they can be read across.
+function waysOf() {
+  const { claude, local, own } = ways;
+  const signedOut = claude.problem === "login expired";
+  return [
+    { key: "none", name: "No model", sub: "Mason alone", ready: true,
+      gets: "Today, Flow, Days and Workflow. The card when an answer is ready.", costs: "Nothing", leaves: "Nothing", setup: ["ok", "None"] },
+    { key: "claude", name: "Claude", sub: "Your own login", ready: claude.found,
+      gets: "All of it: summaries, the quiz, the rules you repeat.", costs: "Your Claude plan. A few short calls a day; Settings shows the count.",
+      leaves: "Excerpts of your prompts, secrets taken out. To where they already went.",
+      setup: !claude.found ? ["missing", "Not found. Install Claude Code and sign in."] : signedOut ? ["missing", "Found, but signed out. In a terminal: claude, then /login."] : ["ok", "Found on this Mac"] },
+    { key: "local", name: "On this Mac", sub: local.map((place) => place.app).join(" · ") || "Ollama or LM Studio", ready: Boolean(localPick),
+      gets: "All of it. How well depends on the model.", costs: "Nothing", leaves: "Nothing",
+      setup: localPick ? ["ok", ""] : ["missing", "Not running. Start Ollama or LM Studio, then look again."],
+      extra: localPick
+        ? `<select id="way-local" aria-label="Model on this Mac">${local.flatMap((place) => place.models.map((model) => `<option value="${esc(`${place.url}|${model}`)}" ${`${place.url}|${model}` === localPick ? "selected" : ""}>${esc(model)} · ${esc(place.app)}</option>`)).join("")}</select>`
+        : `<button class="quiet" type="button" data-ways-look>Look again</button>` },
+    ...(own ? [{ key: "own", name: own.host, sub: "Set in .env.local", ready: true,
+      gets: "All of it.", costs: "What that provider charges", leaves: `Excerpts of your prompts, secrets taken out. To ${own.host}.`, setup: ["ok", "Set by hand"] }] : []),
+  ];
+}
+// What the one question to the model said, in plain words.
+function checkSaid() {
+  if (!wayCheck || wayCheck === "asking") return "";
+  if (wayCheck.ok) return `${wayCheck.name || "It"} answered in ${(wayCheck.ms / 1000).toFixed(1)} s.`;
+  const claude = wayCheck.name === "Claude";
+  return wayCheck.why === "login expired" ? (claude ? "Claude is signed out on this Mac. Open a terminal, type claude, then /login." : "The key was not taken.")
+    : wayCheck.why === "no usage left" ? "No usage left on that plan right now."
+    : claude ? "Claude did not answer. Try again in a moment." : "Nothing answered. Is the model loaded?";
+}
+function welcomeRead(welcome) {
+  const known = welcome.read && welcome.days;
+  const said = !welcome.read ? "Reading what your agents kept on this Mac. A moment. Nothing is recorded for it."
+    : "No agent has left a log on this Mac yet. When you work with Claude Code, Codex, Grok or Cursor, it shows up here by itself.";
+  return `<h1 class="statement">Mason was there.</h1>
+    ${known ? `<div class="was"><b>${welcome.days}</b><span>${welcome.days === 1 ? "day" : "days"}</span><b>${welcome.hours}</b><span>${welcome.hours === 1 ? "hour" : "hours"}</span></div>
+      <p class="lede">Of your work with agents, already read from the logs Claude Code, Codex, Grok and Cursor keep themselves. Nothing was recorded for it.</p>`
+      : `<p class="lede">${said}</p>`}
+    <div class="row"><button class="primary" type="button" data-welcome-step="1">Next</button><span class="after">Three short screens. All of it can be changed later.</span></div>`;
+}
+function welcomeWays(only) {
+  if (!ways) return `<h1 class="statement">Choose what writes.</h1><p class="lede">Looking at what is on this Mac.</p>`;
+  const list = waysOf();
+  const inUse = (way) => ways.chosen === way.key && (way.key !== "local" || `${ways.localChosen?.url}|${ways.localChosen?.model}` === localPick);
+  return `<h1 class="statement">Choose what writes.</h1>
+    <p class="lede">Mason counts and measures by itself. A model adds the words: what a project is, the quiz, the rules you keep repeating.</p>
+    <div class="ways" role="group" aria-label="What writes" style="--ways:${list.length}">${list.map((way) => `<section class="way" data-chosen="${inUse(way)}">
+      <h2>${esc(way.name)}</h2><p class="sub">${esc(way.sub)}</p>
+      <dl><dt>You get</dt><dd>${esc(way.gets)}</dd><dt>Costs</dt><dd>${esc(way.costs)}</dd><dt>Leaves this Mac</dt><dd>${esc(way.leaves)}</dd><dt>Set-up</dt><dd data-state="${way.setup[0]}">${esc(way.setup[1])}${way.extra || ""}</dd></dl>
+      <button class="${inUse(way) ? "primary" : "secondary"}" type="button" data-way="${way.key}" ${way.ready ? "" : "disabled"} aria-pressed="${inUse(way)}">${inUse(way) ? "In use" : "Select"}</button>
+    </section>`).join("")}</div>
+    ${ways.chosen === "none" ? "" : `<div class="check"><button class="secondary" type="button" data-way-check ${wayCheck === "asking" ? "disabled" : ""}>${wayCheck === "asking" ? "Asking" : "Check that it answers"}</button><span role="status" data-ok="${wayCheck && wayCheck !== "asking" ? wayCheck.ok : ""}">${esc(checkSaid())}</span></div>`}
+    <div class="row">${only ? `<button class="primary" type="button" data-welcome-close>Done</button>` : `<button class="secondary" type="button" data-welcome-step="0">Back</button><button class="primary" type="button" data-welcome-step="2">Next</button>`}</div>`;
+}
+function welcomeSees(welcome) {
+  const on = welcome.access === "on";
+  return `<h1 class="statement">One switch.</h1>
+    <div class="sees">
+      <div>
+        <p class="lede">${on ? "Mason sees which window is in front." : "Let Mason see which window is in front."} The app, the title of its window, the site of a tab, and the prompt you are writing.</p>
+        <ul class="never"><li>No screen recording</li><li>No system audio</li><li>Nothing typed outside a prompt</li></ul>
+        <p class="fine">The microphone is used only for an answer you give aloud.</p>
+        ${welcomeAsked && !on ? `<p class="hint">Switch Mason on in the list that opened. This screen follows by itself.</p>` : ""}
+      </div>
+      <div class="pane" aria-hidden="true" data-on="${on}">
+        <header><i></i><i></i><b>Accessibility</b></header>
+        <div class="app"><img src="/brand/mason-mark.png" alt="" /><b>Mason</b><u></u></div>
+        <div class="app ghost"><i></i><b></b><u></u></div>
+        <div class="app ghost"><i></i><b></b><u></u></div>
+      </div>
+    </div>
+    <div class="row"><button class="secondary" type="button" data-welcome-step="1">Back</button>${on ? `<button class="primary" type="button" data-welcome-done>Start</button>`
+      : `<button class="primary" type="button" data-welcome-access>${welcomeAsked ? "Open it again" : "Open System Settings"}</button><button class="quiet" type="button" data-welcome-done>Not now</button>`}</div>`;
+}
 function renderWelcome() {
   const node = $("#welcome");
   const welcome = snapshot.welcome;
   const page = node.closest("[data-page]");
-  node.hidden = !welcome?.show;
+  node.hidden = !(welcome?.show || welcomeForced);
   if (node.hidden) { delete node.dataset.sig; delete page.dataset.welcome; return false; }
   page.dataset.welcome = "true";
-  const on = welcome.access === "on";
-  const read = !welcome.read ? ["Reading what your agents kept on this Mac.", "A moment. Nothing is recorded for it."]
-    : welcome.days ? [`${welcome.days} ${welcome.days === 1 ? "day" : "days"} of your work with agents, already read.`, `${welcome.hours} hours, from the logs Claude Code, Codex, Grok and Cursor keep themselves. Nothing was recorded for it.`]
-    : ["No agent has left a log on this Mac yet.", "When you work with Claude Code, Codex, Grok or Cursor, it shows up here by itself."];
-  paint(node, JSON.stringify([welcome, welcomeAsked]), `<p class="label">Welcome</p>
-    <h1 class="statement">Mason was there.</h1>
-    <ol class="steps">
-      <li data-done="${welcome.read}">
-        <i></i>
-        <div><h2>${read[0]}</h2><p>${read[1]}</p></div>
-        ${welcome.read && welcome.days ? `<button class="secondary" type="button" data-view="workflow">See how you work</button>` : ""}
-      </li>
-      <li data-done="${on}">
-        <i></i>
-        <div><h2>${on ? "Mason sees which window is in front." : "Let Mason see which window is in front."}</h2>
-          <p>The app, the title of its window, the site of a tab, and the prompt you are writing. Never a picture of the screen, never what you type anywhere else.</p>
-          ${welcomeAsked && !on ? `<p class="hint">Switch Mason on in the list that opened. This screen follows by itself.</p>` : ""}</div>
-        ${on ? "" : `<button class="primary" type="button" data-welcome-access>${welcomeAsked ? "Open it again" : "Open System Settings"}</button>`}
-      </li>
-    </ol>
-    <div class="row"><button class="${on ? "primary" : "secondary"}" type="button" data-welcome-done>${on ? "Start" : "Not now"}</button><span class="after">That is all Mason asks for. The rest has a switch in Settings.</span></div>`);
+  if (!waysAsked) { waysAsked = true; loadWays().catch(() => {}); }
+  const only = welcomeForced === "ways";
+  const step = only ? 1 : welcomeStep;
+  paint(node, JSON.stringify([welcome, welcomeAsked, step, only, ways, wayCheck, localPick]), `<p class="label">${only ? "What writes" : `Welcome · ${step + 1} of 3`}</p>
+    ${step === 0 ? welcomeRead(welcome) : step === 1 ? welcomeWays(only) : welcomeSees(welcome)}`);
   return true;
 }
 
@@ -1428,6 +1505,7 @@ function renderSettings() {
     <p class="group">Leaves this Mac</p>
     ${row("summaries", "Summaries", settings.summaries ? (model.ready ? on(`${writer}${spent}`) : off(writer)) : off("Your own words"))}
     ${mend ? `<p class="fine mend">${esc(mend)}</p>` : settings.summaries && week ? `<p class="fine under">${esc(week)}</p>` : ""}
+    <p class="fine under"><button class="quiet" type="button" data-welcome-again="ways">Choose what writes</button></p>
     ${status.elevenLabsKey ? row("elevenlabs", "Voice", voice) : `<div class="set"><span>Voice</span>${voice}</div>`}
     ${row("logos", "Logos from the web", settings.logos ? on("Asks each site once") : off("Lettered tiles"))}
     ${row("updates", "New versions", !settings.updates ? off("Not looked for") : update.latest ? on(`${update.latest.version} is out`) : on(`Up to date · ${update.version}`))}
@@ -1437,12 +1515,12 @@ function renderSettings() {
     ${row("logs", "Agent logs", settings.logs ? on([`Claude Code ${logs.claude}`, logs.codex ? `Codex ${logs.codex}` : "", logs.grok ? `Grok ${logs.grok}` : "", logs.cursor ? `Cursor ${logs.cursor}` : ""].filter(Boolean).join(" · ")) : off("Not read"))}
     ${row("meaning", "What you said, by meaning", reader)}
     ${row("chats", "Chat and mail by name", settings.chats ? on("Name and time") : off("Counted, not named"))}
-    <p class="group">Look and sound</p>
+    <p class="group">How it tells you</p>
     ${row("speech", "Sound")}
-    ${row("ready", "Answer ready", settings.ready ? on("A card when an agent is done") : off("Not said"))}
-    ${row("chime", "A lute with it", settings.chime ? on("Two notes") : off("Silent"))}
-    ${row("cues", "A word on the island", settings.cues ? on(nudged) : off("Silent"))}
-    ${row("island", "Island by the notch", settings.island ? on("Shows the day") : off("An icon among the others"))}
+    <div class="set"><span>Answer ready</span><span class="seg" role="group" aria-label="Answer ready">${[["off", "Off"], ["card", "A card"], ["sound", "A card and a lute"]].map(([key, label]) => `<button type="button" data-ready="${key}" aria-pressed="${(settings.ready ? (settings.chime ? "sound" : "card") : "off") === key}">${label}</button>`).join("")}</span></div>
+    ${row("cues", "Nudges", settings.cues ? on(nudged) : off("Silent"))}
+    <p class="group">How it looks</p>
+    <div class="set"><span>Menu bar</span><b>${settings.island ? "Island" : "Icon"}</b></div>
     <div class="barpicks" role="group" aria-label="Where Mason sits in the menu bar">${[[true, "Island", "Beside the notch, with the day in it"], [false, "Icon", "One mark among the others"]].map(([island, name, note]) => `<button type="button" class="barpick" data-island="${island}" aria-pressed="${settings.island === island}">
       <span class="minibar" data-kind="${island ? "island" : "icon"}"><i class="menus"></i>${island ? `<i class="isle">${snapshot?.activity?.workPercent ?? 65}%</i>` : ""}<i class="notch"></i>${island ? `<i class="eye"></i>` : ""}<i class="gap"></i>${island ? "" : `<i class="mark"></i>`}<i class="dots"></i></span>
       <b>${name}</b><small>${note}</small></button>`).join("")}</div>
@@ -1452,6 +1530,7 @@ function renderSettings() {
       <b>${name}</b><small>${note}</small></button>`).join("")}</div>
     ${applied.length ? `<p class="group">In your agents' rules</p>${applied.map((rule) => `<div class="set rule"><span>${esc(rule.rule)}</span><b>${esc(rule.by.join(" · "))}</b></div>`).join("")}` : ""}
     <p class="group">Kept on this Mac</p>
+    <div class="set"><span>The first start</span><button class="secondary" type="button" data-welcome-again="all">See it again</button></div>
     <div class="set files"><span>Open</span><span class="with"><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Memory</button><button class="secondary" type="button" data-reveal="notes">Notes for Obsidian</button></span></div>
     ${said.count ? `<div class="set files"><span>${thousands(said.count)} prompts, read by meaning</span><button class="secondary" type="button" data-forget-said>Forget</button></div>` : ""}
     <p class="fine">No screenshots, no keystrokes, and of a page in a browser only the site. With everything under Leaves this Mac switched off, nothing does.</p>
@@ -1632,7 +1711,36 @@ async function act(event) {
   if (target.closest("[data-welcome-done]")) {
     await post("/api/welcome");
     snapshot.welcome.show = false;
+    welcomeForced = "";
+    welcomeStep = 0;
     return render();
+  }
+  const welcomeTo = target.closest("[data-welcome-step]");
+  if (welcomeTo) { welcomeStep = Number(welcomeTo.dataset.welcomeStep); window.scrollTo(0, 0); return render(); }
+  if (target.closest("[data-welcome-close]")) { welcomeForced = ""; return show("settings"); }
+  const wayPicked = target.closest("[data-way]");
+  if (wayPicked && ways) {
+    const [url, model] = localPick.split("|");
+    ways = await post("/api/ways", { way: wayPicked.dataset.way, ...(wayPicked.dataset.way === "local" ? { url, model } : {}) });
+    wayCheck = null;
+    return render();
+  }
+  if (target.closest("[data-way-check]")) {
+    // One question, to see that it answers before anything depends on it.
+    wayCheck = "asking";
+    render();
+    wayCheck = await post("/api/ways", { action: "check" }).catch(() => ({ ok: false, why: "not answering" }));
+    return render();
+  }
+  if (target.closest("[data-ways-look]")) return loadWays();
+  const welcomeAgain = target.closest("[data-welcome-again]");
+  if (welcomeAgain) {
+    // From Settings: the three screens once more, or only the one about what writes.
+    welcomeForced = welcomeAgain.dataset.welcomeAgain;
+    welcomeStep = 0;
+    wayCheck = null;
+    loadWays().catch(() => {});
+    return show("today");
   }
   if (target.closest("[data-trial-end]")) {
     await post("/api/trial");
@@ -1762,6 +1870,12 @@ async function act(event) {
   const later = target.closest("[data-later]");
   if (later) { await post("/api/answer", { id: later.dataset.later, action: "later" }); return load(); }
 
+  const readyPicked = target.closest("[data-ready]");
+  if (readyPicked) {
+    // One choice of three in place of two switches: nothing, the card, or the card with its two notes.
+    prefs = await post("/api/settings", { ready: readyPicked.dataset.ready !== "off", ...(readyPicked.dataset.ready === "off" ? {} : { chime: readyPicked.dataset.ready === "sound" }) });
+    return renderSettings();
+  }
   const skinPicked = target.closest(".skinpick");
   if (skinPicked) {
     // Worn at once, before the server has answered, so that trying them on is one press each.
@@ -1843,6 +1957,9 @@ async function act(event) {
 
 document.addEventListener("click", (event) => { act(event).catch((error) => toast(error.message)); });
 // The name is saved when the field is left or Enter is pressed.
+document.addEventListener("change", (event) => {
+  if (event.target.id === "way-local") { localPick = event.target.value; wayCheck = null; return render(); }
+});
 document.addEventListener("change", (event) => {
   if (event.target.id !== "set-name") return;
   post("/api/settings", { name: event.target.value }).then((value) => { prefs = value; toast("Saved"); }).catch((error) => toast(error.message));

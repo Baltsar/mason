@@ -80,7 +80,7 @@ The questions are written by the model that writes the summaries, in the same ca
 - **Recap.** The week as a two-minute news bulletin in two voices. Needs a voice: see [Models and voice](models-and-voice.md#voice).
 - **Agents.** The address and the tools of the MCP server. See [Agents and MCP](agents-and-mcp.md).
 
-## A word on the island
+## Nudges
 
 A nudge is a word on the island at the moment it can be acted on. It rests on your own history, never on a clock or a list you keep. There are two:
 

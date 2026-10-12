@@ -18,7 +18,7 @@ const endpoint = () => (process.env.APPRENTICE_LLM_URL || "").trim().replace(/\/
 
 export const modelAvailable = () => process.env.APPRENTICE_LLM !== "0";
 // Whether the Claude Code CLI is on this Mac at all.
-const claudeFound = () => existsSync(bin) || bin === "claude" && (process.env.PATH || "").split(":").some((folder) => existsSync(path.join(folder, "claude")));
+export const claudeFound = () => existsSync(bin) || bin === "claude" && (process.env.PATH || "").split(":").some((folder) => existsSync(path.join(folder, "claude")));
 
 // Why the model last refused to answer, when it did: a login that ran out, a
 // key that is not taken, no usage left. A model that is there but refuses

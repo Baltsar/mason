@@ -599,19 +599,59 @@ a.quiet { display: inline-flex; align-items: center; text-decoration: none; }
 
 /* Welcome: the first start, with the one thing Mason asks for */
 [data-page="today"][data-welcome] > :not(.welcome) { display: none; }
-.welcome { max-width: 980px; padding: 8px 0 40px; }
-.welcome .statement { margin: 10px 0 34px; }
-.welcome .steps { display: grid; margin: 0 0 30px; padding: 0; border-top: 1px solid var(--line); list-style: none; }
-.welcome .steps li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 8px 20px; padding: 26px 0; border-bottom: 1px solid var(--line); }
-.welcome .steps i { display: grid; place-items: center; width: 30px; height: 30px; border: 2px solid var(--muted); border-radius: 50%; align-self: start; margin-top: 4px; }
-.welcome .steps li[data-done="true"] i { border-color: var(--loud); background: var(--loud); }
-.welcome .steps li[data-done="true"] i::before { content: ""; width: 12px; height: 7px; border-left: 3px solid var(--on-loud); border-bottom: 3px solid var(--on-loud); transform: translateY(-2px) rotate(-45deg); }
-.welcome .steps h2 { font-size: clamp(22px, 2.8vw, 34px); line-height: 1.08; letter-spacing: -.04em; font-weight: 680; text-wrap: balance; }
-.welcome .steps p { max-width: 660px; margin: 8px 0 0; color: var(--muted); font-size: 16px; line-height: 1.4; }
-.welcome .steps .hint { color: var(--says); }
-.welcome .row { gap: 18px; }
-.welcome .after { color: var(--muted); font-size: 14px; }
-@media (max-width: 720px) { .welcome .steps li { grid-template-columns: 34px minmax(0, 1fr); } .welcome .steps li > button { grid-column: 2; justify-self: start; } }
+.welcome { max-width: 1040px; padding: 8px 0 40px; }
+.welcome .statement { margin: 10px 0 22px; }
+.welcome .lede { max-width: 720px; margin: 0 0 30px; }
+.welcome .row { gap: 12px; margin-top: 34px; }
+.welcome .after { margin-left: 8px; color: var(--muted); font-size: 14px; }
+.welcome .hint { margin: 14px 0 0; color: var(--says); font-size: 16px; }
+.welcome .fine { margin: 14px 0 0; color: var(--muted); font-size: 14px; }
+/* What was already read: two figures, as large as anything in the window. */
+.welcome .was { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 0 18px; width: max-content; max-width: 100%; margin: 0 0 22px; }
+.welcome .was b { color: var(--loud); font-size: clamp(64px, 11vw, 132px); line-height: .88; letter-spacing: -.07em; font-weight: 720; text-align: right; }
+.welcome .was span { color: var(--paper); font-size: clamp(28px, 4.4vw, 54px); letter-spacing: -.05em; font-weight: 680; }
+/* What writes: the ways side by side, each said in the same four lines so they can be read across. */
+.welcome .ways { display: grid; grid-template-columns: repeat(var(--ways, 3), minmax(0, 1fr)); gap: 12px; }
+.welcome .way { display: grid; grid-template-rows: auto auto 1fr auto; padding: 20px 20px 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); transition: border-color .2s; }
+.welcome .way[data-chosen="true"] { border-color: var(--loud); box-shadow: 0 0 0 1px var(--loud); }
+.welcome .way h2 { font-size: 26px; line-height: 1.05; letter-spacing: -.04em; font-weight: 700; overflow-wrap: anywhere; }
+.welcome .way .sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.welcome .way dl { display: grid; align-content: start; gap: 4px; margin: 18px 0 20px; }
+.welcome .way dt { margin-top: 10px; color: var(--faint); font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.welcome .way dd { margin: 0; font-size: 15px; line-height: 1.35; }
+.welcome .way dd[data-state="ok"]:not(:empty)::before, .welcome .way dd[data-state="missing"]::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--loud); vertical-align: 1px; }
+.welcome .way dd[data-state="missing"]::before { background: var(--says); }
+.welcome .way dd[data-state="missing"] { color: var(--muted); }
+.welcome .way dd .quiet { display: block; margin-top: 10px; }
+.welcome .way select { width: 100%; min-height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--ink); color: var(--paper); font: 14px var(--font); }
+.welcome .way > button { justify-self: start; }
+.welcome .way > button:disabled { opacity: .4; cursor: default; }
+.welcome .check { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 18px; }
+.welcome .check span { color: var(--muted); font-size: 15px; }
+.welcome .check span[data-ok="true"] { color: var(--loud); }
+.welcome .check span[data-ok="false"] { color: var(--says); }
+/* The one switch: what is read and what never is, beside a drawing of where the switch sits. */
+.welcome .sees { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(260px, .9fr); align-items: center; gap: 40px; }
+.welcome .sees .lede { margin-bottom: 22px; }
+.welcome .never { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.welcome .never li { display: flex; align-items: center; gap: 12px; font-size: clamp(19px, 2.2vw, 26px); letter-spacing: -.03em; font-weight: 680; }
+.welcome .never li::before { content: ""; flex: none; width: 18px; height: 3px; border-radius: 2px; background: var(--loud); }
+.welcome .pane { padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
+.welcome .pane header { display: flex; align-items: center; gap: 8px; margin: 2px 4px 12px; color: var(--muted); font-size: 14px; font-weight: 600; }
+.welcome .pane header i { width: 9px; height: 9px; border-left: 2px solid var(--faint); border-bottom: 2px solid var(--faint); transform: rotate(45deg); }
+.welcome .pane header i + i { margin-right: 8px; transform: rotate(-135deg); }
+.welcome .pane .app { display: grid; grid-template-columns: 30px 1fr 42px; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; }
+.welcome .pane .app:first-of-type { border: 1px solid var(--loud); background: color-mix(in srgb, var(--loud) 8%, transparent); }
+.welcome .pane .app img { width: 30px; height: 28px; object-fit: contain; }
+.welcome .pane .app b { font-size: 16px; font-weight: 640; }
+.welcome .pane .app u { position: relative; width: 42px; height: 24px; border-radius: 12px; background: #4a4a4e; text-decoration: none; transition: background .25s; }
+.welcome .pane .app u::after { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #f1f0ec; transition: transform .25s var(--ease); }
+.welcome .pane[data-on="true"] .app:first-of-type u { background: var(--loud); }
+.welcome .pane[data-on="true"] .app:first-of-type u::after { transform: translateX(18px); }
+.welcome .pane .ghost { opacity: .32; }
+.welcome .pane .ghost i { width: 28px; height: 28px; border-radius: 7px; background: var(--faint); }
+.welcome .pane .ghost b { width: 46%; height: 10px; border-radius: 5px; background: var(--faint); }
+@media (max-width: 820px) { .welcome .ways { grid-template-columns: 1fr; } .welcome .sees { grid-template-columns: 1fr; } }
 
 /* Where Mason sits in the menu bar: two small bars to choose between */
 .settings .barpicks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 0 16px; border-bottom: 1px solid var(--line); }
@@ -652,3 +692,9 @@ a.quiet { display: inline-flex; align-items: center; text-decoration: none; }
 .skinpick .pane .press { width: 46px; height: 16px; margin-top: 5px; border-radius: 6px; background: var(--loud); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6); }
 .skinpick .pane .voice { justify-self: end; width: 16px; height: 16px; margin-top: 5px; border-radius: 50%; background: var(--says); }
 @media (max-width: 720px) { .settings .skinpicks { grid-template-columns: 1fr 1fr; } }
+
+/* Settings: one choice of a few, where two switches would have depended on each other. */
+.seg { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.seg button { min-height: 30px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 13px; }
+.seg button:hover { color: var(--paper); }
+.seg button[aria-pressed="true"] { background: var(--loud); color: var(--on-loud); font-weight: 650; }
