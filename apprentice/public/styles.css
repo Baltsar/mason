@@ -692,3 +692,9 @@ a.quiet { display: inline-flex; align-items: center; text-decoration: none; }
 .skinpick .pane .press { width: 46px; height: 16px; margin-top: 5px; border-radius: 6px; background: var(--loud); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6); }
 .skinpick .pane .voice { justify-self: end; width: 16px; height: 16px; margin-top: 5px; border-radius: 50%; background: var(--says); }
 @media (max-width: 720px) { .settings .skinpicks { grid-template-columns: 1fr 1fr; } }
+
+/* Settings: one choice of a few, where two switches would have depended on each other. */
+.seg { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.seg button { min-height: 30px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 13px; }
+.seg button:hover { color: var(--paper); }
+.seg button[aria-pressed="true"] { background: var(--loud); color: var(--on-loud); font-weight: 650; }

@@ -1515,12 +1515,12 @@ function renderSettings() {
     ${row("logs", "Agent logs", settings.logs ? on([`Claude Code ${logs.claude}`, logs.codex ? `Codex ${logs.codex}` : "", logs.grok ? `Grok ${logs.grok}` : "", logs.cursor ? `Cursor ${logs.cursor}` : ""].filter(Boolean).join(" · ")) : off("Not read"))}
     ${row("meaning", "What you said, by meaning", reader)}
     ${row("chats", "Chat and mail by name", settings.chats ? on("Name and time") : off("Counted, not named"))}
-    <p class="group">Look and sound</p>
+    <p class="group">How it tells you</p>
     ${row("speech", "Sound")}
-    ${row("ready", "Answer ready", settings.ready ? on("A card when an agent is done") : off("Not said"))}
-    ${row("chime", "A lute with it", settings.chime ? on("Two notes") : off("Silent"))}
-    ${row("cues", "A word on the island", settings.cues ? on(nudged) : off("Silent"))}
-    ${row("island", "Island by the notch", settings.island ? on("Shows the day") : off("An icon among the others"))}
+    <div class="set"><span>Answer ready</span><span class="seg" role="group" aria-label="Answer ready">${[["off", "Off"], ["card", "A card"], ["sound", "A card and a lute"]].map(([key, label]) => `<button type="button" data-ready="${key}" aria-pressed="${(settings.ready ? (settings.chime ? "sound" : "card") : "off") === key}">${label}</button>`).join("")}</span></div>
+    ${row("cues", "Nudges", settings.cues ? on(nudged) : off("Silent"))}
+    <p class="group">How it looks</p>
+    <div class="set"><span>Menu bar</span><b>${settings.island ? "Island" : "Icon"}</b></div>
     <div class="barpicks" role="group" aria-label="Where Mason sits in the menu bar">${[[true, "Island", "Beside the notch, with the day in it"], [false, "Icon", "One mark among the others"]].map(([island, name, note]) => `<button type="button" class="barpick" data-island="${island}" aria-pressed="${settings.island === island}">
       <span class="minibar" data-kind="${island ? "island" : "icon"}"><i class="menus"></i>${island ? `<i class="isle">${snapshot?.activity?.workPercent ?? 65}%</i>` : ""}<i class="notch"></i>${island ? `<i class="eye"></i>` : ""}<i class="gap"></i>${island ? "" : `<i class="mark"></i>`}<i class="dots"></i></span>
       <b>${name}</b><small>${note}</small></button>`).join("")}</div>
@@ -1870,6 +1870,12 @@ async function act(event) {
   const later = target.closest("[data-later]");
   if (later) { await post("/api/answer", { id: later.dataset.later, action: "later" }); return load(); }
 
+  const readyPicked = target.closest("[data-ready]");
+  if (readyPicked) {
+    // One choice of three in place of two switches: nothing, the card, or the card with its two notes.
+    prefs = await post("/api/settings", { ready: readyPicked.dataset.ready !== "off", ...(readyPicked.dataset.ready === "off" ? {} : { chime: readyPicked.dataset.ready === "sound" }) });
+    return renderSettings();
+  }
   const skinPicked = target.closest(".skinpick");
   if (skinPicked) {
     // Worn at once, before the server has answered, so that trying them on is one press each.
