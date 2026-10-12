@@ -57,7 +57,7 @@ Use headphones on a call. Through laptop speakers the agent can hear itself, and
 
 ## Find by meaning
 
-Off until you switch it on, in Settings (**What you said, by meaning**) or on **More → Find**. An embedding model on this Mac reads what you said to your agents and places each prompt by its meaning. The model writes nothing and nothing is sent anywhere: it runs while it is needed, listens on this Mac only, and is stopped after three minutes of quiet.
+Off until you switch it on, in Settings (**What you said, by meaning**) or under **Projects → Find something you said**. An embedding model on this Mac reads what you said to your agents and places each prompt by its meaning. The model writes nothing and nothing is sent anywhere: it runs while it is needed, listens on this Mac only, and is stopped after three minutes of quiet.
 
 Two things are needed, and neither is in the repository:
 

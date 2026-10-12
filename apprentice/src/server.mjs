@@ -718,6 +718,18 @@ const server = http.createServer(async (request, response) => {
       broadcast("welcome");
       return json(response, 200, { ok: true });
     }
+    if (url.pathname === "/api/projects") {
+      // Every project of the last three weeks, the one last worked in first:
+      // where it was left in a few words, and how much there is to recall of it.
+      const index = await projectIndex(dayStart() - 20 * 86_400_000, { maxAgeMs: 60_000 });
+      const due = new Map((await builtProjects()).map((item) => [item.project, item.questions.length]));
+      const known = index.list.filter((item) => item.prompts.length).sort((a, b) => b.prompts.at(-1).at - a.prompts.at(-1).at);
+      const projects = await Promise.all(known.map(async (item) => {
+        const memory = memories.get(item.name) || await savedMemory(item.name);
+        return { name: item.name, lastAt: new Date(item.prompts.at(-1).at).toISOString(), headline: memory?.headline || "", about: memory?.one_line || "", due: due.get(item.name) || 0 };
+      }));
+      return json(response, 200, { projects });
+    }
     if (url.pathname === "/api/continue") {
       // A project, ready to be picked up in a new session: the notes Mason
       // holds, what was said since they were written, and an address for each

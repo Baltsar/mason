@@ -6,9 +6,11 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 const native = window.webkit?.messageHandlers?.apprentice;
 
-const VIEWS = ["today", "flow", "days", "workflow", "built", "more", "continue", "find", "recap", "agents", "settings"];
+const VIEWS = ["today", "flow", "days", "workflow", "projects", "find", "recap", "agents", "settings"];
+// A page that is reached from another one, and the stage that stays lit while it is open.
+const PARENT = { find: "projects", recap: "days", agents: "settings" };
 // Names a view once had, or that led to a page that is gone.
-const LEGACY = { now: "today", capture: "today", mcp: "agents", map: "more", teach: "more" };
+const LEGACY = { now: "today", capture: "today", mcp: "agents", map: "today", teach: "today", built: "projects", continue: "projects", more: "projects" };
 // The skins, each a stone a mason builds with (skins.css).
 const SKINS = [
   ["lime", "Lime", "Smoked glass, the green"],
@@ -313,7 +315,6 @@ function renderToday() {
   renderPropose();
   renderProjects();
   renderQuestion();
-  renderSignals();
 }
 
 function renderDrill() {
@@ -426,34 +427,46 @@ function renderQuestion() {
   paint(node, `open-${open.id}`, `<h2>${esc(open.text)}</h2>${answerField("live-answer", "Answer")}<div class="row"><button class="primary" type="button" data-answer="${open.id}">Answer</button><button class="secondary" type="button" data-later="${open.id}">Later</button></div>`);
 }
 
-function describe(event) {
-  const control = { "off-the-record": "went private", "on-the-record": "observing again", pause: "paused", resume: "resumed" };
-  switch (event.type) {
-    case "window": return event.window || "new window";
-    case "prompt": return `“${short(event.excerpt)}”`;
-    case "question": return event.question;
-    case "answer": return `“${short(event.answer)}”`;
-    case "intervention": return `stopped · ${event.guardrailTitle || "guardrail"}`;
-    case "teach-stop": return `stopped · ${event.guardrailTitle || "guardrail"}`;
-    case "control": return control[event.action] || event.action;
-    case "session": return event.action === "start" ? "session started" : "session ended";
-    case "debrief": return "debrief";
-    default: return null;
-  }
-}
+/* Projects: every project in one place. A line each; behind it, picking it up in a new session, and the quiz about it */
 
-function renderSignals() {
-  const { events, stats } = snapshot;
-  $("#trust-line").textContent = `${stats.privateRefusals} private refused`;
-  const rows = events.filter((event) => describe(event)).slice(-7).reverse();
-  paint($("#signals"), rows[0]?.id || "none", rows.map((event) => `<li data-type="${esc(event.type)}"><time>${clock(event.at, true)}</time><b>${esc(event.app || "Mason")}</b><span>${esc(describe(event))}</span></li>`).join(""));
+// What is shown: the "list", one project being picked up ("continue"), or the "quiz".
+let projectsMode = "list";
+let projectsList = null;
+// The project the quiz was asked for, when it was asked for one.
+let quizProject = null;
+async function loadProjects() {
+  projectsList = await api("/api/projects");
+  if (view === "projects") renderProjectsPage();
 }
-
-/* Built: Mason asks about your own work, and holds the answer */
+function goToProject(name, mode = "continue") {
+  projectsMode = mode;
+  if (mode === "continue") { handoffProject = name; handoffOpen = false; handoff = null; loadContinue().catch(() => {}); }
+  else { quizProject = name; round = null; loadBuilt().catch(() => {}); }
+  if (view === "projects") { window.scrollTo(0, 0); renderProjectsPage(); } else show("projects");
+}
+function renderProjectsPage() {
+  const list = $("#projects-list");
+  $("[data-projects-back]").hidden = projectsMode === "list";
+  list.hidden = projectsMode !== "list";
+  $("#continue-card").hidden = projectsMode !== "continue";
+  $("#built-card").hidden = projectsMode !== "quiz";
+  if (projectsMode === "continue") return renderContinue();
+  if (projectsMode === "quiz") return renderBuilt();
+  if (!projectsList) return;
+  const { projects } = projectsList;
+  const due = projects.reduce((sum, project) => sum + project.due, 0);
+  $("#projects-meta").textContent = projects.length ? `${projects.length} ${projects.length === 1 ? "project" : "projects"} · three weeks${due ? ` · ${due} to recall` : ""}` : "";
+  paint(list, JSON.stringify(projects), projects.length ? `<ol>${projects.map((project) => `<li>
+      <button class="line" type="button" data-projects-open="${esc(project.name)}"><b>${esc(project.name)}</b><span class="hl">${esc(project.headline || project.about)}</span><time>${esc(ago(project.lastAt))}</time></button>
+      <span class="acts"><button class="secondary" type="button" data-projects-open="${esc(project.name)}">Continue</button><button class="secondary" type="button" data-projects-quiz="${esc(project.name)}" ${project.due ? "" : "disabled"}>Quiz${project.due ? `<i>${project.due}</i>` : ""}</button></span>
+    </li>`).join("")}</ol>
+    <p class="aside"><button class="quiet" type="button" data-view="find">Find something you said</button></p>`
+    : `<h1 class="question">Nothing here yet.</h1><p class="lede">Work with your agents as usual. Mason reads their logs, and every project you work in gets a line here: where you left it, a way to pick it up in a new session, and a quiz about it.</p>`);
+}
 
 async function loadBuilt() {
   built = await api("/api/built");
-  if (view === "built") renderBuilt();
+  if (view === "projects") renderProjectsPage();
 }
 
 // One round of the quiz: a handful of questions about one project, what was
@@ -490,23 +503,28 @@ function renderBuilt() {
   const card = $("#built-card");
   const { projects } = built;
   if (!projects.length && !round) {
-    $("#built-meta").textContent = "";
-    paint($("#built-projects"), "none", "");
+    $("#projects-meta").textContent = "";
     return paint(card, `empty-${JSON.stringify([built.next, built.writer])}`, builtEmpty());
   }
-  if (!round) startRound(Math.min(builtAt.project, projects.length - 1));
+  if (!round) {
+    const asked = projects.findIndex((project) => project.project === quizProject);
+    // Asked for a project that has nothing due: said so, with the way on to one that has.
+    if (quizProject && asked < 0) {
+      $("#projects-meta").textContent = quizProject;
+      return paint(card, `none-${quizProject}`, `<h1 class="question">Nothing to recall in ${esc(quizProject)} today.</h1><p class="lede">What you got right comes back after longer each time, and new questions are written an hour after you leave a project.</p><div class="row"><button class="primary" type="button" data-quiz="other">Another project</button></div>`);
+    }
+    startRound(Math.max(0, asked));
+  }
   const item = projects.find((project) => project.project === round.project);
   const days = item ? Math.round((dateOf(built.today) - dateOf(item.lastDay)) / 86_400_000) : 0;
   const left = projects.reduce((count, project) => count + project.questions.length, 0);
-  $("#built-meta").textContent = `${round.project}${item ? ` · ${days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`}` : ""} · ${left} to recall`;
+  $("#projects-meta").textContent = `${round.project}${item ? ` · ${days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`}` : ""} · ${left} to recall`;
   const aloud = `<button class="secondary" type="button" ${snapshot.voice.elevenLabs ? `data-recall="${esc(round.project)}"` : `data-voice-missing="open"`}>Ask me aloud</button>`;
   const steps = `<div class="steps" role="progressbar" aria-valuemin="0" aria-valuemax="${round.list.length}" aria-valuenow="${Math.min(round.at, round.list.length)}" aria-label="Question ${Math.min(round.at + 1, round.list.length)} of ${round.list.length}">${round.list.map((_, index) => `<i data-state="${index < round.at ? "done" : index === round.at ? "now" : "next"}"></i>`).join("")}</div>`;
-  const chips = () => paint($("#built-projects"), JSON.stringify([projects.map((project) => project.project), round.project]), projects.map((project, index) => `<button type="button" data-built-project="${index}" aria-pressed="${project.project === round.project}">${esc(project.project)}</button>`).join(""));
   if (round.at >= round.list.length) {
     // The round is over: how it went, in one figure, and what happens to the rest.
     const missed = round.asked - round.right;
     const more = item?.questions.length || 0;
-    chips();
     return paint(card, JSON.stringify(["done", round.right, round.asked, more, voiceAsked]), `${steps}
       <h1 class="question score">${round.right}<i> of ${round.asked}</i></h1>
       <p class="lede">${missed ? `${missed === 1 ? "The one you missed comes" : `The ${missed} you missed come`} back tomorrow.` : "All of it. It comes back after longer each time."}</p>
@@ -515,7 +533,6 @@ function renderBuilt() {
   const asked = round.list[round.at];
   const answered = round.picked !== null;
   const right = round.picked === asked.right;
-  chips();
   paint(card, JSON.stringify([asked.id, round.at, round.picked, snapshot.voice.elevenLabs, voiceAsked]), `${steps}
     <h1 class="question quizzed">${esc(asked.question)}</h1>
     <div class="options" role="group" aria-label="Answers">${asked.options.map((option, index) => `<button type="button" class="option" data-pick="${index}" ${answered ? "disabled" : ""} data-state="${!answered ? "open" : index === asked.right ? "right" : index === round.picked ? "wrong" : "rest"}"><kbd>${index + 1}</kbd><span>${esc(option)}</span></button>`).join("")}</div>
@@ -579,23 +596,22 @@ let handoffProject = null;
 let handoffOpen = false;
 async function loadContinue() {
   handoff = await api(`/api/continue${handoffProject ? `?project=${encodeURIComponent(handoffProject)}` : ""}`);
-  if (view === "continue") renderContinue();
+  if (view === "projects") renderProjectsPage();
 }
 const ago = (iso) => {
   const hours = (Date.now() - Date.parse(iso)) / 3_600_000;
   return hours < 1 ? "just now" : hours < 24 ? `${Math.round(hours)} h ago` : `${Math.round(hours / 24)} ${Math.round(hours / 24) === 1 ? "day" : "days"} ago`;
 };
 function renderContinue() {
-  if (!handoff) return;
+  if (!handoff) { $("#projects-meta").textContent = handoffProject || ""; return; }
   const card = $("#continue-card");
   if (!handoff.project) {
-    $("#continue-meta").textContent = "";
-    paint($("#continue-projects"), "none", "");
+    $("#projects-meta").textContent = "";
     return paint(card, "empty", `<h1 class="question">Nothing to pick up yet.</h1><p class="lede">Work with your agents as usual. Mason reads their logs, and a project you have worked in can be handed to a new session from here.</p>`);
   }
   // When the notes were written, and how much was said after them. That is in the brief too.
   const fresh = handoff.writtenAt ? `Notes written ${ago(handoff.writtenAt)}${handoff.since ? ` · ${handoff.since} ${handoff.since === 1 ? "prompt" : "prompts"} since, included` : ""}` : handoff.text ? "Your own last words, no summary yet" : "";
-  $("#continue-meta").textContent = [handoff.project, fresh].filter(Boolean).join(" · ");
+  $("#projects-meta").textContent = [handoff.project, fresh].filter(Boolean).join(" · ");
   const [first, ...rest] = handoff.links;
   paint(card, JSON.stringify([handoff.project, handoff.text, handoff.short, handoff.links.map((link) => link.agent), handoffOpen]), handoff.text ? `
     <h1 class="question">Pick up ${esc(handoff.project)}.</h1>
@@ -604,18 +620,6 @@ function renderContinue() {
     <p class="fine">${first ? "The agent opens with a few lines in its input: the short of it. Nothing is sent until you press Enter there, and Mason writes nothing into the project. Claude Code starts in a terminal and first shows the command that starts it." : "No agent on this Mac opens with a prompt ready. Copy the notes and paste them into a new session."}</p>
     ${handoffOpen ? `<div class="notes">${first ? `<section><h2>In the agent's input</h2><p class="short">${esc(handoff.short)}</p></section><section><h2>All the notes, for Copy</h2></section>` : ""}${handoff.sections.map((section) => `<section><h2>${esc(section.title)}</h2><ul>${section.lines.map((line) => `<li>${esc(line)}</li>`).join("")}</ul></section>`).join("")}</div>` : ""}`
     : `<h1 class="question">Nothing is known of ${esc(handoff.project)} yet.</h1><p class="lede">Say something to an agent in it, and it can be handed on from here.</p>`);
-  paint($("#continue-projects"), JSON.stringify([handoff.projects, handoff.project]), handoff.projects.map((name) => `<button type="button" data-continue-project="${esc(name)}" aria-pressed="${name === handoff.project}">${esc(name)}</button>`).join(""));
-}
-
-function renderMore() {
-  const { podcast } = snapshot;
-  const doors = [
-    ["continue", "Continue", "A project, handed to a new session"],
-    ["find", "Find", "Something you said, by what it means"],
-    ["recap", "Recap", podcast.episode ? podcast.episode.title : "The week as news"],
-    ["agents", "Agents", "One memory, every agent"],
-  ];
-  paint($("#doors"), JSON.stringify(doors), doors.map(([name, title, note]) => `<button type="button" data-view="${name}"><b>${title}</b><span>${esc(note)}</span></button>`).join(""));
 }
 
 /* Flow: how the day moved between tools */
@@ -1472,6 +1476,8 @@ const thousands = (count) => count >= 10_000 ? `${Math.round(count / 1000)}k` : 
 // Three questions, one line per answer: what Mason reads, what it sends away
 // from this Mac, and where it keeps what it learned.
 function renderSettings() {
+  // How many private windows were turned away: the proof that some are, said where the leave to see is.
+  const refused = snapshot?.stats?.privateRefusals || 0;
   const node = $("#settings");
   if (!prefs) return paint(node, "loading", "");
   const { settings, status, name } = prefs;
@@ -1512,6 +1518,7 @@ function renderSettings() {
     ${settings.updates && update.latest ? `<p class="fine under">This is Mason ${esc(update.version)}. <a href="${esc(update.latest.url)}" target="_blank" rel="noopener">See what is new in ${esc(update.latest.version)}, and how to get it</a>. Mason installs nothing by itself.</p>` : ""}
     <p class="group">Stays on this Mac</p>
     <div class="set"><span>Screen</span>${status.access === "on" ? on("App, window, site") : `<button class="primary" type="button" data-fix-access>Fix access</button>`}</div>
+    ${refused ? `<p class="fine under">${refused} private ${refused === 1 ? "window was" : "windows were"} refused: counted, never named.</p>` : ""}
     ${row("logs", "Agent logs", settings.logs ? on([`Claude Code ${logs.claude}`, logs.codex ? `Codex ${logs.codex}` : "", logs.grok ? `Grok ${logs.grok}` : "", logs.cursor ? `Cursor ${logs.cursor}` : ""].filter(Boolean).join(" · ")) : off("Not read"))}
     ${row("meaning", "What you said, by meaning", reader)}
     ${row("chats", "Chat and mail by name", settings.chats ? on("Name and time") : off("Counted, not named"))}
@@ -1530,6 +1537,7 @@ function renderSettings() {
       <b>${name}</b><small>${note}</small></button>`).join("")}</div>
     ${applied.length ? `<p class="group">In your agents' rules</p>${applied.map((rule) => `<div class="set rule"><span>${esc(rule.rule)}</span><b>${esc(rule.by.join(" · "))}</b></div>`).join("")}` : ""}
     <p class="group">Kept on this Mac</p>
+    <div class="set"><span>Agents</span><button class="secondary" type="button" data-view="agents">Connect an agent</button></div>
     <div class="set"><span>The first start</span><button class="secondary" type="button" data-welcome-again="all">See it again</button></div>
     <div class="set files"><span>Open</span><span class="with"><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Memory</button><button class="secondary" type="button" data-reveal="notes">Notes for Obsidian</button></span></div>
     ${said.count ? `<div class="set files"><span>${thousands(said.count)} prompts, read by meaning</span><button class="secondary" type="button" data-forget-said>Forget</button></div>` : ""}
@@ -1549,7 +1557,7 @@ function renderShell() {
   $("#nav-today").textContent = activity.totalSeconds ? `${activity.workPercent}%` : "–";
   $("#nav-flow").textContent = activity.totalSeconds ? snapshot.flow.jumps : "–";
   $("#nav-days").textContent = snapshot.days || "–";
-  $("#nav-built").textContent = snapshot.built || "–";
+  $("#nav-projects").textContent = snapshot.built || "–";
   const pill = $("#presence");
   pill.dataset.state = presence;
   $("span", pill).textContent = {
@@ -1567,7 +1575,7 @@ function renderShell() {
 function render() {
   applyLook();
   renderShell();
-  ({ today: renderToday, flow: renderFlow, days: renderDays, workflow: renderWorkflow, built: renderBuilt, more: renderMore, continue: renderContinue, find: renderFind, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
+  ({ today: renderToday, flow: renderFlow, days: renderDays, workflow: renderWorkflow, projects: renderProjectsPage, find: renderFind, recap: renderRecap, agents: renderAgents, settings: renderSettings })[view]();
 }
 
 async function load() {
@@ -1580,7 +1588,7 @@ async function load() {
 function show(name, arg) {
   view = VIEWS.includes(name) ? name : LEGACY[name] || "today";
   $$("[data-page]").forEach((section) => { section.hidden = section.dataset.page !== view; });
-  $$("[data-view]").forEach((button) => button.setAttribute("aria-current", button.dataset.view === view ? "page" : "false"));
+  $$(".topbar [data-view]").forEach((button) => button.setAttribute("aria-current", button.dataset.view === (PARENT[view] || view) ? "page" : "false"));
   if (view === "flow") {
     // "#flow/2026-10-03" opens that day; without a day it is today.
     if (arg !== undefined) { flowDay = DAY.test(arg) ? arg : null; flowTool = null; }
@@ -1590,11 +1598,12 @@ function show(name, arg) {
   if (view === "settings") loadPrefs().catch(() => {});
   if (view === "days") loadDays().catch(() => {});
   if (view === "workflow") loadWorkflow().catch(() => {});
-  if (view === "built") loadBuilt().catch(() => {});
-  if (view === "continue") {
-    // "#continue/KIOSK" opens that project; without one it is the project last worked in.
-    if (arg !== undefined) { try { handoffProject = decodeURIComponent(arg) || null; } catch { handoffProject = null; } }
-    loadContinue().catch(() => {});
+  if (view === "projects") {
+    // "#projects/continue" is the panel's arrow: the project last worked in, ready to be picked up.
+    if (arg === "continue") { projectsMode = "continue"; handoffProject = null; handoffOpen = false; handoff = null; }
+    loadProjects().catch(() => {});
+    if (projectsMode === "continue") loadContinue().catch(() => {});
+    if (projectsMode === "quiz") loadBuilt().catch(() => {});
   }
   if (view === "find") {
     // Opened from a nudge about work done before: what was just said is looked for.
@@ -1646,13 +1655,22 @@ const sourceOf = (node) => node?.dataset.spoken ? "voice" : "typed";
 async function act(event) {
   const target = event.target;
   const nav = target.closest("[data-view]");
-  if (nav) return show(nav.dataset.view);
+  if (nav) {
+    // The stage itself always opens on the list of projects.
+    if (nav.dataset.view === "projects") { projectsMode = "list"; round = null; }
+    return show(nav.dataset.view);
+  }
+  const opened = target.closest("[data-projects-open]");
+  if (opened) return goToProject(opened.dataset.projectsOpen);
+  const quizzed = target.closest("[data-projects-quiz]");
+  if (quizzed) return goToProject(quizzed.dataset.projectsQuiz, "quiz");
+  if (target.closest("[data-projects-back]")) { projectsMode = "list"; round = null; loadProjects().catch(() => {}); return renderProjectsPage(); }
 
   const picksUp = target.closest("[data-continue-project]");
-  if (picksUp) { handoffProject = picksUp.dataset.continueProject; handoffOpen = false; return view === "continue" ? loadContinue() : show("continue"); }
+  if (picksUp) return goToProject(picksUp.dataset.continueProject);
   const handsOn = target.closest("[data-continue]");
   if (handsOn && handoff) {
-    if (handsOn.dataset.continue === "open") { handoffOpen = !handoffOpen; return renderContinue(); }
+    if (handsOn.dataset.continue === "open") { handoffOpen = !handoffOpen; return renderProjectsPage(); }
     return toast(await copyText(handoff.text) ? "Copied. Paste it into a new session, and read it before you send it." : "Could not copy.");
   }
   const quizOption = target.closest("[data-pick]");
@@ -1664,13 +1682,14 @@ async function act(event) {
     const second = round.again.has(asked.id);
     if (right && !second) round.right += 1;
     if (!right && !second) { round.again.add(asked.id); round.list.push(asked); }
-    renderBuilt();
-    if (!second) { built = await post("/api/built", { id: asked.id, knew: right }); renderBuilt(); }
+    renderProjectsPage();
+    if (!second) { built = await post("/api/built", { id: asked.id, knew: right }); renderProjectsPage(); }
     return;
   }
   const quizOnward = target.closest("[data-quiz]");
-  if (quizOnward && round) {
+  if (quizOnward && (round || quizOnward.dataset.quiz === "other")) {
     const what = quizOnward.dataset.quiz;
+    if (what === "other") quizProject = null;
     if (what === "again") startRound(Math.max(0, built.projects.findIndex((project) => project.project === round.project)));
     else if (what === "other") startRound(0);
     else {
@@ -1680,19 +1699,17 @@ async function act(event) {
       // A round in which everything was skipped has nothing to say: on to the next project.
       if (round.at >= round.list.length && !round.asked) startRound((builtAt.project + 1) % built.projects.length);
     }
-    return renderBuilt();
+    return renderProjectsPage();
   }
-  const quizProject = target.closest("[data-built-project]");
-  if (quizProject) { startRound(Number(quizProject.dataset.builtProject)); return renderBuilt(); }
   const noVoice = target.closest("[data-voice-missing]");
-  if (noVoice) { voiceAsked = noVoice.dataset.voiceMissing === "open"; return renderBuilt(); }
+  if (noVoice) { voiceAsked = noVoice.dataset.voiceMissing === "open"; return renderProjectsPage(); }
   const quizSwitch = target.closest("[data-setting-on]");
   if (quizSwitch) {
     // The one switch that was missing, pressed where it was missed.
     prefs = await post("/api/settings", { [quizSwitch.dataset.settingOn]: true });
     voiceAsked = false;
     await Promise.all([load(), loadBuilt()]);
-    return renderBuilt();
+    return renderProjectsPage();
   }
   if (target.closest("#today-said")) { waitedOpen = !waitedOpen; return render(); }
   if (target.closest("[data-lookback-open]")) { lookbackOpen = !lookbackOpen; return render(); }
@@ -1974,7 +1991,7 @@ document.addEventListener("keydown", (event) => {
   // A tool in the flow picture is pressed with the keyboard like any button.
   if ((event.key === "Enter" || event.key === " ") && event.target.matches?.(".flowmap .node, [data-again], [data-replay-line], [data-wrule]")) { event.preventDefault(); return event.target.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
   // The quiz is answered from the keyboard: a figure picks, Enter goes on.
-  if (view === "built" && round && !event.metaKey && !event.ctrlKey && !event.altKey && !event.target.matches?.("input, textarea")) {
+  if (view === "projects" && projectsMode === "quiz" && round && !event.metaKey && !event.ctrlKey && !event.altKey && !event.target.matches?.("input, textarea")) {
     const press = /^[1-4]$/.test(event.key) ? `[data-pick="${Number(event.key) - 1}"]:not([disabled])` : event.key === "Enter" && !event.target.matches?.("button, a") ? `[data-quiz="next"], [data-quiz="again"], [data-quiz="other"]` : "";
     const button = press && $(`#built-card ${press}`);
     if (button) { event.preventDefault(); return button.click(); }

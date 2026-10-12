@@ -47,7 +47,7 @@ Find needs two things that are not in the repository: an embedding model in `app
 
 The local server asks for a key that is made anew at every start.
 
-- **An agent that connects over HTTP** holds the key of an earlier start. Open **More → Agents**, copy the settings again and paste them into the agent. An agent that starts the MCP server as a command needs no key.
+- **An agent that connects over HTTP** holds the key of an earlier start. Open **Settings → Agents → Connect an agent**, copy the settings again and paste them into the agent. An agent that starts the MCP server as a command needs no key.
 - **A browser tab** opened at the bare address has no key. Open the address the server printed at start, which carries it once.
 
 ## The port is taken

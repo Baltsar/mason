@@ -24,10 +24,9 @@
         <button type="button" data-view="flow"><span>Flow</span><b id="nav-flow">–</b></button>
         <button type="button" data-view="days"><span>Days</span><b id="nav-days">–</b></button>
         <button type="button" data-view="workflow"><span>Workflow</span><b id="nav-workflow">–</b></button>
-        <button type="button" data-view="built"><span>Built</span><b id="nav-built">–</b></button>
+        <button type="button" data-view="projects"><span>Projects</span><b id="nav-projects">–</b></button>
       </nav>
       <div class="top-actions">
-        <button class="link more" type="button" data-view="more">More</button>
         <button class="link gear" type="button" data-view="settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z" /></svg></button>
         <button class="pill presence" id="presence" type="button"><i></i><span>Starting</span></button>
       </div>
@@ -47,10 +46,6 @@
         <section class="propose" id="propose" aria-live="polite" hidden></section>
         <section class="projects" id="projects-card" aria-live="polite" hidden></section>
         <section class="card ask" id="question-card" aria-live="polite" hidden></section>
-        <details class="log">
-          <summary>Log<span id="trust-line"></span></summary>
-          <ol id="signals"></ol>
-        </details>
       </section>
 
       <section class="view" data-page="flow" hidden>
@@ -69,6 +64,7 @@
         <div class="month" id="days-month"></div>
         <div class="drill" id="days-drill" hidden></div>
         <section class="lanes" id="days-lanes" aria-label="Projects this month"></section>
+        <p class="aside"><button class="quiet" type="button" data-view="recap">The week as news</button></p>
       </section>
 
       <section class="view" data-page="workflow" hidden>
@@ -79,30 +75,21 @@
         <section class="told" id="workflow-rules" aria-label="What you tell your agents" hidden></section>
       </section>
 
-      <section class="view" data-page="built" hidden>
-        <p class="eyebrow"><span id="built-meta"></span></p>
-        <div class="asked" id="built-card" aria-live="polite"></div>
-        <div class="chips" id="built-projects"></div>
+      <section class="view" data-page="projects" hidden>
+        <p class="eyebrow"><button class="back" type="button" data-projects-back hidden>Projects</button><span id="projects-meta"></span></p>
+        <div class="plist" id="projects-list"></div>
+        <div class="handoff" id="continue-card" aria-live="polite" hidden></div>
+        <div class="asked" id="built-card" aria-live="polite" hidden></div>
       </section>
 
       <section class="view" data-page="find" hidden>
-        <p class="eyebrow"><span id="find-meta"></span></p>
+        <p class="eyebrow"><button class="back" type="button" data-view="projects">Projects</button><span id="find-meta"></span></p>
         <input class="seek" id="find-query" type="text" enterkeyhint="search" placeholder="What are you looking for?" autocomplete="off" spellcheck="false" aria-label="Find something you said, by what it means" />
         <div class="found" id="find-results" aria-live="polite"></div>
       </section>
 
-      <section class="view" data-page="continue" hidden>
-        <p class="eyebrow"><span id="continue-meta"></span></p>
-        <div class="handoff" id="continue-card" aria-live="polite"></div>
-        <div class="chips" id="continue-projects"></div>
-      </section>
-
-      <section class="view" data-page="more" hidden>
-        <div class="doors" id="doors"></div>
-      </section>
-
       <section class="view" data-page="recap" hidden>
-        <p class="eyebrow"><span id="recap-meta"></span></p>
+        <p class="eyebrow"><button class="back" type="button" data-view="days">Days</button><span id="recap-meta"></span></p>
         <h1 class="statement" id="recap-heading">Your week, as news.</h1>
         <div class="onair" id="onair" hidden>
           <div class="bar"><i></i></div>
@@ -118,6 +105,7 @@
       </section>
 
       <section class="view" data-page="agents" hidden>
+        <p class="eyebrow"><button class="back" type="button" data-view="settings">Settings</button></p>
         <h1 class="statement">One memory,<br />every agent.</h1>
         <div class="pair agents-pair">
           <div class="card terminal">
