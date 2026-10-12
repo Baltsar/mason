@@ -192,7 +192,7 @@ async function loadWays() {
 }
 // The models that can write on this Mac: the ones Mason fetches and runs itself, and any that Ollama or LM Studio is running.
 const onThisMac = () => [
-  ...ways.mason.models.map((model) => ({ value: `mason|${model.key}`, label: `${model.name} · ${size(model.bytes)} · kept by Mason`, own: model })),
+  ...ways.mason.models.map((model) => ({ value: `mason|${model.key}`, label: `${model.name} · ${size(model.bytes)}`, own: model })),
   ...ways.local.flatMap((place) => place.models.map((model) => ({ value: `${place.url}|${model}`, label: `${model} · ${place.app}` }))),
 ];
 const size = (bytes) => bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`;

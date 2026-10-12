@@ -120,25 +120,37 @@ async function askEndpoint(system, prompt, timeoutMs, purpose) {
 
 // Mason's own model. It is slower than a model in a data centre and has to be
 // loaded first: a summary of a busy project took two minutes on an M4 when
-// this was written. So it is given five at the least. It is held to
-// JSON by the runner itself: a small model asked nicely still adds a word
-// before the brace now and then.
-async function askOwn(system, prompt, timeoutMs, purpose) {
+// this was written. It answers one thing at a time, so what is asked of it
+// waits its turn here, and the five minutes each is given are counted from
+// when its turn comes. It is held to JSON by the runner itself: a small model
+// asked nicely still adds a word before the brace now and then. And it is
+// reminded of the language last, where a small model listens best: asked
+// about Swedish prompts, it answered in Swedish.
+const IN_ENGLISH = "Write every value in English, whatever language the prompts are in. A quote stays in the language it was said in.";
+let ownTurn = Promise.resolve();
+function askOwn(system, prompt, timeoutMs, purpose) {
+  const turn = ownTurn.then(() => answerOwn(system, prompt, timeoutMs, purpose));
+  ownTurn = turn.catch(() => null);
+  return turn;
+}
+async function answerOwn(system, prompt, timeoutMs, purpose) {
   const server = await ownServer();
   if (!server) { note("not answering"); return null; }
   try {
     const response = await fetch(`${server.url}/chat/completions`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${server.key}` },
-      body: JSON.stringify({ messages: [{ role: "system", content: system }, { role: "user", content: prompt }], response_format: { type: "json_object" }, temperature: 0.2, max_tokens: 1800 }),
+      body: JSON.stringify({ messages: [{ role: "system", content: system }, { role: "user", content: `${prompt}\n\n${IN_ENGLISH}` }], response_format: { type: "json_object" }, temperature: 0.2, max_tokens: 3500 }),
       signal: AbortSignal.timeout(Math.max(timeoutMs, 300_000)),
     });
-    note(response.ok ? "" : "not answering");
-    if (!response.ok) return null;
+    if (!response.ok) { note("not answering"); return null; }
     const reply = await response.json();
     const said = reply.choices?.[0]?.message?.content;
     tell(purpose, reply.usage?.prompt_tokens || roughly(system + prompt), reply.usage?.completion_tokens || roughly(said));
-    return parsed(said);
+    // Cut off before it was done is no answer, and is said to be none: half a memory would be worse.
+    const whole = reply.choices?.[0]?.finish_reason !== "length" ? parsed(said) : null;
+    note(whole ? "" : "not answering");
+    return whole;
   } catch { note("not answering"); return null; }
   finally { ownRests(); }
 }
