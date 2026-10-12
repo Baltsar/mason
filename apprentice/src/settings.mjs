@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
+import { CATALOG, setOwnModel } from "./own-model.mjs";
 import { atomicJson, paths, readJson } from "./store.mjs";
 
 // The few things a person may want to change. Each has a default that works,
@@ -8,7 +9,7 @@ import { atomicJson, paths, readJson } from "./store.mjs";
 // Naming chat and mail, asking sites for their icons, and placing what was
 // said by its meaning are off until asked for.
 // Looking for a new version asks GitHub once a day and sends nothing of its owner's.
-const DEFAULTS = { name: "", speech: true, summaries: true, elevenlabs: true, chats: false, logs: true, cues: true, logos: false, meaning: false, updates: true, island: true, ready: true, chime: true, skin: "lime", writer: "", localUrl: "", localModel: "" };
+const DEFAULTS = { name: "", speech: true, summaries: true, elevenlabs: true, chats: false, logs: true, cues: true, logos: false, meaning: false, updates: true, island: true, ready: true, chime: true, skin: "lime", writer: "", localUrl: "", localModel: "", ownModel: "" };
 // Where a model on this Mac may be reached from here: the address Ollama and
 // LM Studio listen on by default, and nothing else. Any other endpoint is set
 // by hand in .env.local, so that a press in a window can never point the
@@ -49,7 +50,8 @@ function apply() {
   // Which model writes. A key that belongs to an endpoint named in .env.local
   // goes to that endpoint only, never to another model.
   const put = (name, value) => { if (value) process.env[name] = value; else delete process.env[name]; };
-  const model = current.writer === "local" ? [current.localUrl, current.localModel, ""] : current.writer === "claude" ? ["", "", ""] : [outside.llmUrl, outside.llmModel, outside.llmKey];
+  const model = current.writer === "local" ? [current.localUrl, current.localModel, ""] : current.writer === "claude" || current.writer === "mason" ? ["", "", ""] : [outside.llmUrl, outside.llmModel, outside.llmKey];
+  setOwnModel(current.writer === "mason" ? current.ownModel : "");
   put("APPRENTICE_LLM_URL", model[0]);
   put("APPRENTICE_LLM_MODEL", model[1]);
   put("APPRENTICE_LLM_KEY", model[2]);
@@ -59,7 +61,9 @@ function writerOf(value) {
   const localUrl = LOCAL_URLS.includes(value?.localUrl) ? value.localUrl : "";
   const localModel = /^[\w.:\/-]{1,80}$/.test(value?.localModel || "") ? value.localModel : "";
   const local = value?.writer === "local" && localUrl && localModel;
-  return { writer: local ? "local" : value?.writer === "claude" ? "claude" : "", localUrl: local ? localUrl : "", localModel: local ? localModel : "" };
+  // One of Mason's own models is a name from its short list, and nothing else.
+  const own = value?.writer === "mason" && Object.hasOwn(CATALOG, value?.ownModel) ? value.ownModel : "";
+  return { writer: local ? "local" : own ? "mason" : value?.writer === "claude" ? "claude" : "", localUrl: local ? localUrl : "", localModel: local ? localModel : "", ownModel: own };
 }
 
 function clean(value) {
@@ -81,7 +85,8 @@ function clean(value) {
     // that was once kept for the glass is not read any more.
     skin: SKINS.includes(value?.skin) ? value.skin : "lime",
     // Which model writes: "" is what .env.local names or else Claude, "claude"
-    // is the Claude login whatever .env.local says, "local" a model on this Mac.
+    // is the Claude login whatever .env.local says, "local" a model another
+    // program runs on this Mac, "mason" one that Mason keeps and runs itself.
     ...writerOf(value),
   };
 }

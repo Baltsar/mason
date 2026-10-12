@@ -42,6 +42,8 @@ Settings groups its switches by this, under **Leaves this Mac**.
 
 With a model on the Mac, or Summaries off, and the other three off, nothing leaves the Mac. See [Models and voice](models-and-voice.md).
 
+One more thing reaches out, and only on a press: **Download**, for a model that Mason is to keep and run itself, asks Hugging Face for that one file. Nothing of yours is sent with the request, and after it nothing is.
+
 ## Where it is kept
 
 Inside the folder you cloned, and not in the repository:

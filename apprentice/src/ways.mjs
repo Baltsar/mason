@@ -1,4 +1,5 @@
 import { askModel, claudeFound, modelStatus } from "./llm.mjs";
+import { CATALOG, cancelDownload, download, ownReady, ownStatus } from "./own-model.mjs";
 import { settings } from "./settings.mjs";
 
 // The ways Mason can be run. It counts and measures by itself; a model adds
@@ -8,8 +9,10 @@ import { settings } from "./settings.mjs";
 // later from a switch.
 //
 // There are three ways, and a fourth that only shows when it is set up by
-// hand: no model; the Claude login already on this Mac; a model running on
-// this Mac; and an endpoint named in .env.local. Only what works is offered.
+// hand: no model; the Claude login already on this Mac; a model on this Mac;
+// and an endpoint named in .env.local. A model on this Mac is one that Mason
+// fetches, keeps and runs itself (own-model.mjs), or one that Ollama or LM
+// Studio is already running. Only what works is offered.
 
 // The programs that run a model on this Mac, at the address each listens on
 // by default. Only these are looked for and only these can be chosen here:
@@ -38,11 +41,14 @@ export async function waysPayload({ outside = "", fetcher = fetch } = {}) {
   try { host = outside ? new URL(outside).host : ""; } catch {}
   return {
     // What is in use: nothing, Claude, a model on this Mac, or what .env.local names.
-    chosen: !chosen.summaries ? "none" : chosen.writer === "local" ? "local" : chosen.writer === "claude" || !host ? "claude" : "own",
+    chosen: !chosen.summaries ? "none" : chosen.writer === "local" || chosen.writer === "mason" ? "local" : chosen.writer === "claude" || !host ? "claude" : "own",
     // Whether Claude Code is on this Mac, and why it last refused when it is the one in use.
     claude: { found: claudeFound(), problem: status.name === "Claude" ? status.problem || "" : "" },
     local: await localModels(fetcher),
-    localChosen: chosen.writer === "local" ? { url: chosen.localUrl, model: chosen.localModel } : null,
+    // Mason's own models are named with "mason" where another program's have an address.
+    localChosen: chosen.writer === "local" ? { url: chosen.localUrl, model: chosen.localModel } : chosen.writer === "mason" ? { url: "mason", model: chosen.ownModel } : null,
+    // What Mason can fetch and run itself, whether there is room, and how far a fetch has come.
+    mason: await ownStatus(),
     own: host ? { host } : null,
   };
 }
@@ -57,3 +63,14 @@ export async function checkModel(ask = askModel) {
   const status = modelStatus();
   return reply ? { ok: true, ms: Date.now() - started, name: status.name } : { ok: false, why: status.problem || "not answering", name: status.name };
 }
+
+// One of Mason's own models is fetched because its owner pressed for it, and
+// may be chosen once it is there. `changed` is told each time the count of
+// bytes moves on, so the window can show it.
+export function fetchOwn(key, changed) {
+  if (!Object.hasOwn(CATALOG, key)) throw new Error("No such model");
+  // Not waited for: it takes minutes, and where it stands is in what the ways say.
+  download(key, { onProgress: changed }).catch(() => {});
+}
+export const cancelOwn = () => cancelDownload();
+export const ownIsThere = (key) => Object.hasOwn(CATALOG, key) && ownReady(key);

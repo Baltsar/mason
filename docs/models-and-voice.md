@@ -24,7 +24,26 @@ APPRENTICE_LLM_KEY=
 
 That example is Ollama on this Mac. Anything that answers in the OpenAI chat format works: a model on the Mac, or any provider's address. The key is only for a provider that asks for one.
 
-**Choose what writes**, on the second screen of the first start and under Summaries in Settings, lays the ways side by side: no model, Claude, or a model on this Mac. Ollama and LM Studio are found by themselves when one is running, at the address each listens on, and their models are listed to pick from; nothing has to be written in `.env.local` for that. Another endpoint, and a key for it, are still named there.
+**Choose what writes**, on the second screen of the first start and under Summaries in Settings, lays the ways side by side: no model, Claude, or a model on this Mac. Another endpoint, and a key for it, are still named in `.env.local`.
+
+### A model on this Mac
+
+Mason can fetch a model, keep it and run it itself. There are two to choose between, both Gemma 4 as published in GGUF by the llama.cpp project, Apache 2.0:
+
+| Model | File | Wants |
+|---|---|---|
+| **Gemma 4 E2B** | 2.8 GB | 8 GB of memory |
+| **Gemma 4 E4B** | 4.6 GB | 16 GB of memory |
+
+Before anything is fetched Mason says what the model needs and what this Mac has: `Needs 2.8 GB · 41 GB free`. A model that would leave less than 2 GB free on the disk, or that this Mac has too little memory for, cannot be fetched. The figure for the disk leaves out what macOS could clear if asked, so it is a little lower than the one Finder shows.
+
+**Download** fetches the file from Hugging Face, and shows how far it has come. It goes on while the window is closed, and a fetch that was stopped (Cancel, or Mason was restarted) goes on from where it was. The file is given its name only when every byte is there and its sha256 is the one written in [`src/own-model.mjs`](../apprentice/src/own-model.mjs), where each model is pinned to one commit; anything else is thrown away. It is kept in `apprentice/data/models/writer/`, and deleting the file removes it.
+
+Nothing is fetched unless you press for it, and the window can only ask for one of these two by name: where a model comes from is not something a press can say.
+
+The model is run by **llama.cpp**, which is not in the repository: `brew install llama.cpp`, or a build from [its releases](https://github.com/ggml-org/llama.cpp/releases) unpacked into `apprentice/.runtime/llama/`. Without it the model is offered and said to need it. It is started when a summary is to be written, listens on this Mac only, answers only who holds the key of that start, and is stopped after four minutes of quiet; while it is loaded it holds about as much memory as its file is large. A summary of a busy project takes a minute or two, where Claude takes seconds, and a small model follows instructions less closely than a large one.
+
+Ollama and LM Studio are found by themselves when one is running, at the address each listens on, and their models are listed beside Mason's own to pick from; nothing has to be written in `.env.local` for that.
 
 **Summaries** in Settings shows which model is writing and switches it off. On the same row stand the tokens it took today, and under it the last seven days. The count is the provider's own figure; nothing of what was sent or answered is kept with it.
 

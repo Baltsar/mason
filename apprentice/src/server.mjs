@@ -27,7 +27,7 @@ import { callContext, ensureAgent, recallContext, signedUrl, tutorContext } from
 import { MEMORY_VERSION, mergeInferred, projectMemory, savedMemory } from "./memory.mjs";
 import { makeEpisode, playEpisode, podcastBusy, podcastState } from "./podcast.mjs";
 import { hasElevenLabsKey, loadSettings, outsideEndpoint, ownerName, saveSettings, settings } from "./settings.mjs";
-import { checkModel, waysPayload } from "./ways.mjs";
+import { cancelOwn, checkModel, fetchOwn, ownIsThere, waysPayload } from "./ways.mjs";
 import { modelStatus, onUse } from "./llm.mjs";
 import { fromHere, holdsKey, makeKey, needsKey, usableKey } from "./guard.mjs";
 import { collectable } from "./collection.mjs";
@@ -701,9 +701,21 @@ const server = http.createServer(async (request, response) => {
       if (post) {
         const input = await body(request);
         if (input.action === "check") return json(response, 200, await checkModel());
+        // One of Mason's own models, fetched because its owner pressed for it. The
+        // window names one from the short list; where it comes from is not its to say.
+        if (input.action === "fetch" || input.action === "cancel") {
+          try { if (input.action === "fetch") fetchOwn(String(input.model || ""), () => broadcast("ways")); else cancelOwn(); }
+          catch (error) { return json(response, 400, { error: error.message }); }
+          return json(response, 200, await waysPayload({ outside: outsideEndpoint() }));
+        }
         const way = String(input.way || "");
         if (way === "none") await saveSettings({ summaries: false });
         else if (way === "claude") await saveSettings({ summaries: true, writer: "claude" });
+        else if (way === "local" && input.url === "mason") {
+          // Only a model that is there, whole, can be the one that writes.
+          if (!ownIsThere(String(input.model || ""))) return json(response, 400, { error: "That model is not on this Mac yet" });
+          await saveSettings({ summaries: true, writer: "mason", ownModel: String(input.model) });
+        }
         else if (way === "local") await saveSettings({ summaries: true, writer: "local", localUrl: String(input.url || ""), localModel: String(input.model || "") });
         else if (way === "own") await saveSettings({ summaries: true, writer: "" });
         else return json(response, 400, { error: "No such way" });
