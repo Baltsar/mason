@@ -185,14 +185,42 @@ let wayCheck = null;
 async function loadWays() {
   ways = await api("/api/ways");
   const kept = ways.localChosen && `${ways.localChosen.url}|${ways.localChosen.model}`;
-  const offered = ways.local.flatMap((place) => place.models.map((model) => `${place.url}|${model}`));
-  if (!offered.includes(localPick)) localPick = offered.includes(kept) ? kept : offered[0] || "";
+  const offered = onThisMac().map((option) => option.value);
+  // What is in use; else a model another program is already running; else the one of Mason's own that fits this Mac.
+  if (!offered.includes(localPick)) localPick = offered.includes(kept) ? kept : offered.find((value) => !value.startsWith("mason|")) || `mason|${ways.mason.suggested}`;
   if (snapshot) render();
+}
+// The models that can write on this Mac: the ones Mason fetches and runs itself, and any that Ollama or LM Studio is running.
+const onThisMac = () => [
+  ...ways.mason.models.map((model) => ({ value: `mason|${model.key}`, label: `${model.name} · ${size(model.bytes)}`, own: model })),
+  ...ways.local.flatMap((place) => place.models.map((model) => ({ value: `${place.url}|${model}`, label: `${model} · ${place.app}` }))),
+];
+const size = (bytes) => bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`;
+// Where the picked model stands: there, on its way, or what it needs. With the one press that is next, if there is one.
+function onThisMacStands(picked) {
+  const model = picked?.own;
+  if (!picked) return { ready: false, state: "missing", text: "Nothing to run a model with yet.", extra: "" };
+  if (!model) return { ready: true, state: "ok", text: "Running", extra: "" };
+  const { runner, free } = ways.mason;
+  if (model.state === "ready") return runner ? { ready: true, state: "ok", text: `On this Mac · ${size(model.bytes)}`, extra: "" }
+    : { ready: false, state: "missing", text: "It is here, and needs llama.cpp to run. In a terminal: brew install llama.cpp", extra: "" };
+  if (model.state === "fetching") {
+    const share = Math.floor((model.got / model.bytes) * 100);
+    return { ready: false, state: "", text: "", extra: `<span class="fetch" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${share}" aria-label="Fetching ${esc(model.name)}"><i style="--got:${share}%"></i></span><small>${share}% · ${size(model.got)} of ${size(model.bytes)}</small><button class="quiet" type="button" data-own-cancel>Cancel</button>` };
+  }
+  const left = model.bytes - model.got;
+  if (!runner) return { ready: false, state: "missing", text: "Needs llama.cpp to run it. In a terminal: brew install llama.cpp", extra: "" };
+  if (!model.fitsMemory) return { ready: false, state: "missing", text: "Too large for this Mac's memory. Take the smaller one.", extra: "" };
+  if (!model.fitsDisk) return { ready: false, state: "missing", text: `Needs ${size(left)} and room to spare. ${size(free)} free right now.`, extra: "" };
+  return { ready: false, state: model.failed ? "missing" : "", text: model.failed || `Needs ${size(left)} · ${size(free)} free${model.got ? ` · ${size(model.got)} already here` : ""}`, extra: `<button class="secondary" type="button" data-own-fetch="${esc(model.key)}">${model.got ? "Go on fetching" : "Download"}</button>` };
 }
 // What each way gives, costs and sends, in the same four lines, so they can be read across.
 function waysOf() {
-  const { claude, local, own } = ways;
+  const { claude, own } = ways;
   const signedOut = claude.problem === "login expired";
+  const options = onThisMac();
+  const picked = options.find((option) => option.value === localPick);
+  const stands = onThisMacStands(picked);
   return [
     { key: "none", name: "No model", sub: "Mason alone", ready: true,
       gets: "Today, Flow, Days and Workflow. The card when an answer is ready.", costs: "Nothing", leaves: "Nothing", setup: ["ok", "None"] },
@@ -200,12 +228,10 @@ function waysOf() {
       gets: "All of it: summaries, the quiz, the rules you repeat.", costs: "Your Claude plan. A few short calls a day; Settings shows the count.",
       leaves: "Excerpts of your prompts, secrets taken out. To where they already went.",
       setup: !claude.found ? ["missing", "Not found. Install Claude Code and sign in."] : signedOut ? ["missing", "Found, but signed out. In a terminal: claude, then /login."] : ["ok", "Found on this Mac"] },
-    { key: "local", name: "On this Mac", sub: local.map((place) => place.app).join(" · ") || "Ollama or LM Studio", ready: Boolean(localPick),
-      gets: "All of it. How well depends on the model.", costs: "Nothing", leaves: "Nothing",
-      setup: localPick ? ["ok", ""] : ["missing", "Not running. Start Ollama or LM Studio, then look again."],
-      extra: localPick
-        ? `<select id="way-local" aria-label="Model on this Mac">${local.flatMap((place) => place.models.map((model) => `<option value="${esc(`${place.url}|${model}`)}" ${`${place.url}|${model}` === localPick ? "selected" : ""}>${esc(model)} · ${esc(place.app)}</option>`)).join("")}</select>`
-        : `<button class="quiet" type="button" data-ways-look>Look again</button>` },
+    { key: "local", name: "On this Mac", sub: "A model kept and run here", ready: stands.ready,
+      gets: "All of it. How well depends on the model.", costs: "Nothing", leaves: picked?.own ? "Nothing. The model is fetched once, from Hugging Face." : "Nothing",
+      setup: [stands.state, stands.text],
+      extra: `<select id="way-local" aria-label="Model on this Mac">${options.map((option) => `<option value="${esc(option.value)}" ${option.value === localPick ? "selected" : ""}>${esc(option.label)}</option>`).join("")}</select>${stands.extra}` },
     ...(own ? [{ key: "own", name: own.host, sub: "Set in .env.local", ready: true,
       gets: "All of it.", costs: "What that provider charges", leaves: `Excerpts of your prompts, secrets taken out. To ${own.host}.`, setup: ["ok", "Set by hand"] }] : []),
   ];
@@ -1749,7 +1775,13 @@ async function act(event) {
     wayCheck = await post("/api/ways", { action: "check" }).catch(() => ({ ok: false, why: "not answering" }));
     return render();
   }
-  if (target.closest("[data-ways-look]")) return loadWays();
+  const fetched = target.closest("[data-own-fetch]");
+  if (fetched) {
+    // Fetched because it was pressed for, and from nowhere but where the list says.
+    ways = await post("/api/ways", { action: "fetch", model: fetched.dataset.ownFetch }).catch((error) => { toast(error.message); return ways; });
+    return render();
+  }
+  if (target.closest("[data-own-cancel]")) { ways = await post("/api/ways", { action: "cancel" }); return render(); }
   const welcomeAgain = target.closest("[data-welcome-again]");
   if (welcomeAgain) {
     // From Settings: the three screens once more, or only the one about what writes.
@@ -2010,6 +2042,8 @@ function connect() {
   stream.addEventListener("update", (event) => {
     const { kind } = JSON.parse(event.data);
     if (kind === "spoken") { playing = null; todayPlaying = false; if (snapshot) render(); return; }
+    // A model that is being fetched says how far it has come.
+    if (kind === "ways") { if (waysAsked) loadWays().catch(() => {}); return; }
     if (kind === "days" && view === "days") loadDays().catch(() => {});
     // More was read: the count in view follows.
     if (kind === "said") { if (view === "settings") loadPrefs().catch(() => {}); if (view === "find" && !$("#find-query").value.trim()) seek("").catch(() => {}); return; }

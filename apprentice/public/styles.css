@@ -611,6 +611,12 @@ a.quiet { display: inline-flex; align-items: center; text-decoration: none; }
 .welcome .way dd[data-state="missing"] { color: var(--muted); }
 .welcome .way dd .quiet { display: block; margin-top: 10px; }
 .welcome .way select { width: 100%; min-height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--ink); color: var(--paper); font: 14px var(--font); }
+.welcome .way dd select { margin-top: 8px; }
+.welcome .way dd > .secondary { display: block; margin-top: 10px; min-height: 34px; }
+.welcome .way dd small { display: block; margin-top: 6px; color: var(--muted); font: 12px var(--mono); }
+/* A model on its way: how far it has come. */
+.welcome .fetch { display: block; height: 6px; margin-top: 12px; overflow: hidden; border-radius: 3px; background: var(--line); }
+.welcome .fetch i { display: block; width: var(--got, 0%); height: 100%; border-radius: 3px; background: var(--loud); transition: width .6s linear; }
 .welcome .way > button { justify-self: start; }
 .welcome .way > button:disabled { opacity: .4; cursor: default; }
 .welcome .check { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 18px; }

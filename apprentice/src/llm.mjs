@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { CATALOG, ownAble, ownModel, ownRests, ownServer } from "./own-model.mjs";
 
 // Mason needs a model for two things only: the summary of a project and the
 // script of the weekly recap. Any model can write them. Out of the box it is
@@ -10,7 +11,9 @@ import path from "node:path";
 // digest costs a fraction of a cent instead of loading the whole coding
 // environment. With APPRENTICE_LLM_URL set it is instead whatever answers
 // there in the OpenAI chat format: a model running on this Mac (Ollama,
-// LM Studio) or any provider's endpoint.
+// LM Studio) or any provider's endpoint. And when one of Mason's own models
+// is chosen (own-model.mjs), it is that file on this Mac, run by llama.cpp
+// for as long as it is needed.
 
 const local = path.join(os.homedir(), ".local", "bin", "claude");
 const bin = process.env.APPRENTICE_LLM_BIN || (existsSync(local) ? local : "claude");
@@ -29,8 +32,10 @@ export const claudeFound = () => existsSync(bin) || bin === "claude" && (process
 let refused = { where: "", why: "" };
 const refusal = (text) => /authenticat|oauth|log ?in|unauthori[sz]ed|api key|\b40[13]\b/i.test(text) ? "login expired"
   : /credit|quota|usage limit|rate limit|\b429\b/i.test(text) ? "no usage left" : "not answering";
-const note = (why) => { refused = { where: endpoint(), why }; };
-const problem = () => refused.where === endpoint() ? refused.why : "";
+// The place that is asked: Mason's own model, the endpoint, or (nothing named) Claude.
+const place = () => ownModel() ? `own:${ownModel()}` : endpoint();
+const note = (why) => { refused = { where: place(), why }; };
+const problem = () => refused.where === place() ? refused.why : "";
 
 // What a call took is told to whoever asked to hear it: the server keeps the
 // count. Tokens are the provider's own figure, and where a provider gives
@@ -45,6 +50,7 @@ const tell = (purpose, input, output) => { try { heard?.({ purpose, input, outpu
 export function modelStatus() {
   const url = endpoint();
   const why = problem();
+  if (ownModel()) return { name: CATALOG[ownModel()].name, where: "this Mac", ready: ownAble() && !why, onThisMac: true, ...(why ? { problem: why } : {}) };
   if (!url) return { name: "Claude", where: "your own login", ready: claudeFound() && !why, onThisMac: false, ...(why ? { problem: why } : {}) };
   let host = url;
   try { host = new URL(url).host; } catch {}
@@ -112,11 +118,49 @@ async function askEndpoint(system, prompt, timeoutMs, purpose) {
   } catch { return null; }
 }
 
+// Mason's own model. It is slower than a model in a data centre and has to be
+// loaded first: a summary of a busy project took two minutes on an M4 when
+// this was written. It answers one thing at a time, so what is asked of it
+// waits its turn here, and the five minutes each is given are counted from
+// when its turn comes. It is held to JSON by the runner itself: a small model
+// asked nicely still adds a word before the brace now and then. And it is
+// reminded of the language last, where a small model listens best: asked
+// about Swedish prompts, it answered in Swedish.
+const IN_ENGLISH = "Write every value in English, whatever language the prompts are in. A quote stays in the language it was said in.";
+let ownTurn = Promise.resolve();
+function askOwn(system, prompt, timeoutMs, purpose) {
+  const turn = ownTurn.then(() => answerOwn(system, prompt, timeoutMs, purpose));
+  ownTurn = turn.catch(() => null);
+  return turn;
+}
+async function answerOwn(system, prompt, timeoutMs, purpose) {
+  const server = await ownServer();
+  if (!server) { note("not answering"); return null; }
+  try {
+    const response = await fetch(`${server.url}/chat/completions`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${server.key}` },
+      body: JSON.stringify({ messages: [{ role: "system", content: system }, { role: "user", content: `${prompt}\n\n${IN_ENGLISH}` }], response_format: { type: "json_object" }, temperature: 0.2, max_tokens: 3500 }),
+      signal: AbortSignal.timeout(Math.max(timeoutMs, 300_000)),
+    });
+    if (!response.ok) { note("not answering"); return null; }
+    const reply = await response.json();
+    const said = reply.choices?.[0]?.message?.content;
+    tell(purpose, reply.usage?.prompt_tokens || roughly(system + prompt), reply.usage?.completion_tokens || roughly(said));
+    // Cut off before it was done is no answer, and is said to be none: half a memory would be worse.
+    const whole = reply.choices?.[0]?.finish_reason !== "length" ? parsed(said) : null;
+    note(whole ? "" : "not answering");
+    return whole;
+  } catch { note("not answering"); return null; }
+  finally { ownRests(); }
+}
+
 // Returns the parsed JSON the model replied with, or null when there is no
 // model, it timed out, or the reply was not the JSON that was asked for.
 // `model` names a Claude model; an endpoint always uses the model it was given.
 // `purpose` says what the call is for, for the count of what it took.
 export async function askModel(system, prompt, { timeoutMs = 75_000, model = process.env.APPRENTICE_LLM_MODEL || "haiku", purpose = "other" } = {}) {
   if (!modelAvailable()) return null;
+  if (ownModel()) return askOwn(system, prompt, timeoutMs, purpose);
   return endpoint() ? askEndpoint(system, prompt, timeoutMs, purpose) : askClaude(system, prompt, timeoutMs, model, purpose);
 }

@@ -1,8 +1,6 @@
-import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import { existsSync, readdirSync } from "node:fs";
-import net from "node:net";
 import path from "node:path";
+import { runner, startModel } from "./runner.mjs";
 import { paths } from "./store.mjs";
 
 // To find something by what it means, and not only by the words it was said
@@ -44,17 +42,6 @@ function modelFile() {
   } catch { return null; }
 }
 
-// What runs the model: the one that is named, a build kept in Mason's own
-// folder (a new model can need a newer llama.cpp than the one installed), or
-// the one installed on this Mac. Mason started from its icon does not have
-// the folders of a terminal on its path, so the usual ones are looked in too.
-function runner() {
-  const named = (process.env.APPRENTICE_LLAMA || "").trim();
-  if (named) return existsSync(named) ? named : null;
-  const folders = [path.join(paths.root, ".runtime", "llama"), ...(process.env.PATH || "").split(":"), "/opt/homebrew/bin", "/usr/local/bin"];
-  return folders.filter(Boolean).map((folder) => path.join(folder, "llama-server")).find((file) => existsSync(file)) || null;
-}
-
 // The name the rows are kept under. Rows from two models cannot be compared,
 // so a change of model starts the index again.
 export function embedModel() {
@@ -76,12 +63,6 @@ export function embedStatus() {
   return { name: embedModel(), where: "this Mac", ready: !missing, onThisMac: true, missing };
 }
 
-const freePort = () => new Promise((resolve, reject) => {
-  const probe = net.createServer();
-  probe.once("error", reject);
-  probe.listen(0, "127.0.0.1", () => { const { port } = probe.address(); probe.close(() => resolve(port)); });
-});
-
 let server = null;
 let starting = null;
 let idle = null;
@@ -97,34 +78,18 @@ export function stopEmbedder() {
 }
 process.once("exit", stopEmbedder);
 
-// The model on this Mac, started when it is first needed. It listens on this
-// Mac only, is told to stay off the network, and loads no part for pictures.
+// The model on this Mac, started when it is first needed (runner.mjs).
 async function local() {
   if (server) return server;
   if (refused) return null;
   starting ||= (async () => {
-    const [file, bin] = [modelFile(), runner()];
-    if (!file || !bin) return null;
-    const port = await freePort();
-    // Anything on this Mac can reach a local port, a page in a browser too:
-    // only who knows this key, made anew each time, is answered.
-    const key = randomUUID();
-    const child = spawn(bin, [
-      "-m", file, "--embeddings", "--no-mmproj", "--offline", "--host", "127.0.0.1", "--port", String(port),
-      // A prompt is kept to 600 characters, which is never more tokens than this.
-      "--ctx-size", "8192", "--batch-size", "1024", "--ubatch-size", "1024", "--log-disable",
-    ], { stdio: "ignore", env: { ...process.env, LLAMA_API_KEY: key } });
-    let gone = false;
-    child.once("error", () => { gone = true; });
-    child.once("exit", () => { gone = true; if (server?.child === child) server = null; });
-    const url = `http://127.0.0.1:${port}`;
-    for (const until = Date.now() + START_MS; Date.now() < until && !gone;) {
-      try { if ((await fetch(`${url}/health`, { signal: AbortSignal.timeout(1000) })).ok) return (server = { child, url: `${url}/v1`, key }); } catch {}
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-    refused = gone;
-    child.kill();
-    return null;
+    // A prompt is kept to 600 characters, which is never more tokens than this.
+    const started = await startModel({ file: modelFile(), args: ["--embeddings", "--ctx-size", "8192", "--batch-size", "1024", "--ubatch-size", "1024"] });
+    refused = started.gone;
+    if (!started.server) return null;
+    server = started.server;
+    server.child.once("exit", () => { if (server?.child === started.server.child) server = null; });
+    return server;
   })().finally(() => { starting = null; });
   return starting;
 }
