@@ -565,6 +565,7 @@
         const ready = runtime.debriefReady && state.voice.elevenLabs;
         $("#tools").innerHTML = `
           ${memory?.spoken ? `<button class="round play" type="button" id="memory-play" data-project="${esc(project)}" data-state="${playing === project ? "playing" : "idle"}" aria-label="${playing === project ? "Stop" : "Hear where you left off"}">${playing === project ? ICON.halt : ICON.play}</button>` : ""}
+          ${memory?.left_off ? `<button class="round" type="button" id="continue" aria-label="Continue in a new session">${ICON.go}</button>` : ""}
           ${state.voice.elevenLabs && memory?.left_off ? `<button class="round" type="button" id="recall" data-project="${esc(project)}" aria-label="Quiz me on this">${ICON.quiz}</button>` : ""}
           ${state.voice.elevenLabs ? `<button class="round ring" type="button" id="debrief" ${ready ? "data-ready" : ""} aria-label="${ready ? "Debrief is ready" : "Debrief call"}">${ICON.phone}</button>` : ""}`;
 
@@ -680,6 +681,8 @@
         if (event.target.closest("#open-mic")) { await post("/api/access", { action: "microphone" }); return leaveCall(); }
         const fix = event.target.closest("#trouble[data-fix]");
         if (fix) return post("/api/access", { action: fix.dataset.fix });
+        // The project last worked in, handed to a new session from the window.
+        if (event.target.closest("#continue")) return open("continue");
         if (event.target.closest("#debrief")) return beginCall();
         const recall = event.target.closest("#recall");
         if (recall) return beginCall("recall", recall.dataset.project);

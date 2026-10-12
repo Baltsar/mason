@@ -75,6 +75,7 @@ The questions are written by the model that writes the summaries, in the same ca
 
 ## More
 
+- **Continue.** A project, handed to a new session. An agent starts every session knowing nothing; Mason holds what it needs, written from the agents' own logs: what the project is, how it is put together, what was decided and why, where you stopped, what is still open, and what you asked for after those notes were written. **Continue in Claude Code**, Codex or Cursor opens that agent with the notes in its input, Claude Code in the project's own folder. Nothing is sent until you press Enter there, and Mason writes nothing into the project. **Copy** gives the same words for a teammate or a pull request. What was done with one agent can be picked up with another. Also from a project's row in Today, and from the arrow in the panel.
 - **Find.** Type what it was about and get the project, by meaning and not by the words, in Swedish or English. With nothing typed it shows what you told your agents again and again across projects. Off until switched on: see [Find by meaning](models-and-voice.md#find-by-meaning).
 - **Recap.** The week as a two-minute news bulletin in two voices. Needs a voice: see [Models and voice](models-and-voice.md#voice).
 - **Agents.** The address and the tools of the MCP server. See [Agents and MCP](agents-and-mcp.md).

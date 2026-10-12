@@ -35,6 +35,7 @@ import { endTrial, trialPayload } from "./trial.mjs";
 import { endWelcome, welcomePayload } from "./welcome.mjs";
 import { recordUse, usagePayload } from "./usage.mjs";
 import { noticeFor } from "./notice.mjs";
+import { continueIn } from "./continue.mjs";
 import { fileOf, handover, heldBy, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
 
 useMemoryStore();
@@ -696,6 +697,34 @@ const server = http.createServer(async (request, response) => {
       await endWelcome();
       broadcast("welcome");
       return json(response, 200, { ok: true });
+    }
+    if (url.pathname === "/api/continue") {
+      // A project, ready to be picked up in a new session: the notes Mason
+      // holds, what was said since they were written, and an address for each
+      // agent that opens with them ready. Nothing is written into the project.
+      const index = await projectIndex(dayStart() - 20 * 86_400_000, { maxAgeMs: 60_000 });
+      const known = index.list.filter((item) => item.prompts.length).sort((a, b) => b.prompts.at(-1).at - a.prompts.at(-1).at);
+      const project = known.find((item) => item.name === url.searchParams.get("project")) || known[0];
+      const projects = known.map((item) => item.name);
+      if (!project) return json(response, 200, { projects, project: null });
+      const memory = await projectMemory(project);
+      const written = memory.source === "model";
+      // What was said after the notes were written. Without notes, all of it.
+      const recent = project.prompts.filter((prompt) => !written || prompt.at > (memory.basedOn || 0));
+      const handed = continueIn({ project: project.name, folder: project.folder, memory, recent });
+      // The agent this project was last worked with comes first.
+      const last = project.prompts.at(-1).agent || "Claude Code";
+      const links = handed ? [...handed.links].sort((a, b) => (b.agent === last) - (a.agent === last)) : [];
+      return json(response, 200, {
+        projects,
+        project: project.name,
+        headline: memory.headline || "",
+        leftOff: written ? memory.left_off || "" : "",
+        writtenAt: written ? memory.generatedAt || null : null,
+        since: written ? recent.length : 0,
+        last,
+        ...(handed ? { sections: handed.sections, text: handed.text, links } : { sections: [], text: "", links: [] }),
+      });
     }
     if (url.pathname === "/api/notice" && post) {
       // The card was pressed, put away or ran out. A press brings the agent's
