@@ -9,7 +9,16 @@ const native = window.webkit?.messageHandlers?.apprentice;
 const VIEWS = ["today", "flow", "days", "workflow", "built", "more", "continue", "find", "recap", "agents", "settings"];
 // Names a view once had, or that led to a page that is gone.
 const LEGACY = { now: "today", capture: "today", mcp: "agents", map: "more", teach: "more" };
-const TONES = { work: "var(--lime)", social: "var(--red)", other: "var(--grey)" };
+// The skins, each a stone a mason builds with (skins.css).
+const SKINS = [
+  ["lime", "Lime", "Smoked glass, the green"],
+  ["slate", "Slate", "Cool glass, pale blue"],
+  ["sandstone", "Sandstone", "Warm glass, yellow"],
+  ["patina", "Patina", "Green glass, copper"],
+  ["marble", "Marble", "Grey glass, no colour"],
+  ["granite", "Granite", "Solid. Nothing shows through"],
+];
+const TONES = { work: "var(--loud)", social: "var(--red)", other: "var(--grey)" };
 const TOOLS = [
   ["what_happened_last", "What happened last?"],
   ["what_did_you_learn", "What did you learn?"],
@@ -20,13 +29,19 @@ const TOOLS = [
 ];
 
 let snapshot;
-// The look of the window: the dark one, or liquid glass. An address can ask
-// for one, and for a desktop to lie behind it, to look at it in a browser.
+// What the window is made of: glass in the colours of a skin, or the one skin
+// nothing shows through. An address can ask for one, and for a desktop to lie
+// behind it, to look at it in a browser. The skin last worn is kept by the
+// window itself, so that it opens in it before the server has answered.
 const asked = new URLSearchParams(location.search);
 if (asked.get("wall")) document.documentElement.dataset.wall = asked.get("wall");
+const worn = () => { try { return localStorage.getItem("mason-skin"); } catch { return null; } };
 function applyLook() {
-  const look = asked.get("look") ?? snapshot?.look ?? "";
+  const skin = asked.get("skin") ?? snapshot?.skin ?? worn() ?? "lime";
+  const look = asked.get("look") ?? (skin === "granite" ? "" : "glass");
   if (look) document.documentElement.dataset.look = look; else delete document.documentElement.dataset.look;
+  document.documentElement.dataset.skin = skin;
+  if (snapshot?.skin) { try { localStorage.setItem("mason-skin", snapshot.skin); } catch {} }
 }
 applyLook();
 let view = "today";
@@ -214,7 +229,7 @@ function renderToday() {
   const where = $("#today-waited");
   where.hidden = !line || !waitedOpen || !waiting.waited.where.length;
   if (where.hidden) delete where.dataset.sig;
-  else paint(where, JSON.stringify(waiting.waited), `<header><h2>Answers waited ${minutes(waiting.waited.seconds)}</h2><p>${waiting.waited.answers} finished while you were somewhere else</p></header>${barsOf(waiting.waited.where, (item) => item.tool, (item) => item.seconds, "var(--gold)", (item) => minutes(item.seconds))}`);
+  else paint(where, JSON.stringify(waiting.waited), `<header><h2>Answers waited ${minutes(waiting.waited.seconds)}</h2><p>${waiting.waited.answers} finished while you were somewhere else</p></header>${barsOf(waiting.waited.where, (item) => item.tool, (item) => item.seconds, "var(--says)", (item) => minutes(item.seconds))}`);
 
   renderTrial();
   renderLookback();
@@ -266,8 +281,8 @@ function renderLookback() {
   const numbers = lookbackOpen ? `
     <p class="stats"><b>${back.perHour}</b> changes of tool an hour<b>${Math.max(1, Math.round((back.longest?.seconds || 0) / 60))} min</b> longest in one<b>${back.prompts}</b> prompts<b>${Math.round(back.changes / back.days)}</b> changes of project a day</p>
     <div class="drill-grid">
-      <div><h3>Where the time went</h3>${barsOf(back.projects, (item) => item.name, (item) => item.seconds, "var(--lime)", (item) => `${item.share}%`)}</div>
-      <div>${back.left.to.length ? `<h3>Right after a prompt</h3>${barsOf(back.left.to, (item) => item.tool, (item) => item.count, "var(--paper)", (item) => item.count)}` : ""}${back.waited.where.length ? `<h3>While answers waited</h3>${barsOf(back.waited.where.slice(0, 4), (item) => item.tool, (item) => item.seconds, "var(--gold)", (item) => minutes(item.seconds))}` : ""}</div>
+      <div><h3>Where the time went</h3>${barsOf(back.projects, (item) => item.name, (item) => item.seconds, "var(--loud)", (item) => `${item.share}%`)}</div>
+      <div>${back.left.to.length ? `<h3>Right after a prompt</h3>${barsOf(back.left.to, (item) => item.tool, (item) => item.count, "var(--paper)", (item) => item.count)}` : ""}${back.waited.where.length ? `<h3>While answers waited</h3>${barsOf(back.waited.where.slice(0, 4), (item) => item.tool, (item) => item.seconds, "var(--says)", (item) => minutes(item.seconds))}` : ""}</div>
     </div>` : "";
   paint(node, JSON.stringify([back.from, back.to, back.lines, lookbackOpen]), `<p class="label">${dates(back.from, back.to)} · how you worked</p>
     ${back.lines.map((line) => `<p class="line">${esc(line)}</p>`).join("")}
@@ -529,7 +544,7 @@ function renderMore() {
 /* Flow: how the day moved between tools */
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
-const GROUP_TONES = { ...TONES, chat: "var(--gold)" };
+const GROUP_TONES = { ...TONES, chat: "var(--says)" };
 const dateOf = (day) => { const [year, number, date] = day.split("-").map(Number); return new Date(year, number - 1, date); };
 // Dark letters on a light tile, light letters on a dark one.
 const inkOn = (color) => {
@@ -724,7 +739,7 @@ function renderFlow() {
   const stay = flow.longest;
   renderBigs($("#flow-bigs"), [
     { key: "jumps", number: measured ? flow.jumps : "–", word: flow.jumps === 1 ? "jump" : "jumps", meta: flow.perHour ? `${flow.perHour} an hour` : "", tone: "var(--paper)" },
-    { key: "stay", number: stay ? Math.max(1, Math.round(stay.seconds / 60)) : "–", unit: stay ? "min" : "", word: "unbroken", meta: stay ? `${stay.tool} · ${clock(stay.startedAt)}` : "", tone: "var(--lime)" },
+    { key: "stay", number: stay ? Math.max(1, Math.round(stay.seconds / 60)) : "–", unit: stay ? "min" : "", word: "unbroken", meta: stay ? `${stay.tool} · ${clock(stay.startedAt)}` : "", tone: "var(--loud)" },
   ], drill.flow);
 
   const open = $("#flow-drill");
@@ -733,7 +748,7 @@ function renderFlow() {
   else if (drill.flow === "jumps") {
     const top = flow.pairs.slice(0, 6);
     const most = Math.max(1, top[0]?.count || 1);
-    paint(open, JSON.stringify(["jumps", top]), `<ul class="bars wide">${top.map((pair) => `<li style="--w:${Math.round((pair.count / most) * 100)}%;--tone:var(--lime)"><span>${face(byName.get(pair.a) || { name: pair.a }, 26)}${face(byName.get(pair.b) || { name: pair.b }, 26)}<em>${esc(pair.a)} · ${esc(pair.b)}</em></span><i></i><b>${pair.count}</b></li>`).join("")}</ul>`);
+    paint(open, JSON.stringify(["jumps", top]), `<ul class="bars wide">${top.map((pair) => `<li style="--w:${Math.round((pair.count / most) * 100)}%;--tone:var(--loud)"><span>${face(byName.get(pair.a) || { name: pair.a }, 26)}${face(byName.get(pair.b) || { name: pair.b }, 26)}<em>${esc(pair.a)} · ${esc(pair.b)}</em></span><i></i><b>${pair.count}</b></li>`).join("")}</ul>`);
   } else {
     const longest = [...flow.track].sort((a, b) => b.seconds - a.seconds).slice(0, 5);
     const most = Math.max(1, longest[0]?.seconds || 1);
@@ -761,7 +776,7 @@ function renderFlow() {
   const ways = flow.pairs.filter((pair) => pair.a === flowTool || pair.b === flowTool).slice(0, 6).map((pair) => ({ other: pair.a === flowTool ? pair.b : pair.a, count: pair.count }));
   const most = Math.max(1, ways[0]?.count || 1);
   paint(detail, JSON.stringify([flowTool, picked.seconds, ways]), `<header>${face(picked, 40)}<h2>${esc(picked.name)}</h2><p>${minutes(picked.seconds)} · ${picked.visits} ${picked.visits === 1 ? "visit" : "visits"}</p></header>
-    ${ways.length ? `<ul class="bars wide">${ways.map((way) => `<li data-tool="${esc(way.other)}" style="--w:${Math.round((way.count / most) * 100)}%;--tone:var(--lime)"><span>${face(byName.get(way.other) || { name: way.other }, 26)}<em>${esc(way.other)}</em></span><i></i><b>${way.count}</b></li>`).join("")}</ul>` : `<p class="empty">No jumps to or from it.</p>`}`);
+    ${ways.length ? `<ul class="bars wide">${ways.map((way) => `<li data-tool="${esc(way.other)}" style="--w:${Math.round((way.count / most) * 100)}%;--tone:var(--loud)"><span>${face(byName.get(way.other) || { name: way.other }, 26)}<em>${esc(way.other)}</em></span><i></i><b>${way.count}</b></li>`).join("")}</ul>` : `<p class="empty">No jumps to or from it.</p>`}`);
 }
 
 /* Replay: a stretch of real work, for someone else to sit beside */
@@ -955,7 +970,7 @@ const COLLECTION = `${REPOSITORY}/tree/main/workflows`;
 const COLLECTION_FORM = `${REPOSITORY}/issues/new?template=workflow.yml`;
 // The workflow that is open in the share dialog, in the form the collection keeps.
 let workflowCollect = null;
-const AGENT_TONES = ["var(--lime)", "var(--paper)", "var(--gold)", "var(--cyan)"];
+const AGENT_TONES = ["var(--loud)", "var(--paper)", "var(--says)", "var(--cyan)"];
 const lasted = (seconds) => seconds >= 3600 ? `${(seconds / 3600).toFixed(1)} h` : seconds >= 600 ? `${Math.round(seconds / 60)} min` : mmss(seconds);
 const purposeWord = (key) => workflow.purposes.find((purpose) => purpose.key === key)?.word || "all of it";
 const workflowCard = () => workflow.cards.find((card) => card.purpose === workflowPurpose) || workflow.cards[0];
@@ -1001,9 +1016,9 @@ function renderOpened() {
   const bigs = $("#workflow-bigs");
   bigs.dataset.still = "true";
   renderBigs(bigs, [
-    most && { key: "agents", number: most.share ?? "–", unit: "%", word: most.name, meta: mine.agents[0] ? you(`${mine.agents[0].share}% ${mine.agents[0].name}`) : "", tone: "var(--lime)" },
+    most && { key: "agents", number: most.share ?? "–", unit: "%", word: most.name, meta: mine.agents[0] ? you(`${mine.agents[0].share}% ${mine.agents[0].name}`) : "", tone: "var(--loud)" },
     theirs.perHour !== null && { key: "pace", number: theirs.perHour, word: "prompts an hour", meta: you(mine.perHour), tone: "var(--paper)" },
-    theirs.parallel.usual !== null && { key: "spread", number: theirs.parallel.usual, word: theirs.parallel.usual === 1 ? "project a day" : "projects a day", meta: you(mine.parallel.usual), tone: "var(--gold)" },
+    theirs.parallel.usual !== null && { key: "spread", number: theirs.parallel.usual, word: theirs.parallel.usual === 1 ? "project a day" : "projects a day", meta: you(mine.parallel.usual), tone: "var(--says)" },
     theirs.turn?.seconds && { key: "turn", number: lasted(theirs.turn.seconds).split(" ")[0], unit: lasted(theirs.turn.seconds).split(" ")[1] || "", word: "per prompt", meta: mine.turn ? you(lasted(mine.turn.seconds)) : "", tone: "var(--cyan)" },
   ].filter(Boolean), null);
   $("#workflow-drill").hidden = true;
@@ -1044,9 +1059,9 @@ function renderWorkflow() {
   const most = card.agents[0];
   const screen = card.screen;
   renderBigs($("#workflow-bigs"), card.prompts ? [
-    { key: "agents", number: most.share, unit: "%", word: most.name, meta: card.agents.length > 1 ? `${card.agents.length - 1} more` : "", tone: "var(--lime)" },
+    { key: "agents", number: most.share, unit: "%", word: most.name, meta: card.agents.length > 1 ? `${card.agents.length - 1} more` : "", tone: "var(--loud)" },
     { key: "pace", number: card.perHour ?? "–", word: "prompts an hour", meta: "", tone: "var(--paper)" },
-    { key: "spread", number: card.parallel.usual ?? "–", word: card.parallel.usual === 1 ? "project a day" : "projects a day", meta: "", tone: "var(--gold)" },
+    { key: "spread", number: card.parallel.usual ?? "–", word: card.parallel.usual === 1 ? "project a day" : "projects a day", meta: "", tone: "var(--says)" },
     ...(screen?.waitSeconds ? [{ key: "wait", number: lasted(screen.waitSeconds), word: "an answer waits", meta: "", tone: "var(--cyan)" }] : []),
   ] : [], drill.workflow);
 
@@ -1059,7 +1074,7 @@ function renderWorkflow() {
     const html = {
       agents: () => `${head("Who you say it to", `${card.prompts} prompts in ${card.days} days`)}
         <div class="drill-grid">
-          <div>${barsOf(card.agents, (item) => item.name, (item) => item.prompts, "var(--lime)", (item) => `${item.share}%`)}</div>
+          <div>${barsOf(card.agents, (item) => item.name, (item) => item.prompts, "var(--loud)", (item) => `${item.share}%`)}</div>
           <div>${card.handed.length ? `<h3>Started by another agent, not by you</h3>${barsOf(card.handed, (item) => item.name, (item) => item.sessions, "var(--paper)", (item) => `${item.sessions}`)}` : ""}</div>
         </div>`,
       pace: () => `${head("A piece of work", card.piece ? `${card.piece.count} of them in ${card.days} days` : "too few to say what is usual")}
@@ -1217,7 +1232,7 @@ async function drawWorkflow() {
 
 // The four biggest projects of a month have a colour of their own. Red is
 // kept for what it means elsewhere: social, and a stop.
-const PALETTE = ["var(--lime)", "var(--gold)", "var(--cyan)", "var(--paper)"];
+const PALETTE = ["var(--loud)", "var(--says)", "var(--cyan)", "var(--paper)"];
 const brief = (count) => count >= 60 ? `${Math.round(count / 60)}h` : `${count}m`;
 
 async function loadDays() {
@@ -1259,8 +1274,8 @@ function renderDays() {
   const took = keys.reduce((count, key) => count + worked(key).reduce((ofDay, [, work]) => ofDay + (work.tokens || 0), 0), 0);
   renderBigs($("#days-bigs"), [
     { key: "days", number: workedDays.length, word: workedDays.length === 1 ? "day" : "days", meta: "", tone: "var(--paper)" },
-    { key: "hours", number: Math.round(total / 60), unit: "h", word: "with agents", meta: "", tone: "var(--lime)" },
-    ...(took ? [{ key: "tokens", number: tokens(took).slice(0, -1), unit: tokens(took).slice(-1), word: "tokens", meta: "", tone: "var(--gold)" }] : []),
+    { key: "hours", number: Math.round(total / 60), unit: "h", word: "with agents", meta: "", tone: "var(--loud)" },
+    ...(took ? [{ key: "tokens", number: tokens(took).slice(0, -1), unit: tokens(took).slice(-1), word: "tokens", meta: "", tone: "var(--says)" }] : []),
   ], null);
 
   const busiest = Math.max(1, ...keys.map(sum));
@@ -1431,7 +1446,10 @@ function renderSettings() {
     <div class="barpicks" role="group" aria-label="Where Mason sits in the menu bar">${[[true, "Island", "Beside the notch, with the day in it"], [false, "Icon", "One mark among the others"]].map(([island, name, note]) => `<button type="button" class="barpick" data-island="${island}" aria-pressed="${settings.island === island}">
       <span class="minibar" data-kind="${island ? "island" : "icon"}"><i class="menus"></i>${island ? `<i class="isle">${snapshot?.activity?.workPercent ?? 65}%</i>` : ""}<i class="notch"></i>${island ? `<i class="eye"></i>` : ""}<i class="gap"></i>${island ? "" : `<i class="mark"></i>`}<i class="dots"></i></span>
       <b>${name}</b><small>${note}</small></button>`).join("")}</div>
-    ${row("glass", "Liquid glass", settings.glass ? on("A look to try") : off("Dark"))}
+    <div class="set"><span>Skin</span><b>${esc(SKINS.find(([key]) => key === settings.skin)?.[1] || "Lime")}</b></div>
+    <div class="skinpicks" role="group" aria-label="What Mason is made of">${SKINS.map(([key, name, note]) => `<button type="button" class="skinpick" data-skin="${key}" aria-pressed="${settings.skin === key}">
+      <span class="pane"><i class="bar"></i><i class="word"></i><i class="line"></i><i class="press"></i><i class="voice"></i></span>
+      <b>${name}</b><small>${note}</small></button>`).join("")}</div>
     ${applied.length ? `<p class="group">In your agents' rules</p>${applied.map((rule) => `<div class="set rule"><span>${esc(rule.rule)}</span><b>${esc(rule.by.join(" · "))}</b></div>`).join("")}` : ""}
     <p class="group">Kept on this Mac</p>
     <div class="set files"><span>Open</span><span class="with"><button class="secondary" type="button" data-reveal="reveal" title="${esc(status.data)}">Memory</button><button class="secondary" type="button" data-reveal="notes">Notes for Obsidian</button></span></div>
@@ -1744,6 +1762,15 @@ async function act(event) {
   const later = target.closest("[data-later]");
   if (later) { await post("/api/answer", { id: later.dataset.later, action: "later" }); return load(); }
 
+  const skinPicked = target.closest(".skinpick");
+  if (skinPicked) {
+    // Worn at once, before the server has answered, so that trying them on is one press each.
+    document.documentElement.dataset.skin = skinPicked.dataset.skin;
+    if (skinPicked.dataset.skin === "granite") delete document.documentElement.dataset.look; else document.documentElement.dataset.look = "glass";
+    prefs = await post("/api/settings", { skin: skinPicked.dataset.skin });
+    await load();
+    return renderSettings();
+  }
   const barPicked = target.closest("[data-island]");
   if (barPicked) {
     prefs = await post("/api/settings", { island: barPicked.dataset.island === "true" });

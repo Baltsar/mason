@@ -11,6 +11,8 @@
       :root {
         --ink: #0e0d0b; --paper: #f3eee2; --muted: #a39d90; --line: #2e2b25; --panel: #171512;
         --lime: #d7ff42; --gold: #d6a647; --red: #ff6b5f; --grey: #8c877d; --night: #18110a;
+        /* The two jobs the colours do, and what the glass is tinted with: as in the window (styles.css). */
+        --loud: var(--lime); --on-loud: #101100; --says: var(--gold); --tint: 16, 14, 11; --pane: 10, 9, 8;
         --font: Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
         --mono: "SFMono-Regular", ui-monospace, Menlo, monospace;
         --ease: cubic-bezier(.2, .8, .2, 1);
@@ -47,15 +49,15 @@
       .top { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; margin-bottom: 6px; }
       .who { display: flex; align-items: center; gap: 9px; min-width: 0; color: var(--muted); font: 600 11px/1 var(--mono); letter-spacing: .09em; text-transform: uppercase; }
       .who i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--grey); }
-      .who[data-state="watching"] i { background: var(--lime); }
-      .who:is([data-state="private"], [data-state="private-surface"], [data-state="paused"]) i { background: var(--gold); }
+      .who[data-state="watching"] i { background: var(--loud); }
+      .who:is([data-state="private"], [data-state="private-surface"], [data-state="paused"]) i { background: var(--says); }
       .who[data-state="permission"] i { background: #ff9f43; }
       .who b { overflow: hidden; color: var(--paper); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
       .tools { display: flex; gap: 8px; }
       .tools .round { width: 36px; height: 36px; background: #1f1f23; color: var(--paper); }
       .tools .round:hover { background: #2a2a2f; }
       .tools .round svg { width: 14px; height: 14px; }
-      .tools .play[data-state="playing"], .tools .ring[data-ready] { background: var(--lime); color: #101100; }
+      .tools .play[data-state="playing"], .tools .ring[data-ready] { background: var(--loud); color: var(--on-loud); }
       .headline { grid-column: 1 / -1; margin: 8px 0 0; font-size: 27px; line-height: 1.06; letter-spacing: -.04em; font-weight: 680; text-wrap: balance; }
       .headline:empty { display: none; }
 
@@ -68,7 +70,7 @@
       .big b i { margin-left: 1px; font-size: .36em; font-style: normal; letter-spacing: -.02em; }
       .big > span { font-size: 34px; line-height: 1; letter-spacing: -.05em; font-weight: 680; }
       .big > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .big[data-group="work"] b { color: var(--lime); }
+      .big[data-group="work"] b { color: var(--loud); }
       .big[data-group="social"] b { color: var(--red); }
       .big[data-group="other"] b { color: #8a8a90; }
 
@@ -77,35 +79,35 @@
       .said:empty { display: none; }
       .said { margin: 12px 0 4px; padding-left: 12px; border-left: 3px solid var(--grey); font-size: 17px; line-height: 1.25; letter-spacing: -.02em; font-weight: 620; }
       .said[data-tone="off"] { border-color: var(--red); }
-      .said[data-tone="on"] { border-color: var(--lime); }
-      .said[data-tone="ready"] { border-color: var(--gold); color: var(--gold); }
+      .said[data-tone="on"] { border-color: var(--loud); }
+      .said[data-tone="ready"] { border-color: var(--says); color: var(--says); }
       html:is([data-mode="ask"], [data-mode="call"]) .said { display: none; }
       html[data-access="needed"][data-mode="full"] .said { display: none; }
 
       /* A question: the question, a field to answer in, a way out. */
-      .ask { position: relative; margin: 0 0 16px; padding: 16px 16px 18px; overflow: hidden; border-radius: 17px; background: var(--gold); color: var(--night); animation: arrive .42s var(--ease) both; }
+      .ask { position: relative; margin: 0 0 16px; padding: 16px 16px 18px; overflow: hidden; border-radius: 17px; background: var(--says); color: var(--night); animation: arrive .42s var(--ease) both; }
       .ask h2 { margin: 0; padding-right: 34px; font-size: 25px; line-height: 1.06; letter-spacing: -.04em; font-weight: 700; text-wrap: balance; }
       .ask .dismiss { position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: rgba(24, 17, 10, .12); color: var(--night); }
       .ask .dismiss:hover { background: rgba(24, 17, 10, .22); }
       .ask .dismiss svg { width: 10px; height: 10px; }
       /* An answer is ready: one line that says whose, and a large way out. */
-      .ready { position: relative; display: flex; align-items: center; gap: 4px; margin: 0 0 16px; padding: 8px 8px 11px 6px; overflow: hidden; border-radius: 17px; background: var(--lime); color: #101100; animation: arrive .42s var(--ease) both; }
+      .ready { position: relative; display: flex; align-items: center; gap: 4px; margin: 0 0 16px; padding: 8px 8px 11px 6px; overflow: hidden; border-radius: 17px; background: var(--loud); color: var(--on-loud); animation: arrive .42s var(--ease) both; }
       html[data-mode="ask"] .ready { margin: 0; }
       html[data-mode="full"] .ready .timer { display: none; }
       .ready button { border: 0; background: transparent; color: inherit; }
       .ready .what { margin: 0; display: flex; flex: 1; align-items: baseline; gap: 9px; min-width: 0; min-height: 44px; padding: 0 10px; border-radius: 12px; text-align: left; }
-      .ready button.what:hover { background: rgba(16, 17, 0, .09); }
+      .ready button.what:hover { background: color-mix(in srgb, var(--on-loud) 9%, transparent); }
       .ready .what i { flex: none; align-self: center; width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: settle 1.1s var(--ease) both; }
       .ready .what b { overflow: hidden; font-size: 23px; line-height: 44px; letter-spacing: -.04em; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
       .ready .what span { flex: none; font-size: 15px; font-weight: 600; opacity: .7; }
       .ready .quiet { display: grid; flex: none; place-items: center; width: 34px; height: 34px; padding: 0; border-radius: 50%; opacity: .62; }
-      .ready .quiet:hover { background: rgba(16, 17, 0, .12); opacity: 1; }
+      .ready .quiet:hover { background: color-mix(in srgb, var(--on-loud) 12%, transparent); opacity: 1; }
       .ready .quiet svg { width: 17px; height: 17px; }
-      .ready .dismiss { display: grid; flex: none; place-items: center; width: 44px; height: 44px; margin-left: 4px; padding: 0; border-radius: 50%; background: #101100; color: var(--lime); }
+      .ready .dismiss { display: grid; flex: none; place-items: center; width: 44px; height: 44px; margin-left: 4px; padding: 0; border-radius: 50%; background: var(--on-loud); color: var(--loud); }
       .ready .dismiss:hover { background: #000; }
       .ready .dismiss svg { width: 14px; height: 14px; }
-      .ready .timer { background: rgba(16, 17, 0, .12); }
-      .ready .timer i { background: #101100; }
+      .ready .timer { background: color-mix(in srgb, var(--on-loud) 12%, transparent); }
+      .ready .timer i { background: var(--on-loud); }
       @keyframes settle { 0% { transform: scale(2.6); opacity: 0; } 60% { transform: scale(.8); opacity: 1; } 100% { transform: none; } }
       @media (prefers-reduced-motion: reduce) { .ready, .ready .what i { animation: none; } }
       .composer { position: relative; display: flex; align-items: flex-end; gap: 8px; min-height: 54px; margin-top: 14px; padding: 7px 7px 7px 16px; border-radius: 27px; background: var(--night); color: var(--paper); }
@@ -116,22 +118,22 @@
       .composer .live p:empty { display: none; }
       /* Before the first word: whether the microphone is open and hears anything. */
       .composer .live p.ghost { color: #a39a85; }
-      .composer[data-ear="hearing"] .live p.ghost { color: var(--lime); }
+      .composer[data-ear="hearing"] .live p.ghost { color: var(--loud); }
       .composer[data-ear="silent"] .live p.ghost { color: var(--red); }
       .composer .live canvas { display: block; width: 100%; height: 26px; }
       .composer .note { display: none; flex: 1; align-self: center; margin: 0; font-size: 16px; font-weight: 600; }
       .mic { background: var(--paper); color: var(--night); }
       .mic:hover { background: #fff; }
-      .send { display: none; background: var(--gold); color: var(--night); }
-      .stop { display: none; position: relative; background: var(--lime); color: var(--night); }
-      .stop::after { content: ""; position: absolute; inset: -5px; border: 2px solid var(--lime); border-radius: 50%; opacity: .5; animation: ring 1.4s ease-out infinite; }
+      .send { display: none; background: var(--says); color: var(--night); }
+      .stop { display: none; position: relative; background: var(--loud); color: var(--night); }
+      .stop::after { content: ""; position: absolute; inset: -5px; border: 2px solid var(--loud); border-radius: 50%; opacity: .5; animation: ring 1.4s ease-out infinite; }
       .composer[data-state="typing"] .send { display: grid; }
       .composer[data-state="listening"] :is(textarea, .mic, .send) { display: none; }
       .composer[data-state="listening"] .live { display: block; }
       .composer[data-state="listening"] .stop { display: grid; }
       .composer:is([data-state="saving"], [data-state="saved"]) :is(textarea, .round) { display: none; }
       .composer:is([data-state="saving"], [data-state="saved"]) .note { display: block; }
-      .composer[data-state="saved"] { background: var(--lime); color: var(--night); }
+      .composer[data-state="saved"] { background: var(--loud); color: var(--night); }
       .composer[data-novoice] .mic { display: none; }
       /* Only ever shown when something went wrong with the microphone. */
       .trouble { display: block; margin: 10px 2px 0; padding: 0; border: 0; background: none; color: var(--night); font-size: 14px; font-weight: 650; line-height: 1.3; text-align: left; }
@@ -143,14 +145,14 @@
       /* A call: what is being said, who is talking, what was kept. */
       .call { padding: 14px 16px 16px; border-radius: 17px; background: var(--panel); animation: arrive .42s var(--ease) both; }
       .call-top { display: flex; align-items: center; gap: 9px; color: var(--muted); font: 600 12px/1 var(--mono); font-variant-numeric: tabular-nums; }
-      .call-top i { width: 7px; height: 7px; border-radius: 50%; background: var(--lime); }
+      .call-top i { width: 7px; height: 7px; border-radius: 50%; background: var(--loud); }
       .call[data-state="calling"] .call-top i { background: var(--grey); }
       .call-top .end { margin-left: auto; width: 36px; height: 36px; background: var(--red); color: #1c0806; }
       .call-top .end svg { width: 16px; height: 16px; transform: rotate(135deg); }
       .call .agent { display: -webkit-box; min-height: 52px; margin: 10px 0 0; overflow: hidden; font-size: 22px; line-height: 1.16; letter-spacing: -.035em; font-weight: 650; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
       .call .agent.cut { color: #77777d; }
       /* What it heard you say, in your words: the proof that it got through. */
-      .call .you { display: -webkit-box; margin: 8px 0 0; overflow: hidden; color: var(--lime); font-size: 15px; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+      .call .you { display: -webkit-box; margin: 8px 0 0; overflow: hidden; color: var(--loud); font-size: 15px; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
       .call .you:empty { display: none; }
       .call .you::before { content: "\201C"; }
       .call .you::after { content: "\201D"; }
@@ -161,19 +163,19 @@
       .ear .dot svg { width: 14px; height: 14px; }
       .ear canvas { display: block; flex: 1; min-width: 0; width: auto; height: 30px; }
       .ear b { flex: none; max-width: 46%; overflow: hidden; color: var(--tone); font: 600 11px/1.2 var(--mono); letter-spacing: .1em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; transition: color .2s; }
-      .call[data-ear="agent"] .ear { --tone: var(--gold); }
+      .call[data-ear="agent"] .ear { --tone: var(--says); }
       .call[data-ear="open"] .ear { --tone: var(--paper); }
-      .call[data-ear="hearing"] .ear { --tone: var(--lime); }
-      .call[data-ear="hearing"] .ear .dot { background: var(--lime); color: var(--night); }
+      .call[data-ear="hearing"] .ear { --tone: var(--loud); }
+      .call[data-ear="hearing"] .ear .dot { background: var(--loud); color: var(--night); }
       .call:is([data-ear="silent"], [data-ear="tap"]) .ear { --tone: var(--red); }
-      .fix { display: inline-grid; place-items: center; height: 44px; margin-top: 14px; padding: 0 20px; border: 0; border-radius: 22px; background: var(--lime); color: #101100; font-size: 15px; font-weight: 700; }
+      .fix { display: inline-grid; place-items: center; height: 44px; margin-top: 14px; padding: 0 20px; border: 0; border-radius: 22px; background: var(--loud); color: var(--on-loud); font-size: 15px; font-weight: 700; }
       .fix:disabled { background: rgba(255, 255, 255, .12); color: var(--muted); cursor: default; }
       .call .saved { display: grid; gap: 6px; margin-top: 10px; }
       .call .saved:empty { display: none; }
       .call .saved p { display: flex; align-items: center; gap: 9px; margin: 0; font-size: 14px; line-height: 1.25; animation: arrive .35s var(--ease) both; }
-      .call .saved p::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
+      .call .saved p::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--says); }
       .call .saved p[data-kind="stopped"]::before { background: var(--red); }
-      .call .saved p[data-kind="cleared"]::before { background: var(--lime); }
+      .call .saved p[data-kind="cleared"]::before { background: var(--loud); }
       .call[data-state="ended"] :is(.ear, .you) { display: none; }
       .call[data-state="ended"]:not([data-blocked]) .end { display: none; }
       .call:not([data-blocked]) #open-mic { display: none; }
@@ -183,7 +185,7 @@
       .access h2 { margin: 0; font-size: 27px; line-height: 1.06; letter-spacing: -.04em; font-weight: 680; text-wrap: balance; }
       html[data-access="needed"][data-mode="full"] .access { display: block; }
       html[data-access="needed"][data-mode="full"] :is(.headline, .bigs, .tools) { display: none; }
-      .call[data-state="ended"] .call-top i { background: var(--gold); }
+      .call[data-state="ended"] .call-top i { background: var(--says); }
 
       @keyframes rise { to { opacity: 1; transform: none; } }
       @keyframes arrive { from { opacity: 0; transform: translateY(-10px) scale(.985); } }
@@ -191,6 +193,7 @@
       @media (prefers-reduced-motion: reduce) { .big { opacity: 1; transform: none; } * { animation: none !important; } }
     </style>
     <link rel="stylesheet" href="/glass-panel.css" />
+    <link rel="stylesheet" href="/skins.css" />
   </head>
   <body>
     <div class="wrap">
@@ -226,6 +229,8 @@
 
       const $ = (selector) => document.querySelector(selector);
       const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
+      // A colour of the skin, as a canvas wants it: the colour itself and not its name.
+      const colour = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
       const native = window.webkit?.messageHandlers?.apprentice;
       const tell = (message) => native ? native.postMessage(message) : null;
       const open = (view) => native ? tell({ type: "open", view }) : (location.href = `/#${view}`);
@@ -361,7 +366,7 @@
             onLevels: (bars) => {
               if (!$("#wave")) return;
               const now = ear(bars.at(-1));
-              drawLevels($("#wave"), bars, now === "silent" ? "#ff6b5f" : "#d7ff42");
+              drawLevels($("#wave"), bars, now === "silent" ? "#ff6b5f" : colour("--loud"));
               if (!heard) ghost(now === "silent" ? "No sound" : now === "hearing" ? "Hearing you" : "Listening", now);
             },
           });
@@ -474,7 +479,7 @@
             onUser: (text) => { $("#call-you").textContent = text; reportHeight(); },
             onInterrupt: () => $("#call-agent").classList.add("cut"),
             onSaved: (step) => { $("#call-saved").insertAdjacentHTML("beforeend", `<p data-kind="${esc(step.kind)}">${esc(step.title)}</p>`); reportHeight(); },
-            onLevels: (bars, who) => drawLevels($("#call-wave"), bars, who === "agent" ? "#d6a647" : node.dataset.ear === "silent" ? "#ff6b5f" : node.dataset.ear === "hearing" ? "#d7ff42" : "#77777d"),
+            onLevels: (bars, who) => drawLevels($("#call-wave"), bars, who === "agent" ? colour("--says") : node.dataset.ear === "silent" ? "#ff6b5f" : node.dataset.ear === "hearing" ? colour("--loud") : "#77777d"),
             onMic: (level, { muted, agent, duplex }) => {
               $("#call-dot").style.setProperty("--level", level.toFixed(2));
               if (node.dataset.state !== "live") return;
@@ -528,6 +533,7 @@
         if (asked.get("wall")) document.documentElement.dataset.wall = asked.get("wall");
         const look = asked.get("look") ?? state.look ?? "";
         if (look) document.documentElement.dataset.look = look; else delete document.documentElement.dataset.look;
+        document.documentElement.dataset.skin = asked.get("skin") ?? state.skin ?? "lime";
         const question = map.questions.find((item) => item.status === "open");
         // The form is rebuilt only for a new question, so a half-said or
         // half-typed answer survives every live update.
