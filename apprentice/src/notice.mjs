@@ -20,6 +20,11 @@ const AWAY_MS = 5 * 60_000;
 const STALE_MS = 3 * 3_600_000;
 // A card stays this long before it leaves by itself.
 export const CARD_MS = 9000;
+// Away for this long is having been away: lunch, a meeting, the night. Coming
+// back from that, one line says where the work was left. A shorter time away
+// is a cup of coffee, and being told after each of those would be a nuisance.
+const WELCOME_AFTER_MS = 30 * 60_000;
+export const WELCOME_MS = 7000;
 const AT_MOST = 4;
 
 const short = (text, max) => { const clean = String(text ?? "").replace(/\s+/g, " ").trim(); return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean; };
@@ -66,5 +71,26 @@ export function noticeFor({ ready = [], turns = [], prompts = [], told = new Set
     // The same thing in a line, for the island and for a reader of the screen.
     text: answers.length === 1 ? `Answer ready · ${short(answers[0].project, 20)}` : `${answers.length} answers ready`,
     until: now + CARD_MS,
+  };
+}
+
+// The line for someone who is back after a long time away: the project last
+// worked in, where it was left in a few words, and how much of today was
+// work. It is quieter than the card about an answer (no sound, no colour of
+// its own) and asks for nothing. It is not said to someone who has already
+// gone to that project's agent, nor into a call, a session or a private
+// moment, and it gives way to the card about answers that are ready, which
+// says more. `percent` is null when nothing was measured today.
+export function backFor({ awayMs = 0, project = "", headline = "", percent = null, here = true, reading = false, busy = false, now = Date.now() } = {}) {
+  if (!here || busy || !project || awayMs < WELCOME_AFTER_MS) return null;
+  if (reading === true || reading === project) return null;
+  return {
+    id: `back-${now}`,
+    kind: "back",
+    project,
+    headline: short(headline, 60),
+    percent: Number.isFinite(percent) ? Math.round(percent) : null,
+    text: `Last in ${short(project, 20)}`,
+    until: now + WELCOME_MS,
   };
 }

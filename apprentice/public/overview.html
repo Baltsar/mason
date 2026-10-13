@@ -108,6 +108,17 @@
       .ready .dismiss svg { width: 14px; height: 14px; }
       .ready .timer { background: color-mix(in srgb, var(--on-loud) 12%, transparent); }
       .ready .timer i { background: var(--on-loud); }
+      /* Back after a long time away: the same line, quiet. Dark, no colour of its own, the figure the only thing lit. */
+      .ready.back { border: 1px solid rgba(255, 255, 255, .14); background: #1c1a16; color: var(--paper); }
+      .ready.back .what { gap: 12px; }
+      .ready.back button.what:hover, .ready.back .quiet:hover { background: rgba(255, 255, 255, .09); }
+      .ready.back .what span { flex: 1; min-width: 0; overflow: hidden; color: var(--muted); opacity: 1; text-overflow: ellipsis; white-space: nowrap; }
+      .ready.back em { flex: none; margin: 0 6px 0 2px; color: var(--loud); font-size: 23px; font-style: normal; font-weight: 700; letter-spacing: -.04em; }
+      .ready.back em i { margin-left: 1px; font-size: .6em; font-style: normal; }
+      .ready.back .dismiss { background: rgba(255, 255, 255, .12); color: var(--paper); }
+      .ready.back .dismiss:hover { background: rgba(255, 255, 255, .22); }
+      .ready.back .timer { background: rgba(255, 255, 255, .08); }
+      .ready.back .timer i { background: var(--muted); }
       @keyframes settle { 0% { transform: scale(2.6); opacity: 0; } 60% { transform: scale(.8); opacity: 1; } 100% { transform: none; } }
       @media (prefers-reduced-motion: reduce) { .ready, .ready .what i { animation: none; } }
       .composer { position: relative; display: flex; align-items: flex-end; gap: 8px; min-height: 54px; margin-top: 14px; padding: 7px 7px 7px 16px; border-radius: 27px; background: var(--night); color: var(--paper); }
@@ -253,6 +264,8 @@
       const WAIT_MS = 24_000;
       // A card that asks nothing is read in a glance and stays a third as long.
       const READY_MS = 9000;
+      // The line about where the work was left is said and gone: it asks for nothing.
+      const BACK_MS = 7000;
       // How long an opened microphone waits for a first word before it gives up.
       const QUIET_MS = 9000;
 
@@ -305,7 +318,7 @@
         bar.style.transform = `scaleX(${timer.left / timer.whole})`;
       }
       function cancelTimer() { holdTimer(); timer.cancelled = true; }
-      function resetTimer() { const whole = notice ? READY_MS : WAIT_MS; clearTimeout(timer.timeout); Object.assign(timer, { left: whole, whole, running: false, cancelled: false }); }
+      function resetTimer() { const whole = notice ? (notice.kind === "back" ? BACK_MS : READY_MS) : WAIT_MS; clearTimeout(timer.timeout); Object.assign(timer, { left: whole, whole, running: false, cancelled: false }); }
 
       /* The answer field. */
 
@@ -418,6 +431,17 @@
             <button class="what" type="button" id="ready-go" ${!rest && first.app ? `data-go="${esc(first.project)}"` : ""} title="${esc(where[0].toUpperCase() + where.slice(1))}" aria-label="${esc(`${card.text}, ${where}`)}"><i></i><b>${esc(names[0])}</b><span>${rest ? `+${rest} ready` : "ready"}</span></button>
             <button class="quiet" type="button" id="ready-sound" aria-pressed="${card.sound ? "false" : "true"}" title="${card.sound ? "Without the sound" : "With the sound"}" aria-label="${card.sound ? "Without the sound" : "With the sound"}">${card.sound ? ICON.sound : ICON.silent}</button>
             <button class="quiet" type="button" id="ready-off" title="Stop telling me" aria-label="Stop telling me when an answer is ready">${ICON.belloff}</button>
+            <button class="dismiss" type="button" id="ready-close" title="Close" aria-label="Close">${ICON.close}</button>
+            <div class="timer"><i id="timer"></i></div>
+          </section>`;
+      }
+      // Back after a long time away: the project last worked in, where it was left, and how much of today was work.
+      function backMarkup(card) {
+        return `
+          <section class="ready back" id="ready" role="status" aria-label="${esc(`${card.text}${card.headline ? `. ${card.headline}` : ""}`)}">
+            <button class="what" type="button" id="back-go" title="Pick it up" aria-label="${esc(`${card.text}, pick it up`)}"><b>${esc(card.project)}</b><span>${esc(card.headline)}</span></button>
+            ${card.percent === null ? "" : `<em title="Work today">${card.percent}<i>%</i></em>`}
+            <button class="quiet" type="button" id="back-off" title="Stop telling me" aria-label="Stop telling me when I come back">${ICON.belloff}</button>
             <button class="dismiss" type="button" id="ready-close" title="Close" aria-label="Close">${ICON.close}</button>
             <div class="timer"><i id="timer"></i></div>
           </section>`;
@@ -546,7 +570,7 @@
           askedId = shown;
           notice = card;
           resetTimer();
-          $("#ask").innerHTML = question ? askMarkup(question) : card ? readyMarkup(card) : "";
+          $("#ask").innerHTML = question ? askMarkup(question) : card ? (card.kind === "back" ? backMarkup(card) : readyMarkup(card)) : "";
           runTimer();
         }
         // In ask mode the panel exists for the question or the card. When it is gone, so is the panel.
@@ -581,7 +605,7 @@
         // today; then, for a day after it was written, how the last days went.
         const { waiting, lookback } = state;
         // While the card is up it says this itself.
-        const answered = card ? [] : [...new Set(waiting.ready.map((answer) => answer.project))];
+        const answered = card?.kind === "ready" ? [] : [...new Set(waiting.ready.map((answer) => answer.project))];
         const fresh = lookback && Date.now() - Date.parse(lookback.writtenAt) < 86_400_000 ? lookback.lines[0] : "";
         // A piece of work that was done before in another project: said for a
         // few minutes after the prompt, and a press shows where.
@@ -642,6 +666,18 @@
           // One answer goes to its agent. Several, or an agent Mason cannot bring forward, open the day.
           await settle(notice, "go", go.dataset.go || "");
           return go.dataset.go ? tell({ type: "close", reason: "went" }) : open("today");
+        }
+        if (event.target.closest("#back-go") && notice) {
+          // The project, ready to be picked up in a new session.
+          await settle(notice, "go");
+          return open("projects/continue");
+        }
+        if (event.target.closest("#back-off") && notice) {
+          cancelTimer();
+          const card = notice;
+          await post("/api/settings", { back: false });
+          $("#ready").innerHTML = `<p class="what"><b>Off</b><span>Back on in Settings</span></p>`;
+          return setTimeout(async () => { await settle(card, "dismiss"); if (mode() === "ask") tell({ type: "close", reason: "off" }); else load(); }, 1600);
         }
         if (event.target.closest("#ready-sound") && notice) {
           // Changed on the card itself; the card stays, and shows which it is now.

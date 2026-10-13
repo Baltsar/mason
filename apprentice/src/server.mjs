@@ -35,7 +35,7 @@ import { lookForUpdate, newer, ownVersion, updatePayload } from "./updates.mjs";
 import { endTrial, trialPayload } from "./trial.mjs";
 import { endWelcome, welcomePayload } from "./welcome.mjs";
 import { recordUse, usagePayload } from "./usage.mjs";
-import { noticeFor } from "./notice.mjs";
+import { backFor, noticeFor } from "./notice.mjs";
 import { briefOf, continueIn, notesName } from "./continue.mjs";
 import { fileOf, handover, heldBy, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
 
@@ -200,14 +200,23 @@ const TAKEN_BACK_MS = 45_000;
 // Coming back counts as coming back for this long, so that the island's next
 // look, a few seconds later, still finds it.
 const BACK_FOR_MS = 20_000;
+// Someone who is back is given a few seconds to land before the line about
+// where they left off is said: gone straight to that project, they need no telling.
+const LANDED_MS = 5000;
+// The island looks every few seconds. A gap this long between two looks is
+// the Mac having slept, with or without having stood idle first.
+const SLEPT_MS = 2 * 60_000;
 const told = new Set();
 let showing = null;
-const away = { since: 0, backAt: 0, ms: 0 };
-async function noticeNow(waiting, runtime, index, { busy = false } = {}) {
+const away = { since: 0, backAt: 0, ms: 0, lookedAt: 0 };
+async function noticeNow(waiting, runtime, index, { busy = false, percent = null } = {}) {
   const now = Date.now();
   const state = presence(runtime);
+  const gap = away.lookedAt ? now - away.lookedAt : 0;
+  away.lookedAt = now;
   if (state === "idle") away.since ||= now - (runtime.currentIdleSeconds ?? 0) * 1000;
   else if (away.since) Object.assign(away, { ms: now - away.since, backAt: now, since: 0 });
+  else if (gap > SLEPT_MS) Object.assign(away, { ms: gap, backAt: now });
   if (now - away.backAt > BACK_FOR_MS) away.ms = 0;
   const here = state === "watching" || state === "private-surface";
   // An agent in front: its project when Mason can tell, otherwise any of them.
@@ -215,13 +224,25 @@ async function noticeNow(waiting, runtime, index, { busy = false } = {}) {
     ? index.resolve({ app: runtime.currentApp, window: runtime.currentWindow || "", at: new Date(now).toISOString() }) || true
     : false;
   if (showing) {
-    const seen = reading === true || showing.answers.every((answer) => answer.project === reading);
+    const seen = reading === true || (showing.kind === "back" ? reading === showing.project : showing.answers.every((answer) => answer.project === reading));
     if (seen || now - showing.at > TAKEN_BACK_MS) showing = null;
     return showing;
   }
-  if (!settings().ready) return null;
-  const notice = noticeFor({ ready: waiting.ready, turns: index.turns(), prompts: index.prompts(), told, here, reading, busy: busy || Boolean(runtime.session?.active), awayMs: away.ms, now });
-  if (!notice) return null;
+  const occupied = busy || Boolean(runtime.session?.active);
+  const notice = settings().ready ? noticeFor({ ready: waiting.ready, turns: index.turns(), prompts: index.prompts(), told, here, reading, busy: occupied, awayMs: away.ms, now }) : null;
+  if (!notice) {
+    // Nothing is ready to be told of. Back after a long time away, one quiet line says where the work was left.
+    if (!settings().back || !away.ms || now - away.backAt < LANDED_MS) return null;
+    const wide = await projectIndex(dayStart() - 20 * 86_400_000, { maxAgeMs: 60_000 });
+    const last = wide.list.filter((item) => item.prompts.length).sort((a, b) => b.prompts.at(-1).at - a.prompts.at(-1).at)[0];
+    const memory = last && (memories.get(last.name) || await savedMemory(last.name));
+    const back = backFor({ awayMs: away.ms, project: last?.name || "", headline: memory?.headline || "", percent, here, reading, busy: occupied, now });
+    // Said once for each time away, whether or not it could be said.
+    away.ms = 0;
+    if (!back) return null;
+    showing = { ...back, at: now };
+    return showing;
+  }
   for (const key of notice.keys) told.add(key);
   away.ms = 0;
   // Where each answer is read: the agent's window that was last in front for that project today.
@@ -579,7 +600,7 @@ async function islandPayload() {
   const project = runtime.currentApp ? index.resolve({ app: runtime.currentApp, window: runtime.currentWindow || "", at: new Date().toISOString() }) : null;
   const onCall = map.debrief?.call?.status === "live";
   // A question comes first, and nothing is said into a call.
-  const notice = await noticeNow(waiting, runtime, index, { busy: Boolean(question) || onCall });
+  const notice = await noticeNow(waiting, runtime, index, { busy: Boolean(question) || onCall, percent: activity.totalSeconds ? activity.workPercent : null });
   return {
     status: presence(runtime),
     // Where Mason sits in the menu bar: as the island beside the notch, or as an icon among the others.
@@ -786,7 +807,7 @@ const server = http.createServer(async (request, response) => {
       // name that came with the request.
       const input = await body(request);
       const notice = showing && showing.id === input.id ? showing : null;
-      const app = input.action === "go" && notice?.answers.find((answer) => answer.project === input.project)?.app;
+      const app = input.action === "go" && notice?.answers?.find((answer) => answer.project === input.project)?.app;
       if (app) execFile("/usr/bin/open", ["-a", app], () => {});
       if (notice) { showing = null; broadcast("notice"); }
       return json(response, 200, { ok: true, opened: Boolean(app) });

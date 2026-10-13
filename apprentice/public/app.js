@@ -1551,6 +1551,7 @@ function renderSettings() {
     <p class="group">How it tells you</p>
     ${row("speech", "Sound")}
     <div class="set"><span>Answer ready</span><span class="seg" role="group" aria-label="Answer ready">${[["off", "Off"], ["card", "A card"], ["sound", "A card and a lute"]].map(([key, label]) => `<button type="button" data-ready="${key}" aria-pressed="${(settings.ready ? (settings.chime ? "sound" : "card") : "off") === key}">${label}</button>`).join("")}</span></div>
+    ${row("back", "When you come back", settings.back ? on("One line: where you left off") : off("Not said"))}
     ${row("cues", "Nudges", settings.cues ? on(nudged) : off("Silent"))}
     <p class="group">How it looks</p>
     <div class="set"><span>Menu bar</span><b>${settings.island ? "Island" : "Icon"}</b></div>
