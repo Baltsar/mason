@@ -80,6 +80,19 @@ The questions are written by the model that writes the summaries, in the same ca
 
 **Find something you said**, under the list, finds a project by what it was about, by meaning and not by the words, in Swedish or English. With nothing typed it shows what you told your agents again and again across projects. Off until switched on: see [Find by meaning](models-and-voice.md#find-by-meaning).
 
+## When you come back
+
+Back at the Mac after half an hour or more (a meeting, lunch, the night), one line drops from the menu bar and is gone after seven seconds: the project you last worked in, where you left it, and the share of today that was work. A press on the project opens it under Projects, ready to be picked up in a new session. It is quiet on purpose: no sound, no colour of its own, and nothing if you went straight to that project. The bell on the line switches it off, as does **When you come back** in Settings.
+
+## Nudges
+
+A nudge is a word in the menu bar at the moment it can be acted on. It rests on your own history, never on a clock or a list you keep. There are two:
+
+- **Waited 9 min · PROJECT.** An answer has waited twice as long as you usually leave one, while you are at the Mac in another tool.
+- **Done before · PROJECT.** A prompt you just sent is the same piece of work as one in another project, a day or more ago. Needs Find switched on.
+
+Each nudge is followed up. A kind you ignore three times in a row goes quiet for two weeks by itself. At most one in ten minutes and six in a day. **Nudges** in Settings shows how the last week went and switches them all off.
+
 ## Calls
 
 With a voice switched on, Mason can call you. Nothing rings: a call is offered, and you take it when you have two minutes.

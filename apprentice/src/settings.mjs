@@ -9,7 +9,7 @@ import { atomicJson, paths, readJson } from "./store.mjs";
 // Naming chat and mail, asking sites for their icons, and placing what was
 // said by its meaning are off until asked for.
 // Looking for a new version asks GitHub once a day and sends nothing of its owner's.
-const DEFAULTS = { name: "", speech: true, summaries: true, elevenlabs: true, chats: false, logs: true, cues: true, logos: false, meaning: false, updates: true, island: true, ready: true, chime: true, skin: "lime", writer: "", localUrl: "", localModel: "", ownModel: "" };
+const DEFAULTS = { name: "", speech: true, summaries: true, elevenlabs: true, chats: false, logs: true, cues: true, logos: false, meaning: false, updates: true, island: true, ready: true, chime: true, back: true, skin: "lime", writer: "", localUrl: "", localModel: "", ownModel: "" };
 // Where a model on this Mac may be reached from here: the address Ollama and
 // LM Studio listen on by default, and nothing else. Any other endpoint is set
 // by hand in .env.local, so that a press in a window can never point the
@@ -81,6 +81,7 @@ function clean(value) {
     island: value?.island !== false,
     ready: value?.ready !== false,
     chime: value?.chime !== false,
+    back: value?.back !== false,
     // The window is glass unless the one skin without it is chosen. A switch
     // that was once kept for the glass is not read any more.
     skin: SKINS.includes(value?.skin) ? value.skin : "lime",

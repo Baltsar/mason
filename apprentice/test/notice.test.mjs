@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { describe, noticeFor } from "../src/notice.mjs";
+import { backFor, describe, noticeFor } from "../src/notice.mjs";
 
 const now = Date.UTC(2026, 9, 11, 10, 0, 0);
 const ago = (seconds) => new Date(now - seconds * 1000).toISOString();
@@ -63,4 +63,22 @@ test("someone who was away is told once, on coming back, of everything that fini
   assert.deepEqual(back.answers.map((answer) => answer.project), ["KIOSK", "MASON"]);
   // A minute away from the keyboard is not being away.
   assert.equal(scene(meanwhile, { awayMs: 60_000 }), null);
+});
+
+test("back after a long time away, one quiet line says where the work was left", () => {
+  const back = { awayMs: 45 * 60_000, project: "KIOSK", headline: "Modem power still a guess", percent: 61.6, now };
+  assert.deepEqual(backFor(back), { id: `back-${now}`, kind: "back", project: "KIOSK", headline: "Modem power still a guess", percent: 62, text: "Last in KIOSK", until: now + 7000 });
+  // Nothing measured today: no figure is made up.
+  assert.equal(backFor({ ...back, percent: null }).percent, null);
+  // A cup of coffee is not having been away.
+  assert.equal(backFor({ ...back, awayMs: 29 * 60_000 }), null);
+  assert.equal(backFor({ ...back, awayMs: 0 }), null);
+  // Already in that project's agent, or in one Mason cannot tell the project of: there is nothing to be told.
+  assert.equal(backFor({ ...back, reading: "KIOSK" }), null);
+  assert.equal(backFor({ ...back, reading: true }), null);
+  assert.equal(backFor({ ...back, reading: "MASON" }).project, "KIOSK");
+  // Not into a call or a session, not to someone who is not there, and not about nothing.
+  assert.equal(backFor({ ...back, busy: true }), null);
+  assert.equal(backFor({ ...back, here: false }), null);
+  assert.equal(backFor({ ...back, project: "" }), null);
 });
