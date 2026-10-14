@@ -99,9 +99,12 @@ let refreshing = null;
 export async function loadDays() {
   if (ledger) return ledger;
   const stored = await readJson(file(), {});
-  // An older ledger is read again from every log there is. How the days moved
-  // and what was said about them then is kept: neither can be read again.
-  ledger = stored.version === VERSION ? { days: {}, moves: {}, lookbacks: [], ...stored } : { version: VERSION, through: 0, days: {}, moves: stored.moves || {}, lookbacks: stored.lookbacks || [] };
+  // An older ledger is read again from every log there is, and a day the
+  // logs can still give is counted again the new way. A day they no longer
+  // hold (the agents clean their logs out after a while) is kept as it was
+  // counted then: thrown away, it could never be had back. So are how the
+  // days moved and what was said about them, which cannot be read again either.
+  ledger = stored.version === VERSION ? { days: {}, moves: {}, lookbacks: [], ...stored } : { version: VERSION, through: 0, days: stored.days || {}, moves: stored.moves || {}, lookbacks: stored.lookbacks || [] };
   return ledger;
 }
 

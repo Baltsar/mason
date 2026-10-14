@@ -1,3 +1,4 @@
+import { masonSaid } from "./mason-said.mjs";
 import { execFile } from "node:child_process";
 import { open, readdir, readFile, stat } from "node:fs/promises";
 import os from "node:os";
@@ -81,7 +82,7 @@ function absorbCodex(log, line, cut = false) {
     // Something said with a picture attached: the words are kept, the picture is not read.
     if (said && !said.startsWith("<") && !said.startsWith("[")) {
       log.turns.push({ prompt: at, done: at, ended: false });
-      if (said.length >= A_SENTENCE) log.prompts.push({ at, text: redact(said, 600), agent: "Codex" });
+      if (said.length >= A_SENTENCE && !masonSaid(said)) log.prompts.push({ at, text: redact(said, 600), agent: "Codex" });
     } else if (log.turns.length) log.turns.at(-1).done = at;
     return;
   }
@@ -109,7 +110,7 @@ function absorbCodex(log, line, cut = false) {
     // What the program itself puts in as the user: context, not something said.
     if (!said || said.startsWith("<") || said.startsWith("[")) return;
     log.turns.push({ prompt: at, done: at, ended: false });
-    if (said.length >= A_SENTENCE) log.prompts.push({ at, text: redact(said, 600), agent: "Codex" });
+    if (said.length >= A_SENTENCE && !masonSaid(said)) log.prompts.push({ at, text: redact(said, 600), agent: "Codex" });
   } else if (turn && row.type === "event_msg" && (payload.type === "task_complete" || payload.type === "turn_aborted")) {
     turn.done = at;
     turn.ended = payload.type === "task_complete";
@@ -145,7 +146,7 @@ function describeGrok(log, summary, history, usage = "") {
     const said = String(row.prompt ?? "").trim();
     // A command for the shell is not something said to the agent.
     if (!Number.isFinite(at) || row.session_id !== known.info?.id || row.is_bash || said.length < A_SENTENCE) continue;
-    prompts.push({ at, text: redact(said, 600), agent: "Grok" });
+    if (!masonSaid(said)) prompts.push({ at, text: redact(said, 600), agent: "Grok" });
   }
   return { ...log, cwd: known.info?.cwd || null, byHand: known.session_kind !== "headless", prompts, spent };
 }
@@ -253,7 +254,7 @@ export function cursorLog(text) {
     log.minutes.add(minuteOf(at));
     // When the answer was finished is not said there, so no answer is ever counted as waiting.
     log.turns.push({ prompt: at, done: at, ended: false });
-    if (said.length >= A_SENTENCE) log.prompts.push({ at, text: redact(said, 600), agent: "Cursor" });
+    if (said.length >= A_SENTENCE && !masonSaid(said)) log.prompts.push({ at, text: redact(said, 600), agent: "Cursor" });
   }
   log.prompts.sort((a, b) => a.at - b.at);
   log.turns.sort((a, b) => a.prompt - b.prompt);

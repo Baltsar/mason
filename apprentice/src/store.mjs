@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { appendFile, chmod, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -58,8 +58,22 @@ export function useMemoryStore() {
 }
 export const eventsVersion = () => memory?.version ?? 0;
 
+// What Mason keeps is what its owner said to their agents, the windows they
+// had in front and the notes about their projects: for no one else on this
+// Mac. A folder only its owner can enter keeps everything in it from another
+// account, whatever the files themselves allow, so the folders are what is
+// closed. Files written from now on are closed too (process.umask in
+// server.mjs and mcp.mjs).
+export async function keepPrivate(folders) {
+  for (const folder of folders) {
+    const info = await stat(folder).catch(() => null);
+    if (info?.isDirectory() && (info.mode & 0o077) !== 0) await chmod(folder, 0o700).catch(() => {});
+  }
+}
+
 export async function ensureStore() {
-  await Promise.all([mkdir(paths.data, { recursive: true }), mkdir(paths.wiki, { recursive: true })]);
+  await Promise.all([mkdir(paths.data, { recursive: true, mode: 0o700 }), mkdir(paths.wiki, { recursive: true, mode: 0o700 })]);
+  await keepPrivate([paths.data, paths.wiki]);
   try { await readFile(paths.events); } catch { await writeFile(paths.events, ""); }
 }
 

@@ -57,6 +57,9 @@ export function namedSurface(snapshot, allowed = settings().chats) {
 }
 
 const TICK_MS = process.env.APPRENTICE_DEMO ? 750 : 2000;
+const TERMINAL = /^(terminal|iterm2?|warp|ghostty|kitty|alacritty|wezterm|hyper|tabby)$/i;
+const TERMINAL_BUNDLES = new Set(["com.apple.Terminal", "com.googlecode.iterm2", "com.mitchellh.ghostty", "dev.warp.Warp-Stable", "net.kovidgoyal.kitty", "org.alacritty", "com.github.wez.wezterm", "co.zeit.hyper"]);
+export const isTerminal = (app, bundle) => TERMINAL.test(String(app || "").trim()) || TERMINAL_BUNDLES.has(bundle);
 const OWN_BUNDLE = "design.headless.apprentice";
 const STILL_FRESH_MS = 45_000;
 // Coming back from a few minutes away, after real project work, is the natural
@@ -116,8 +119,11 @@ export class Collector {
 
   start() {
     if (this.timer) return;
-    this.tick();
-    this.timer = setInterval(() => this.tick(), TICK_MS);
+    // A look that fails (a full disk, a reader that would not start) is said
+    // and the next one is made two seconds later: it does not end the server.
+    const look = () => this.tick().catch((error) => console.error(`A look at the screen failed: ${error.message}`));
+    look();
+    this.timer = setInterval(look, TICK_MS);
   }
 
   stop() {
@@ -270,7 +276,11 @@ export class Collector {
         }
 
         // A surface that classified as private gives up its window title and its prompt.
-        const prompt = classification ? redact(snapshot.focusedText, 2400) : "";
+        // In a terminal the field that has the keyboard is the whole screen:
+        // everything the agent printed, and the commands around it. It is
+        // not something its owner typed, so nothing of it is kept. What was
+        // said to an agent in a terminal is read from the agent's own log.
+        const prompt = classification && !isTerminal(app, snapshot.bundle) ? redact(snapshot.focusedText, 2400) : "";
         const promptHash = snapshot.focusedHash || fingerprint(prompt);
         if (prompt && promptHash !== this.lastPromptHash) {
           this.lastPromptHash = promptHash;

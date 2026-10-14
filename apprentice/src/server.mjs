@@ -1,10 +1,10 @@
 import http from "node:http";
-import { mkdir, readFile, writeFile, unlink } from "node:fs/promises";
+import { chmod, mkdir, readFile, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { execFile, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { Collector } from "./collector.mjs";
-import { appendEvent, ensureStore, eventsVersion, loadMap, loadRuntime, paths, readEvents, readEventsSince, saveMap, saveRuntime, useMemoryStore } from "./store.mjs";
+import { appendEvent, ensureStore, eventsVersion, keepPrivate, loadMap, loadRuntime, paths, readEvents, readEventsSince, saveMap, saveRuntime, useMemoryStore } from "./store.mjs";
 import { buildRecap, writeVault, writeWiki } from "./wiki.mjs";
 import { chime, elevenLabsCredits, speak, stopSpeaking, voiceStatus } from "./voice.mjs";
 import { handleMcp } from "./mcp-handler.mjs";
@@ -40,8 +40,13 @@ import { briefOf, continueIn, notesName } from "./continue.mjs";
 import { fileOf, handover, heldBy, readWorkflow, saveWorkflow, workflowPayload, WORKFLOW_DAYS } from "./workflow.mjs";
 
 useMemoryStore();
+// Everything Mason writes is for its owner alone (see keepPrivate in store.mjs).
+process.umask(0o077);
 await loadLocalEnv();
 await ensureStore();
+// The app and its runner, and the file that may hold keys, are closed the same way.
+await keepPrivate([path.join(paths.root, ".runtime")]);
+await chmod(path.join(paths.root, ".env.local"), 0o600).catch(() => {});
 await loadSettings();
 // Every answer from the model is counted: what it was for and what it took.
 onUse(recordUse);
@@ -1325,6 +1330,11 @@ async function shutdown() {
 const port = Number(process.env.PORT || 4317);
 // A rehearsal on another port keeps its own pid file, so stopping it never hides the real one.
 const pidFile = path.join(paths.root, ".runtime", port === 4317 ? "server.pid" : `server-${port}.pid`);
+// Another program on the port is said in a sentence, instead of a stack the log loses.
+server.on("error", (error) => {
+  console.error(error.code === "EADDRINUSE" ? `Port ${port} on 127.0.0.1 is taken by another program, so Mason cannot start. Quit it, or start Mason with PORT set to another port.` : `Mason's server stopped: ${error.message}`);
+  process.exit(1);
+});
 server.listen(port, "127.0.0.1", () => {
   writeFile(pidFile, `${process.pid}\n`).catch(() => {});
   if (process.platform === "darwin" && process.env.APPRENTICE_OVERLAY !== "0") {
