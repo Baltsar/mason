@@ -115,11 +115,14 @@ function paint(node, signature, html) {
   return true;
 }
 
+// The figure read as a sentence, so the button's name says what pressing it
+// opens even before a screen reader reaches the separate spans inside it.
+const bigLabel = (row) => `${row.number}${row.unit || ""} ${row.word}`.trim();
 function renderBigs(container, rows, open) {
   const keys = rows.map((row) => row.key).join("|");
   if (container.dataset.keys !== keys) {
     container.dataset.keys = keys;
-    container.innerHTML = rows.map((row, index) => `<button class="big" type="button" data-key="${row.key}" style="--i:${index};--tone:${row.tone}" aria-pressed="false"><b></b><span></span><em></em></button>`).join("");
+    container.innerHTML = rows.map((row, index) => `<button class="big" type="button" data-key="${row.key}" style="--i:${index};--tone:${row.tone}" aria-pressed="false" aria-label="${esc(bigLabel(row))}"><b></b><span></span><em></em></button>`).join("");
   }
   rows.forEach((row, index) => {
     const node = container.children[index];
@@ -128,6 +131,7 @@ function renderBigs(container, rows, open) {
     $("span", node).textContent = row.word;
     $("em", node).textContent = row.meta;
     node.setAttribute("aria-pressed", String(open === row.key));
+    node.setAttribute("aria-label", bigLabel(row));
   });
   // What opens under the numbers is told which of them it belongs to: its
   // words and its colour, for a look in which the two do not touch.
@@ -146,7 +150,13 @@ const canVoice = () => snapshot.voice.scribe && canDictate();
 const voiceNote = () => canVoice() ? "press the microphone and say it" : "spoken by the Mac voice until ElevenLabs is connected";
 const MIC = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>`;
 // An answer field that can be spoken into: the words appear as they are heard.
-const answerField = (id, placeholder) => `<div class="composer"><textarea id="${id}" rows="2" placeholder="${placeholder}"></textarea>${canVoice() ? `<button class="mic" type="button" data-mic="${id}" aria-pressed="false" aria-label="Answer by voice" title="Answer by voice">${MIC}</button>` : ""}</div>`;
+// A placeholder alone is not a label (it disappears on input and some screen
+// readers skip it), so the field is named by the question above it when one
+// is given, or by its own placeholder otherwise.
+// aria-label is the fallback name, always present; aria-labelledby, added
+// when the question above the field is known, wins over it for anyone
+// reading the field's name.
+const answerField = (id, placeholder, labelledBy = "") => `<div class="composer"><textarea id="${id}" rows="2" placeholder="${placeholder}" aria-label="${esc(placeholder)}" ${labelledBy ? `aria-labelledby="${esc(labelledBy)}"` : ""}></textarea>${canVoice() ? `<button class="mic" type="button" data-mic="${id}" aria-pressed="false" aria-label="Answer by voice" title="Answer by voice">${MIC}</button>` : ""}</div>`;
 
 /* Today: the mirror, and after a few days how the work was done */
 
@@ -450,7 +460,7 @@ function renderQuestion() {
   node.hidden = !open;
   if (!open) { delete node.dataset.sig; return; }
   node.dataset.state = "open";
-  paint(node, `open-${open.id}`, `<h2>${esc(open.text)}</h2>${answerField("live-answer", "Answer")}<div class="row"><button class="primary" type="button" data-answer="${open.id}">Answer</button><button class="secondary" type="button" data-later="${open.id}">Later</button></div>`);
+  paint(node, `open-${open.id}`, `<h2 id="live-answer-label">${esc(open.text)}</h2>${answerField("live-answer", "Answer", "live-answer-label")}<div class="row"><button class="primary" type="button" data-answer="${open.id}">Answer</button><button class="secondary" type="button" data-later="${open.id}">Later</button></div>`);
 }
 
 /* Projects: every project in one place. A line each; behind it, picking it up in a new session, and the quiz about it */

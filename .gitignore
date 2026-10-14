@@ -7,6 +7,11 @@ apprentice/tmp/
 apprentice/.env.local
 *.log
 
+# A secret in any .env anywhere stays off GitHub; the example files are the exception.
+.env
+.env.*
+!.env*.example
+
 # Working material that is not the product.
 _backup/
 .claude/

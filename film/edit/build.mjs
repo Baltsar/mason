@@ -70,7 +70,7 @@ async function openBrowser() {
 
 async function still(params) {
   const query = new URLSearchParams(params).toString();
-  const file = path.join(cache, `${createHash("sha1").update(query).digest("hex").slice(0, 16)}.png`);
+  const file = path.join(cache, `${createHash("sha256").update(query).digest("hex").slice(0, 16)}.png`);
   if (existsSync(file)) return file;
   browser ??= await openBrowser();
   const loaded = browser.once("Page.loadEventFired");
