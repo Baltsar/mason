@@ -82,17 +82,25 @@ export async function fetchFile({ url, file, bytes, sha256 }, { fetcher = fetch,
     // Asked to go on and answered with the whole file: it is taken from the start.
     if (got && response.status !== 206) return rm(part, { force: true }).then(() => fetchFile({ url, file, bytes, sha256 }, { fetcher, signal, onProgress }));
     const out = createWriteStream(part, { flags: got ? "a" : "w" });
+    // A disk that fills up, or a folder that cannot be written, is said as an
+    // error of this fetch; without a listener it would end the server.
+    let broken = null;
+    const stopped = new Promise((resolve) => out.once("error", (error) => { broken = error; resolve(); }));
     try {
       for await (const chunk of response.body) {
+        if (broken) throw broken;
         got += chunk.length;
         if (got > bytes) throw new Error("The file is larger than the one that was named.");
         hash.update(chunk);
-        if (!out.write(chunk)) await new Promise((resolve) => out.once("drain", resolve));
+        if (!out.write(chunk)) await Promise.race([new Promise((resolve) => out.once("drain", resolve)), stopped]);
+        if (broken) throw broken;
         onProgress(got);
       }
     } finally {
-      await new Promise((resolve) => out.end(resolve));
+      if (broken) out.destroy();
+      else await Promise.race([new Promise((resolve) => out.end(resolve)), stopped]);
     }
+    if (broken) throw broken;
   }
   if (got !== bytes || hash.digest("hex") !== sha256) {
     await rm(part, { force: true });
