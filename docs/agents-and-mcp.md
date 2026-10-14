@@ -32,6 +32,8 @@ The memory is an MCP server. Add it to the agent's MCP configuration, with the p
 
 That command reads the files itself, asks no server and needs no key.
 
+Started this way, Mason is held to the same switches as its window: with **Agent logs** off nothing is read, and it never asks a model itself. What it answers is what Mason already keeps; the summaries are written by Mason's own server.
+
 For an agent that cannot start a command, the same tools answer over HTTP at `http://127.0.0.1:4317/mcp` while Mason is running. That way needs the key of this start, sent as `Authorization: Bearer`. **More → Agents** in the app window copies the settings with the key in them. The key is new at every start, so they are pasted again after a restart.
 
 **Settings → Agents → Connect an agent** also lets you try each tool.
