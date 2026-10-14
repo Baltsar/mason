@@ -1,3 +1,4 @@
+import { masonSaid } from "./mason-said.mjs";
 import { open, readdir, readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -131,7 +132,8 @@ function absorbAll(log, line) {
   // Even a word ("go") starts a turn; only a real sentence is kept as said.
   log.turns.push({ prompt: at, done: at, ended: false });
   if (log.turns.length > 400) log.turns.shift();
-  if (said.length < 12) return;
+  // A brief or a rule prompt Mason handed over is a turn, but not something its owner said.
+  if (said.length < 12 || masonSaid(said)) return;
   log.prompts.push({ at, text: redact(said, 600) });
 }
 
